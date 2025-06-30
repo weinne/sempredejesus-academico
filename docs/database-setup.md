@@ -41,7 +41,7 @@ cp .env.example .env
 ### 2. Variáveis Essenciais
 ```env
 # 🗄️ DATABASE
-DATABASE_URL="postgresql://postgres:Jesusv!ve1@localhost:5432/seminario_db"
+DATABASE_URL="postgresql://postgres:passwd@localhost:5432/seminario_db"
 
 # 🔐 JWT AUTHENTICATION  
 JWT_SECRET="your-super-secret-jwt-key-change-in-production"
@@ -178,7 +178,7 @@ docker compose up -d db
 
 ### Authentication Failed
 - Verificar credenciais no `DATABASE_URL`
-- Senha padrão: `Jesusv!ve1`
+- Senha padrão: `passwd`
 - Usuario padrão: `postgres`
 
 ### Database Doesn't Exist

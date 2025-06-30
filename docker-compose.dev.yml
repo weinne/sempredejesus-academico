@@ -8,11 +8,10 @@ services:
     environment:
       POSTGRES_DB: seminario_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: psswd
+      POSTGRES_PASSWORD: passwd
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      - ./Dump20180203.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "5432:5432"
     networks:
