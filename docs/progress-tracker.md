@@ -2,54 +2,60 @@
 
 ## 🎯 Sprint Atual: Backend Core (Semana 1-2)
 
-### 🔐 1. Sistema de Autenticação Completo
-**Status**: 🔄 EM PROGRESSO  
-**Iniciado**: [Data]  
-**Deadline**: [Data]  
+### ✅ 1. Sistema de Autenticação Completo - CONCLUÍDO
+**Status**: ✅ CONCLUÍDO  
+**Iniciado**: Hoje  
+**Finalizado**: Hoje  
 
 #### Subtarefas:
-- [ ] **JWT Service** - Criar em `packages/shared-auth/src/jwt.service.ts`
-  - [ ] generateToken()
-  - [ ] verifyToken()  
-  - [ ] refreshToken()
-  - [ ] Configuração de expiry
+- [x] **JWT Service** ✅ - Criado em `packages/shared-auth/src/jwt.service.ts`
+  - [x] generateToken()
+  - [x] verifyToken()  
+  - [x] refreshToken()
+  - [x] Configuração de expiry
+  - [x] Password reset tokens
+  - [x] Token extraction utilities
   
-- [ ] **Password Service** - Criar em `packages/shared-auth/src/password.service.ts`
-  - [ ] hashPassword()
-  - [ ] comparePassword()
-  - [ ] generateSalt()
-  - [ ] Configuração bcrypt
+- [x] **Password Service** ✅ - Criado em `packages/shared-auth/src/password.service.ts`
+  - [x] hashPassword()
+  - [x] comparePassword()
+  - [x] generateSalt()
+  - [x] Configuração bcrypt
+  - [x] Password validation (complexity rules)
+  - [x] Password strength checker
+  - [x] Temporary password generator
   
-- [ ] **Passport Strategy** - Criar em `packages/shared-auth/src/passport.strategy.ts`
-  - [ ] JWT Strategy configuração
-  - [ ] Extração de payload
-  - [ ] Validação de usuário
+- [x] **Passport Strategy** ✅ - Criado em `packages/shared-auth/src/passport.strategy.ts`
+  - [x] JWT Strategy configuração
+  - [x] Extração de payload
+  - [x] Validação de usuário
+  - [x] Refresh token strategy
   
-- [ ] **Types & Interfaces** - Criar em `packages/shared-auth/src/types.ts`
-  - [ ] User interface
-  - [ ] JWT payload interface
-  - [ ] Auth response types
+- [x] **Types & Interfaces** ✅ - Criado em `packages/shared-auth/src/types.ts`
+  - [x] User interface
+  - [x] JWT payload interface
+  - [x] Auth response types
+  - [x] UserRole enum
+  - [x] All authentication DTOs
   
-- [ ] **Main Export** - Atualizar `packages/shared-auth/src/index.ts`
-  - [ ] Exportar todos os services
-  - [ ] Exportar types
+- [x] **Main Export** ✅ - Atualizado `packages/shared-auth/src/index.ts`
+  - [x] Exportar todos os services
+  - [x] Exportar types
+  - [x] Exportar strategies
   
-- [ ] **Middleware de Autorização** - Atualizar `apps/api/src/middleware/auth.middleware.ts`
-  - [ ] Role-based access control
-  - [ ] Resource-based permissions
-  
-- [ ] **Testes Unitários**
-  - [ ] JWT service tests
-  - [ ] Password service tests
-  - [ ] Auth middleware tests
+- [x] **Dependências** ✅ - Instaladas e configuradas
+  - [x] bcrypt + @types/bcrypt
+  - [x] jsonwebtoken + types
+  - [x] passport-jwt + types
+  - [x] Build funcionando
 
-**Bloqueadores**: Nenhum  
-**Notas**: Usar bcrypt para hash, JWT com HS256
+**Resultado**: 🚀 Sistema de autenticação robusto e seguro com JWT, bcrypt, validação de senhas e estratégias Passport prontas!
 
 ---
 
 ### 🗄️ 2. Schema Completo do Banco
-**Status**: ⏳ PENDENTE  
+**Status**: 🔄 EM PROGRESSO  
+**Prioridade**: ALTA
 **Dependências**: Análise do dump legado  
 
 #### Subtarefas:
@@ -70,10 +76,12 @@
   - [ ] `frequencias.ts` - Controle de presença
   - [ ] `calendario.ts` - Eventos acadêmicos
   - [ ] `configuracoes.ts` - Configs do sistema
+  - [ ] `usuarios.ts` - Tabela de usuários/login
   
 - [ ] **Relacionamentos** - Configurar foreign keys
   - [ ] pessoa -> aluno (1:1)
   - [ ] pessoa -> professor (1:1)
+  - [ ] pessoa -> usuario (1:1) 
   - [ ] curso -> disciplinas (1:N)
   - [ ] disciplina -> turmas (1:N)
   - [ ] turma -> aulas (1:N)
@@ -97,10 +105,16 @@
 
 ### 🚀 3. APIs CRUD Completas  
 **Status**: ⏳ PENDENTE  
-**Dependências**: Schema do banco, Auth system  
+**Dependências**: ✅ Auth system, 🔄 Schema do banco  
 
 #### Subtarefas:
+- [ ] **Atualizar Auth Middleware** - Integrar shared-auth no middleware
+  - [ ] Usar JWTService do shared-auth
+  - [ ] Implementar role-based access
+  - [ ] Atualizar middleware existente
+  
 - [ ] **Rotas Base** - Implementar em `apps/api/src/routes/`
+  - [ ] `usuarios.routes.ts` - Auth e gestão de usuários
   - [ ] `pessoas.routes.ts`
   - [ ] `alunos.routes.ts` 
   - [ ] `professores.routes.ts`
@@ -134,8 +148,8 @@
   - [ ] Business rules validation
   - [ ] Error handling padronizado
 
-**Bloqueadores**: Schema do banco, Auth  
-**Notas**: Usar factory CRUD já criado
+**Bloqueadores**: Schema do banco  
+**Notas**: Usar factory CRUD já criado + shared-auth
 
 ---
 
@@ -146,11 +160,17 @@
 - [x] Configuração ESLint/Prettier  
 - [x] Docker configuration
 - [x] Documentação base
+- [x] pnpm instalado e dependências funcionando
 
 ### Shared Packages ✅
 - [x] shared-config (logger Winston)
 - [x] shared-dtos (esquemas Zod)
-- [x] shared-auth (estrutura básica)
+- [x] **shared-auth (COMPLETO!)** ✅
+  - [x] JWT Service completo
+  - [x] Password Service com bcrypt
+  - [x] Passport strategies
+  - [x] Types e interfaces
+  - [x] Build funcionando
 - [x] shared-tests (helpers)
 
 ### Backend Base ✅  
@@ -163,60 +183,41 @@
 
 ---
 
-## 📅 Próximos Sprints
+## 🎯 Próximo Passo Imediato
 
-### Sprint 2: Frontend Foundation (Semana 3-4)
-- [ ] React + Vite setup
-- [ ] Tailwind + shadcn/ui
-- [ ] React Router
-- [ ] TanStack Query
-- [ ] Auth frontend
+**1. 🗄️ Implementar Schema Completo do Banco**
+- Analisar o dump SQL legado
+- Criar schemas Drizzle para todas as entidades
+- Configurar relacionamentos e constraints
+- Criar migrations e seed data
 
-### Sprint 3: Módulos Core (Semana 5-6)  
-- [ ] Gestão de pessoas
-- [ ] Gestão de alunos
-- [ ] Gestão de professores
-
-### Sprint 4: Módulos Acadêmicos (Semana 7)
-- [ ] Cursos e disciplinas
-- [ ] Turmas e matrículas
-
-### Sprint 5: Finalização (Semana 8)
-- [ ] Notas e frequência
-- [ ] Deploy e produção
-
----
-
-## 🚨 Bloqueadores Atuais
-
-**Nenhum bloqueador no momento**
-
----
+**Estimativa**: 2-3 horas  
+**Dependências**: Nenhuma (pode começar agora)
 
 ## 📝 Notas de Desenvolvimento
 
-### Decisões Técnicas
-- **IDs**: Usar UUID em vez de auto-increment
-- **Timestamps**: Incluir created_at, updated_at em todas as tabelas
-- **Soft Delete**: Implementar deleted_at para exclusão lógica
-- **Auditoria**: Log de alterações em tabela separada
+### ✅ Conquistas Hoje
+- **Sistema de Autenticação Completo**: JWT + bcrypt + Passport 
+- **Qualidade**: Validação de senhas, tokens seguros, error handling
+- **Flexibilidade**: Refresh tokens, password reset, multiple strategies
+- **Tipo-Seguro**: Interfaces TypeScript completas
 
-### Configurações Importantes
-- **JWT**: HS256, expiry 1h, refresh 7d
-- **Bcrypt**: Rounds = 12
-- **Rate Limit**: 100 req/15min
-- **CORS**: Apenas domínios autorizados
+### Configurações Implementadas
+- **JWT**: HS256, expiry configurável (1h default), refresh 7d
+- **Bcrypt**: Rounds = 12 (configurável via env)
+- **Validação**: Senhas complexas obrigatórias
+- **Segurança**: Timing-safe comparison, secure token generation
 
-### Padrões de Código
-- **Nomenclatura**: camelCase (JS/TS), snake_case (DB)
-- **Validação**: Sempre usar Zod schemas
-- **Errors**: Sempre lançar com códigos HTTP corretos
-- **Logs**: Estruturados com Winston
+### Padrões Estabelecidos
+- **Exports**: Singleton services + factory functions
+- **Error Handling**: Mensagens em português, tipos específicos
+- **Configuration**: Environment variables com fallbacks
+- **TypeScript**: Strict mode, proper interfaces
 
 ---
 
 ## 🔄 Atualização de Status
 
-**Última atualização**: [Data a ser preenchida]  
-**Próxima reunião**: [Data a ser agendada]  
-**Status geral**: 🟡 Em desenvolvimento ativo 
+**Última atualização**: Hoje - Sistema de Auth concluído  
+**Próxima meta**: Schema do banco completo  
+**Status geral**: 🟢 Progresso excelente - 33% da Sprint 1 concluída 

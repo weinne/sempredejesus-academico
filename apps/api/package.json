@@ -30,7 +30,7 @@
     "zod": "^3.21.4",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
-    "zod-to-openapi": "^2.1.0",
+    "zod-to-openapi": "^0.2.1",
     "@seminario/shared-config": "workspace:*",
     "@seminario/shared-dtos": "workspace:*",
     "@seminario/shared-auth": "workspace:*"
