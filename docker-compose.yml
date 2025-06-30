@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: seminario_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Jesusv!ve1
+      POSTGRES_PASSWORD: passwd
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -36,7 +36,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:Jesusv!ve1@db:5432/seminario_db
+      DATABASE_URL: postgresql://postgres:passwd@db:5432/seminario_db
       JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-your-refresh-token-secret}

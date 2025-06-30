@@ -6,7 +6,7 @@ dotenvFlow.config();
 
 export const config: Config = {
   database: {
-    url: process.env.DATABASE_URL || 'postgresql://postgres:Jesusv!ve1@localhost:5432/seminario_db',
+    url: process.env.DATABASE_URL || 'postgresql://postgres:passwd@localhost:5432/seminario_db',
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production',

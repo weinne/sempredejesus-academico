@@ -8,7 +8,7 @@ services:
     environment:
       POSTGRES_DB: seminario_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Jesusv!ve1
+      POSTGRES_PASSWORD: psswd
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
