@@ -1,32 +1,103 @@
 import { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
-import { JwtStrategy } from '@seminario/shared-auth';
+import { createJWTStrategy, UserRepository, User, UserRole } from '@seminario/shared-auth';
 import { config, logger } from '@seminario/shared-config';
-import { JwtPayload } from '@seminario/shared-dtos';
+import { db } from '../db';
+import { users, pessoas } from '../db/schema';
+import { eq } from 'drizzle-orm';
+
+// Implement UserRepository interface for our database
+const userRepository: UserRepository = {
+  async findById(id: string): Promise<User | null> {
+    try {
+      const result = await db
+        .select({
+          id: users.id,
+          pessoaId: users.pessoaId,
+          username: users.username,
+          email: pessoas.email,
+          role: users.role,
+          isActive: users.isActive,
+          nomeCompleto: pessoas.nomeCompleto,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users)
+        .leftJoin(pessoas, eq(users.pessoaId, pessoas.id))
+        .where(eq(users.id, parseInt(id)))
+        .limit(1);
+
+      if (result.length === 0) return null;
+
+      const userData = result[0];
+      return {
+        id: userData.id.toString(),
+        email: userData.email || '',
+        nome: userData.nomeCompleto || userData.username,
+        role: userData.role as UserRole,
+        pessoaId: userData.pessoaId.toString(),
+        ativo: userData.isActive === 'S',
+        createdAt: userData.createdAt,
+        updatedAt: userData.updatedAt,
+      };
+    } catch (error) {
+      logger.error('Error finding user by ID:', error);
+      return null;
+    }
+  },
+
+  async findByEmail(email: string): Promise<User | null> {
+    try {
+      const result = await db
+        .select({
+          id: users.id,
+          pessoaId: users.pessoaId,
+          username: users.username,
+          email: pessoas.email,
+          role: users.role,
+          isActive: users.isActive,
+          nomeCompleto: pessoas.nomeCompleto,
+          passwordHash: users.passwordHash,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        })
+        .from(users)
+        .leftJoin(pessoas, eq(users.pessoaId, pessoas.id))
+        .where(eq(pessoas.email, email))
+        .limit(1);
+
+      if (result.length === 0) return null;
+
+      const userData = result[0];
+      return {
+        id: userData.id.toString(),
+        email: userData.email || '',
+        nome: userData.nomeCompleto || userData.username,
+        role: userData.role as UserRole,
+        pessoaId: userData.pessoaId.toString(),
+        ativo: userData.isActive === 'S',
+        createdAt: userData.createdAt,
+        updatedAt: userData.updatedAt,
+        senha: userData.passwordHash,
+      } as User & { senha: string };
+    } catch (error) {
+      logger.error('Error finding user by email:', error);
+      return null;
+    }
+  },
+};
 
 // Configure JWT strategy
-const jwtStrategy = new JwtStrategy(
-  config.jwt.secret,
-  async (payload: JwtPayload, done) => {
-    try {
-      // Here you would typically fetch user from database
-      // For now, we'll just validate the payload structure
-      if (payload.sub && payload.role) {
-        return done(null, payload);
-      }
-      return done(null, false);
-    } catch (error) {
-      logger.error('JWT Strategy error:', error);
-      return done(error, false);
-    }
-  }
-);
+const jwtStrategy = createJWTStrategy({
+  jwtSecret: config.jwt.secret,
+  userRepository,
+});
 
 passport.use(jwtStrategy);
 
 // Middleware to require authentication
 export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  passport.authenticate('jwt', { session: false }, (err: any, user: JwtPayload) => {
+  passport.authenticate('jwt', { session: false }, (err: any, user: User) => {
     if (err) {
       logger.error('Authentication error:', err);
       return res.status(500).json({
@@ -50,7 +121,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
 // Middleware to require specific roles
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = req.user as JwtPayload;
+    const user = req.user;
     
     if (!user) {
       return res.status(401).json({
@@ -59,10 +130,16 @@ export const requireRole = (...allowedRoles: string[]) => {
       });
     }
 
-    if (!allowedRoles.includes(user.role)) {
+    const userRole = user.role as string;
+    if (!allowedRoles.includes(userRole)) {
+      logger.warn(`Access denied for user ${user.id} with role ${userRole}. Required: ${allowedRoles.join(', ')}`);
       return res.status(403).json({
         success: false,
         message: 'Forbidden - Insufficient permissions',
+        data: {
+          required: allowedRoles,
+          current: userRole,
+        },
       });
     }
 
@@ -79,7 +156,7 @@ export const requireAluno = requireRole('ADMIN', 'SECRETARIA', 'PROFESSOR', 'ALU
 declare global {
   namespace Express {
     interface Request {
-      user?: JwtPayload;
+      user?: User;
     }
   }
 } 
