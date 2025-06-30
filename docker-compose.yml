@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: seminario_db
+    environment:
+      POSTGRES_DB: seminario_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Jesusv!ve1
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./Dump20180203.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - seminario-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # API Application  
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: seminario_api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:Jesusv!ve1@db:5432/seminario_db
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-your-refresh-token-secret}
+      PORT: 4000
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      API_URL: ${API_URL:-http://localhost:4000}
+      SERVICE_FQDN_API_4000: ${SERVICE_FQDN_API_4000:-api.seminario.org.br}
+    ports:
+      - "4000:4000"
+    networks:
+      - seminario-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      # Coolify labels
+      - "coolify.managed=true"
+      - "coolify.type=application"
+      - "coolify.name=seminario-academico"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  seminario-network:
+    driver: bridge 
