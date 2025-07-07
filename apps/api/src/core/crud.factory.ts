@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
-import { SQL, eq, and, or, like, ilike, gte, lte, count } from 'drizzle-orm';
-import { PgTable } from 'drizzle-orm/pg-core';
+import { SQL, eq, and, or, like, ilike, gte, lte, sql } from 'drizzle-orm';
+import { PgTable, PgColumn } from 'drizzle-orm/pg-core';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { Pagination, Filter } from '@seminario/shared-dtos';
 import { AnyZodObject } from 'zod';
 
 interface CrudOptions {
-  table: PgTable;
+  table: any; // More flexible typing for Drizzle tables
   createSchema?: AnyZodObject;
   updateSchema?: AnyZodObject;
   searchFields?: string[];
@@ -36,10 +36,17 @@ export class CrudFactory {
 
     // Add search conditions
     if (searchTerm && this.options.searchFields) {
-      const searchConditions = this.options.searchFields.map(field =>
-        ilike(this.options.table[field], `%${searchTerm}%`)
-      );
-      whereConditions.push(or(...searchConditions));
+      const searchConditions: SQL[] = [];
+      
+      for (const field of this.options.searchFields) {
+        if (this.options.table[field]) {
+          searchConditions.push(ilike(this.options.table[field], `%${searchTerm}%`));
+        }
+      }
+      
+      if (searchConditions.length > 0) {
+        whereConditions.push(or(...searchConditions));
+      }
     }
 
     // Add filter conditions
@@ -50,12 +57,20 @@ export class CrudFactory {
     const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
     // Execute queries
+    let dataQuery = db.select().from(this.options.table);
+    let countQuery = db.select({ count: sql<number>`count(*)` }).from(this.options.table);
+    
+    if (whereClause) {
+      dataQuery = dataQuery.where(whereClause);
+      countQuery = countQuery.where(whereClause);
+    }
+    
     const [data, totalResult] = await Promise.all([
-      db.select().from(this.options.table).where(whereClause).limit(limit).offset(offset),
-      db.select({ count: count() }).from(this.options.table).where(whereClause),
+      dataQuery.limit(limit).offset(offset),
+      countQuery,
     ]);
 
-    const total = totalResult[0]?.count || 0;
+    const total = Number(totalResult[0]?.count || 0);
     const totalPages = Math.ceil(total / limit);
 
     res.json({
@@ -74,6 +89,10 @@ export class CrudFactory {
   getById = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const primaryKey = this.getPrimaryKey();
+    
+    if (!this.options.table[primaryKey]) {
+      throw createError('Invalid primary key', 500);
+    }
     
     const result = await db
       .select()
@@ -127,6 +146,10 @@ export class CrudFactory {
       throw createError('No valid fields to update', 400);
     }
 
+    if (!this.options.table[primaryKey]) {
+      throw createError('Invalid primary key', 500);
+    }
+
     const result = await db
       .update(this.options.table)
       .set(updateData)
@@ -148,6 +171,10 @@ export class CrudFactory {
   delete = asyncHandler(async (req: Request, res: Response) => {
     const id = req.params.id;
     const primaryKey = this.getPrimaryKey();
+
+    if (!this.options.table[primaryKey]) {
+      throw createError('Invalid primary key', 500);
+    }
 
     const result = await db
       .delete(this.options.table)
@@ -198,6 +225,9 @@ export class CrudFactory {
           break;
         case 'lte':
           filters.push(lte(column, value));
+          break;
+        default:
+          // Skip unknown operators
           break;
       }
     }

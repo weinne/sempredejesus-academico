@@ -97,7 +97,7 @@ passport.use(jwtStrategy);
 
 // Middleware to require authentication
 export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-  passport.authenticate('jwt', { session: false }, (err: any, user: User) => {
+  passport.authenticate('jwt', { session: false }, (err: any, user: any) => {
     if (err) {
       logger.error('Authentication error:', err);
       return res.status(500).json({
@@ -113,7 +113,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
       });
     }
 
-    req.user = user;
+    req.user = user as User;
     next();
   })(req, res, next);
 };
@@ -121,7 +121,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
 // Middleware to require specific roles
 export const requireRole = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const user = req.user;
+    const user = req.user as any; // Type assertion to bypass conflicts
     
     if (!user) {
       return res.status(401).json({
@@ -153,10 +153,4 @@ export const requireSecretaria = requireRole('ADMIN', 'SECRETARIA');
 export const requireProfessor = requireRole('ADMIN', 'SECRETARIA', 'PROFESSOR');
 export const requireAluno = requireRole('ADMIN', 'SECRETARIA', 'PROFESSOR', 'ALUNO');
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: User;
-    }
-  }
-} 
+// Note: Using Passport's built-in User type extension 
