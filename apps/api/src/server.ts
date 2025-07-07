@@ -14,12 +14,17 @@ import swaggerSpec from './config/swagger';
 // Import routes
 import authRoutes from './routes/auth.routes';
 import healthRoutes from './routes/health.routes';
+import metricsRoutes from './routes/metrics.routes';
 import pessoasRoutes from './routes/pessoas.routes';
 import alunosRoutes from './routes/alunos.routes';
 import professoresRoutes from './routes/professores.routes';
 import cursosRoutes from './routes/cursos.routes';
 import disciplinasRoutes from './routes/disciplinas.routes';
 import turmasRoutes from './routes/turmas.routes';
+
+// Import middleware
+import { securityHeaders, requestMonitoring, apiVersion } from './middleware/security.middleware';
+import { metricsMiddleware } from './routes/metrics.routes';
 
 const app = express();
 
@@ -32,6 +37,12 @@ app.use(helmet({
     },
   },
 }));
+
+// Production security headers
+app.use(securityHeaders);
+app.use(apiVersion);
+app.use(requestMonitoring);
+app.use(metricsMiddleware);
 
 // CORS configuration
 app.use(cors({
@@ -93,8 +104,9 @@ app.get('/api-docs.json', (req, res) => {
   res.send(swaggerSpec);
 });
 
-// Health check endpoint
+// Health check and monitoring endpoints
 app.use('/health', healthRoutes);
+app.use('/metrics', metricsRoutes);
 
 // API routes
 const apiRouter = express.Router();
