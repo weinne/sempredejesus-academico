@@ -11,7 +11,7 @@
 - **Interface Web**: `http://localhost:4000/docs`
 - **Especificação JSON**: `http://localhost:4000/api-docs.json`
 
-### 📚 **Documentação Implementada**
+### 📚 **Documentação Implementada - TODOS OS ENDPOINTS**
 
 #### 🔐 **Autenticação (Auth)**
 - `POST /api/auth/login` - Login com email/senha
@@ -25,14 +25,56 @@
 - `PATCH /api/pessoas/{id}` - Atualizar (ADMIN/SECRETARIA)
 - `DELETE /api/pessoas/{id}` - Remover (ADMIN/SECRETARIA)
 
+#### 👨‍🏫 **Professores**
+- `GET /api/professores` - Listar professores
+- `POST /api/professores` - Criar professor (ADMIN/SECRETARIA)
+- `GET /api/professores/{matricula}` - Buscar por matrícula
+- `PATCH /api/professores/{matricula}` - Atualizar (ADMIN/SECRETARIA)
+- `DELETE /api/professores/{matricula}` - Remover (ADMIN/SECRETARIA)
+
+#### 👨‍🎓 **Alunos**
+- `GET /api/alunos` - Listar alunos
+- `POST /api/alunos` - Criar aluno (ADMIN/SECRETARIA)
+- `GET /api/alunos/{ra}` - Buscar por RA
+- `PATCH /api/alunos/{ra}` - Atualizar (ADMIN/SECRETARIA)
+- `DELETE /api/alunos/{ra}` - Remover (ADMIN/SECRETARIA)
+
+#### 📚 **Cursos**
+- `GET /api/cursos` - Listar cursos
+- `POST /api/cursos` - Criar curso (ADMIN/SECRETARIA)
+- `GET /api/cursos/{id}` - Buscar por ID
+- `PATCH /api/cursos/{id}` - Atualizar (ADMIN/SECRETARIA)
+- `DELETE /api/cursos/{id}` - Remover (ADMIN/SECRETARIA)
+
+#### 📖 **Disciplinas**
+- `GET /api/disciplinas` - Listar disciplinas
+- `POST /api/disciplinas` - Criar disciplina (ADMIN/SECRETARIA)
+- `GET /api/disciplinas/{id}` - Buscar por ID
+- `PATCH /api/disciplinas/{id}` - Atualizar (ADMIN/SECRETARIA)
+- `DELETE /api/disciplinas/{id}` - Remover (ADMIN/SECRETARIA)
+
+#### 🏫 **Turmas**
+- `GET /api/turmas` - Listar turmas
+- `POST /api/turmas` - Criar turma (ADMIN/SECRETARIA/PROFESSOR)
+- `GET /api/turmas/{id}` - Buscar por ID
+- `PATCH /api/turmas/{id}` - Atualizar (ADMIN/SECRETARIA/PROFESSOR)
+- `DELETE /api/turmas/{id}` - Remover (ADMIN/SECRETARIA/PROFESSOR)
+
+#### ❤️ **Health Check**
+- `GET /health` - Status básico da API
+- `GET /health/detailed` - Status detalhado (database, memória)
+
 ### 🏗️ **Estrutura dos Schemas**
 
-#### **Principais Entidades**
-- ✅ `Pessoa` - Schema completo com validações
-- ✅ `CreatePessoa` - Schema para criação 
+#### **Todas as Entidades Documentadas**
+- ✅ `Pessoa` & `CreatePessoa` - Schema completo com validações
+- ✅ `Professor` & `CreateProfessor` - Gestão de professores
+- ✅ `Aluno` & `CreateAluno` - Gestão de alunos
+- ✅ `Curso` & `CreateCurso` - Gestão de cursos
+- ✅ `Disciplina` & `CreateDisciplina` - Gestão de disciplinas  
+- ✅ `Turma` & `CreateTurma` - Gestão de turmas
 - ✅ `LoginRequest/Response` - Schemas de autenticação
-- ✅ `ErrorResponse` - Padronização de erros
-- ✅ `SuccessResponse` - Padronização de sucessos
+- ✅ `ErrorResponse` & `SuccessResponse` - Respostas padronizadas
 
 ### 🔒 **Sistema de Segurança Documentado**
 

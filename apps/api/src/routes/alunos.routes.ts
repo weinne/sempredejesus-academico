@@ -5,6 +5,137 @@ import { CreateAlunoSchema, UpdateAlunoSchema, StringIdParamSchema } from '@semi
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
 import { validateParams } from '../middleware/validation.middleware';
 
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Aluno:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           description: ID único do aluno
+ *         pessoaId:
+ *           type: integer
+ *           description: ID da pessoa vinculada
+ *         ra:
+ *           type: string
+ *           description: RA (Registro Acadêmico) do aluno
+ *           example: "ALU2024001"
+ *         situacao:
+ *           type: string
+ *           description: Situação acadêmica do aluno
+ *           enum: ["ATIVO", "TRANCADO", "FORMADO", "DESISTENTE"]
+ *           example: "ATIVO"
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *     CreateAluno:
+ *       type: object
+ *       properties:
+ *         pessoaId:
+ *           type: integer
+ *           description: ID da pessoa a vincular como aluno
+ *           example: 1
+ *         ra:
+ *           type: string
+ *           description: RA (Registro Acadêmico) único
+ *           example: "ALU2024001"
+ *         situacao:
+ *           type: string
+ *           description: Situação inicial do aluno
+ *           enum: ["ATIVO", "TRANCADO", "FORMADO", "DESISTENTE"]
+ *           example: "ATIVO"
+ *       required:
+ *         - pessoaId
+ *         - ra
+ *         - situacao
+ */
+
+/**
+ * @swagger
+ * /api/alunos:
+ *   get:
+ *     tags: [Alunos]
+ *     summary: Lista todos os alunos
+ *     description: Retorna lista de alunos cadastrados no sistema
+ *     responses:
+ *       200:
+ *         description: Lista de alunos retornada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Found 15 records"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Aluno'
+ *       401:
+ *         description: Não autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *     security:
+ *       - bearerAuth: []
+ *   post:
+ *     tags: [Alunos]
+ *     summary: Cadastra novo aluno
+ *     description: Cria novo aluno no sistema (requer permissão ADMIN ou SECRETARIA)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CreateAluno'
+ *     responses:
+ *       201:
+ *         description: Aluno criado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Resource created successfully"
+ *                 data:
+ *                   $ref: '#/components/schemas/Aluno'
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Não autorizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       403:
+ *         description: Permissão insuficiente (requer ADMIN ou SECRETARIA)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *     security:
+ *       - bearerAuth: []
+ */
+
 const router = Router();
 
 // Create CRUD factory for alunos (simplified)
