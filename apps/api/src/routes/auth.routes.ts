@@ -5,8 +5,9 @@ import { LoginSchema, RefreshTokenSchema } from '@seminario/shared-dtos';
 import { validateBody } from '../middleware/validation.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { db } from '../db';
-import { pessoas, alunos, professores } from '../db/schema';
+import { pessoas, alunos, professores, users } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { tokenBlacklistService } from '../core/token-blacklist.service';
 
 const router = Router();
 const passwordService = new PasswordService();
@@ -15,19 +16,31 @@ const passwordService = new PasswordService();
 router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Request, res: Response) => {
   const { email, password, rememberMe } = req.body;
 
-  // Find user by email
-  const pessoa = await db
-    .select()
-    .from(pessoas)
+  // Find user by email (join with users table)
+  const userQuery = await db
+    .select({
+      userId: users.id,
+      pessoaId: pessoas.id,
+      username: users.username,
+      passwordHash: users.passwordHash,
+      role: users.role,
+      isActive: users.isActive,
+      email: pessoas.email,
+      nomeCompleto: pessoas.nomeCompleto,
+    })
+    .from(users)
+    .innerJoin(pessoas, eq(users.pessoaId, pessoas.id))
     .where(eq(pessoas.email, email))
     .limit(1);
 
-  if (pessoa.length === 0) {
+  if (userQuery.length === 0) {
     throw createError('Invalid credentials', 401);
   }
 
+  const userData = userQuery[0];
+
   // For now, we'll create a simple password validation
-  // In a real implementation, you'd have a users table with hashed passwords
+  // In a real implementation, you'd verify against userData.passwordHash
   // This is just for demo purposes
   const isValidPassword = password === 'admin123'; // Simplified for demo
 
@@ -35,44 +48,17 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Reques
     throw createError('Invalid credentials', 401);
   }
 
-  // Determine user role based on related tables
-  let role: UserRole = UserRole.ALUNO;
-  
-  // Check if user is a professor
-  const professor = await db
-    .select()
-    .from(professores)
-    .where(eq(professores.pessoaId, pessoa[0].id))
-    .limit(1);
+  // Use role from database
+  const role = userData.role as UserRole;
 
-  if (professor.length > 0) {
-    role = UserRole.PROFESSOR;
-  } else {
-    // Check if user is a student
-    const aluno = await db
-      .select()
-      .from(alunos)
-      .where(eq(alunos.pessoaId, pessoa[0].id))
-      .limit(1);
-
-    if (aluno.length > 0) {
-      role = UserRole.ALUNO;
-    }
-  }
-
-  // For demo purposes, if email is admin@seminario.edu, make them admin
-  if (email === 'admin@seminario.edu') {
-    role = UserRole.ADMIN;
-  }
-
-  // Generate tokens
+  // Generate tokens using the correct user.id
   const tokens = jwtService.generateTokenPair({
-    id: pessoa[0].id.toString(),
-    email: pessoa[0].email || '',
-    nome: pessoa[0].nomeCompleto,
+    id: userData.userId.toString(),
+    email: userData.email || '',
+    nome: userData.nomeCompleto,
     role,
-    pessoaId: pessoa[0].id.toString(),
-    ativo: true,
+    pessoaId: userData.pessoaId.toString(),
+    ativo: userData.isActive === 'S',
     createdAt: new Date(),
     updatedAt: new Date(),
   });
@@ -92,9 +78,9 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Reques
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       user: {
-        id: pessoa[0].id.toString(),
-        nome: pessoa[0].nomeCompleto,
-        email: pessoa[0].email || '',
+        id: userData.userId.toString(),
+        nome: userData.nomeCompleto,
+        email: userData.email || '',
         role,
       },
     },
@@ -112,32 +98,36 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
   try {
     const decoded = jwtService.verifyRefreshToken(refreshToken);
     
-    // Get user details
-    const pessoa = await db
-      .select()
-      .from(pessoas)
-      .where(eq(pessoas.id, parseInt(decoded.sub)))
+    // Get user details from users table
+    const userQuery = await db
+      .select({
+        userId: users.id,
+        pessoaId: pessoas.id,
+        username: users.username,
+        role: users.role,
+        isActive: users.isActive,
+        email: pessoas.email,
+        nomeCompleto: pessoas.nomeCompleto,
+      })
+      .from(users)
+      .innerJoin(pessoas, eq(users.pessoaId, pessoas.id))
+      .where(eq(users.id, parseInt(decoded.sub)))
       .limit(1);
 
-    if (pessoa.length === 0) {
+    if (userQuery.length === 0) {
       throw createError('User not found', 404);
     }
 
-    // Determine role (simplified for demo)
-    let role: UserRole = UserRole.ALUNO;
-    
-    if (pessoa[0].email === 'admin@seminario.edu') {
-      role = UserRole.ADMIN;
-    }
+    const userData = userQuery[0];
 
     // Generate new tokens
     const tokens = jwtService.generateTokenPair({
-      id: decoded.sub,
-      email: pessoa[0].email || '',
-      nome: pessoa[0].nomeCompleto,
-      role,
-      pessoaId: pessoa[0].id.toString(),
-      ativo: true,
+      id: userData.userId.toString(),
+      email: userData.email || '',
+      nome: userData.nomeCompleto,
+      role: userData.role as UserRole,
+      pessoaId: userData.pessoaId.toString(),
+      ativo: userData.isActive === 'S',
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -166,6 +156,23 @@ router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
 
 // POST /auth/logout
 router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
+  // Extract access token from Authorization header
+  const authHeader = req.headers.authorization;
+  const accessToken = authHeader && authHeader.startsWith('Bearer ') 
+    ? authHeader.substring(7) 
+    : null;
+
+  if (accessToken) {
+    try {
+      // Add token to blacklist
+      await tokenBlacklistService.blacklistToken(accessToken);
+      logger.info('Access token blacklisted successfully');
+    } catch (error) {
+      logger.error('Error blacklisting token:', error);
+      // Continue with logout even if blacklisting fails
+    }
+  }
+
   // Clear refresh token cookie
   res.clearCookie('refreshToken');
 

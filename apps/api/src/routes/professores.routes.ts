@@ -14,8 +14,8 @@ const professoresCrud = new SimpleCrudFactory({
   updateSchema: UpdateProfessorSchema,
 });
 
-// TEMP: Authentication middleware disabled for testing
-// router.use(requireAuth);
+// Authentication middleware enabled
+router.use(requireAuth);
 
 // GET /professores - List all professores
 router.get('/', professoresCrud.getAll);

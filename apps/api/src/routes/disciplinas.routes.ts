@@ -14,8 +14,8 @@ const disciplinasCrud = new SimpleCrudFactory({
   updateSchema: UpdateDisciplinaSchema,
 });
 
-// TEMP: Authentication middleware disabled for testing
-// router.use(requireAuth);
+// Authentication middleware enabled
+router.use(requireAuth);
 
 // GET /disciplinas - List all disciplinas
 router.get('/', disciplinasCrud.getAll);

@@ -14,8 +14,8 @@ const turmasCrud = new SimpleCrudFactory({
   updateSchema: UpdateTurmaSchema,
 });
 
-// TEMP: Authentication middleware disabled for testing
-// router.use(requireAuth);
+// Authentication middleware enabled
+router.use(requireAuth);
 
 // GET /turmas - List all turmas
 router.get('/', turmasCrud.getAll);

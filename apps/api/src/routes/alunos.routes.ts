@@ -14,8 +14,8 @@ const alunosCrud = new SimpleCrudFactory({
   updateSchema: UpdateAlunoSchema,
 });
 
-// TEMP: Authentication middleware disabled for testing
-// router.use(requireAuth);
+// Authentication middleware enabled
+router.use(requireAuth);
 
 // GET /alunos - List all alunos
 router.get('/', alunosCrud.getAll);

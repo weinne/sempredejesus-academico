@@ -10,4 +10,5 @@ export * from './aulas';
 export * from './avaliacoes';
 export * from './frequencias';
 export * from './calendario';
-export * from './configuracoes'; 
+export * from './configuracoes';
+export * from './blacklisted-tokens'; 

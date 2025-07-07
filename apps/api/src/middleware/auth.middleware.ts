@@ -5,6 +5,7 @@ import { config, logger } from '@seminario/shared-config';
 import { db } from '../db';
 import { users, pessoas } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { tokenBlacklistService } from '../core/token-blacklist.service';
 
 // Implement UserRepository interface for our database
 const userRepository: UserRepository = {
@@ -96,7 +97,29 @@ const jwtStrategy = createJWTStrategy({
 passport.use(jwtStrategy);
 
 // Middleware to require authentication
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
+  // Extract token from Authorization header
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith('Bearer ') 
+    ? authHeader.substring(7) 
+    : null;
+
+  // Check if token is blacklisted
+  if (token) {
+    try {
+      const isBlacklisted = await tokenBlacklistService.isBlacklisted(token);
+      if (isBlacklisted) {
+        return res.status(401).json({
+          success: false,
+          message: 'Unauthorized - Token has been revoked',
+        });
+      }
+    } catch (error) {
+      logger.error('Error checking token blacklist:', error);
+      // Continue with normal authentication if blacklist check fails
+    }
+  }
+
   passport.authenticate('jwt', { session: false }, (err: any, user: any) => {
     if (err) {
       logger.error('Authentication error:', err);

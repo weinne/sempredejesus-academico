@@ -14,8 +14,8 @@ const pessoasCrud = new SimpleCrudFactory({
   updateSchema: UpdatePessoaSchema,
 });
 
-// TEMP: Authentication middleware disabled for testing
-// router.use(requireAuth);
+// Authentication middleware enabled
+router.use(requireAuth);
 
 // GET /pessoas - List all pessoas
 router.get('/', pessoasCrud.getAll);
