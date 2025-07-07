@@ -17,19 +17,19 @@ const cursosCrud = new SimpleCrudFactory({
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /cursos - List all cursos
+// GET /cursos - List all cursos (any authenticated user can view)
 router.get('/', cursosCrud.getAll);
 
-// GET /cursos/:id - Get curso by ID
+// GET /cursos/:id - Get curso by ID (any authenticated user can view)
 router.get('/:id', validateParams(IdParamSchema), cursosCrud.getById);
 
-// POST /cursos - Create new curso
-router.post('/', cursosCrud.create);
+// POST /cursos - Create new curso (requires ADMIN or SECRETARIA)
+router.post('/', requireSecretaria, cursosCrud.create);
 
-// PATCH /cursos/:id - Update curso
-router.patch('/:id', validateParams(IdParamSchema), cursosCrud.update);
+// PATCH /cursos/:id - Update curso (requires ADMIN or SECRETARIA)
+router.patch('/:id', validateParams(IdParamSchema), requireSecretaria, cursosCrud.update);
 
-// DELETE /cursos/:id - Delete curso
-router.delete('/:id', validateParams(IdParamSchema), cursosCrud.delete);
+// DELETE /cursos/:id - Delete curso (requires ADMIN or SECRETARIA)
+router.delete('/:id', validateParams(IdParamSchema), requireSecretaria, cursosCrud.delete);
 
 export default router; 

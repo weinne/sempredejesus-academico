@@ -17,19 +17,19 @@ const professoresCrud = new SimpleCrudFactory({
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /professores - List all professores
+// GET /professores - List all professores (any authenticated user can view)
 router.get('/', professoresCrud.getAll);
 
-// GET /professores/:id - Get professor by matricula
+// GET /professores/:id - Get professor by matricula (any authenticated user can view)
 router.get('/:id', validateParams(StringIdParamSchema), professoresCrud.getById);
 
-// POST /professores - Create new professor
-router.post('/', professoresCrud.create);
+// POST /professores - Create new professor (requires ADMIN or SECRETARIA)
+router.post('/', requireSecretaria, professoresCrud.create);
 
-// PATCH /professores/:id - Update professor
-router.patch('/:id', validateParams(StringIdParamSchema), professoresCrud.update);
+// PATCH /professores/:id - Update professor (requires ADMIN or SECRETARIA)
+router.patch('/:id', validateParams(StringIdParamSchema), requireSecretaria, professoresCrud.update);
 
-// DELETE /professores/:id - Delete professor
-router.delete('/:id', validateParams(StringIdParamSchema), professoresCrud.delete);
+// DELETE /professores/:id - Delete professor (requires ADMIN or SECRETARIA)
+router.delete('/:id', validateParams(StringIdParamSchema), requireSecretaria, professoresCrud.delete);
 
 export default router; 

@@ -17,19 +17,19 @@ const disciplinasCrud = new SimpleCrudFactory({
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /disciplinas - List all disciplinas
+// GET /disciplinas - List all disciplinas (any authenticated user can view)
 router.get('/', disciplinasCrud.getAll);
 
-// GET /disciplinas/:id - Get disciplina by ID
+// GET /disciplinas/:id - Get disciplina by ID (any authenticated user can view)
 router.get('/:id', validateParams(IdParamSchema), disciplinasCrud.getById);
 
-// POST /disciplinas - Create new disciplina
-router.post('/', disciplinasCrud.create);
+// POST /disciplinas - Create new disciplina (requires ADMIN or SECRETARIA)
+router.post('/', requireSecretaria, disciplinasCrud.create);
 
-// PATCH /disciplinas/:id - Update disciplina
-router.patch('/:id', validateParams(IdParamSchema), disciplinasCrud.update);
+// PATCH /disciplinas/:id - Update disciplina (requires ADMIN or SECRETARIA)
+router.patch('/:id', validateParams(IdParamSchema), requireSecretaria, disciplinasCrud.update);
 
-// DELETE /disciplinas/:id - Delete disciplina
-router.delete('/:id', validateParams(IdParamSchema), disciplinasCrud.delete);
+// DELETE /disciplinas/:id - Delete disciplina (requires ADMIN or SECRETARIA)
+router.delete('/:id', validateParams(IdParamSchema), requireSecretaria, disciplinasCrud.delete);
 
 export default router; 

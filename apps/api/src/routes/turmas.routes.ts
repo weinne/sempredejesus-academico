@@ -17,19 +17,19 @@ const turmasCrud = new SimpleCrudFactory({
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /turmas - List all turmas
+// GET /turmas - List all turmas (any authenticated user can view)
 router.get('/', turmasCrud.getAll);
 
-// GET /turmas/:id - Get turma by ID
+// GET /turmas/:id - Get turma by ID (any authenticated user can view)
 router.get('/:id', validateParams(IdParamSchema), turmasCrud.getById);
 
-// POST /turmas - Create new turma
-router.post('/', turmasCrud.create);
+// POST /turmas - Create new turma (requires ADMIN, SECRETARIA or PROFESSOR)
+router.post('/', requireProfessor, turmasCrud.create);
 
-// PATCH /turmas/:id - Update turma
-router.patch('/:id', validateParams(IdParamSchema), turmasCrud.update);
+// PATCH /turmas/:id - Update turma (requires ADMIN, SECRETARIA or PROFESSOR)
+router.patch('/:id', validateParams(IdParamSchema), requireProfessor, turmasCrud.update);
 
-// DELETE /turmas/:id - Delete turma
-router.delete('/:id', validateParams(IdParamSchema), turmasCrud.delete);
+// DELETE /turmas/:id - Delete turma (requires ADMIN, SECRETARIA or PROFESSOR)
+router.delete('/:id', validateParams(IdParamSchema), requireProfessor, turmasCrud.delete);
 
 export default router; 

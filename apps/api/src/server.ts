@@ -5,9 +5,11 @@ import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import passport from 'passport';
+import swaggerUi from 'swagger-ui-express';
 import { config, logger } from '@seminario/shared-config';
 import { testConnection, closeConnection } from './db';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
+import swaggerSpec from './config/swagger';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -71,6 +73,25 @@ if (config.server.nodeEnv === 'development') {
     next();
   });
 }
+
+// Swagger Documentation
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: 'Sistema Acadêmico Seminário - API Docs',
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    showExtensions: true,
+    showCommonExtensions: true,
+  },
+}));
+
+// Swagger JSON spec endpoint
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
 
 // Health check endpoint
 app.use('/health', healthRoutes);
