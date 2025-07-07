@@ -4,8 +4,8 @@ export const CalendarioSchema = z.object({
   id: z.number().int().positive(),
   semestreId: z.number().int(),
   evento: z.string().max(100),
-  inicio: z.string().date(),
-  termino: z.string().date(),
+  inicio: z.string(),
+  termino: z.string(),
   obs: z.string().optional(),
 });
 

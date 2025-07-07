@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { JwtService, PasswordService } from '@seminario/shared-auth';
+import { Router, Request, Response } from 'express';
+import { jwtService, PasswordService, UserRole } from '@seminario/shared-auth';
 import { config, logger } from '@seminario/shared-config';
 import { LoginSchema, RefreshTokenSchema } from '@seminario/shared-dtos';
 import { validateBody } from '../middleware/validation.middleware';
@@ -9,11 +9,10 @@ import { pessoas, alunos, professores } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
 const router = Router();
-const jwtService = new JwtService(config.jwt.secret, config.jwt.refreshSecret, config.jwt.expiresIn);
 const passwordService = new PasswordService();
 
 // POST /auth/login
-router.post('/login', validateBody(LoginSchema), asyncHandler(async (req, res) => {
+router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Request, res: Response) => {
   const { email, password, rememberMe } = req.body;
 
   // Find user by email
@@ -37,7 +36,7 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req, res) =
   }
 
   // Determine user role based on related tables
-  let role: 'ADMIN' | 'SECRETARIA' | 'PROFESSOR' | 'ALUNO' = 'ALUNO';
+  let role: UserRole = UserRole.ALUNO;
   
   // Check if user is a professor
   const professor = await db
@@ -47,7 +46,7 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req, res) =
     .limit(1);
 
   if (professor.length > 0) {
-    role = 'PROFESSOR';
+    role = UserRole.PROFESSOR;
   } else {
     // Check if user is a student
     const aluno = await db
@@ -57,19 +56,25 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req, res) =
       .limit(1);
 
     if (aluno.length > 0) {
-      role = 'ALUNO';
+      role = UserRole.ALUNO;
     }
   }
 
   // For demo purposes, if email is admin@seminario.edu, make them admin
   if (email === 'admin@seminario.edu') {
-    role = 'ADMIN';
+    role = UserRole.ADMIN;
   }
 
   // Generate tokens
   const tokens = jwtService.generateTokenPair({
-    sub: pessoa[0].id.toString(),
+    id: pessoa[0].id.toString(),
+    email: pessoa[0].email || '',
+    nome: pessoa[0].nomeCompleto,
     role,
+    pessoaId: pessoa[0].id.toString(),
+    ativo: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
 
   // Set refresh token as HTTP-only cookie
@@ -97,7 +102,7 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req, res) =
 }));
 
 // POST /auth/refresh
-router.post('/refresh', asyncHandler(async (req, res) => {
+router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
   if (!refreshToken) {
@@ -119,16 +124,22 @@ router.post('/refresh', asyncHandler(async (req, res) => {
     }
 
     // Determine role (simplified for demo)
-    let role: 'ADMIN' | 'SECRETARIA' | 'PROFESSOR' | 'ALUNO' = 'ALUNO';
+    let role: UserRole = UserRole.ALUNO;
     
     if (pessoa[0].email === 'admin@seminario.edu') {
-      role = 'ADMIN';
+      role = UserRole.ADMIN;
     }
 
     // Generate new tokens
     const tokens = jwtService.generateTokenPair({
-      sub: decoded.sub,
+      id: decoded.sub,
+      email: pessoa[0].email || '',
+      nome: pessoa[0].nomeCompleto,
       role,
+      pessoaId: pessoa[0].id.toString(),
+      ativo: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     });
 
     // Update refresh token cookie
@@ -154,7 +165,7 @@ router.post('/refresh', asyncHandler(async (req, res) => {
 }));
 
 // POST /auth/logout
-router.post('/logout', asyncHandler(async (req, res) => {
+router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
   // Clear refresh token cookie
   res.clearCookie('refreshToken');
 
@@ -165,7 +176,7 @@ router.post('/logout', asyncHandler(async (req, res) => {
 }));
 
 // GET /auth/me - Get current user info
-router.get('/me', asyncHandler(async (req, res) => {
+router.get('/me', asyncHandler(async (req: Request, res: Response) => {
   // This would typically require auth middleware
   // For now, just return a placeholder response
   res.json({
@@ -175,9 +186,9 @@ router.get('/me', asyncHandler(async (req, res) => {
       id: '1',
       nome: 'Admin User',
       email: 'admin@seminario.edu',
-      role: 'ADMIN',
+      role: UserRole.ADMIN,
     },
   });
 }));
 
-export default router; 
+export default router;

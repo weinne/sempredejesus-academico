@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const AulaSchema = z.object({
   id: z.number().int().positive(),
   turmaId: z.number().int().positive(),
-  data: z.string().date(),
+  data: z.string(),
   topico: z.string().optional(),
   materialUrl: z.string().url().optional(),
   observacao: z.string().optional(),

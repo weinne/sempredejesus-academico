@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const ProfessorSchema = z.object({
   matricula: z.string().length(8, 'Matrícula deve ter 8 caracteres'),
   pessoaId: z.number().int().positive(),
-  dataInicio: z.string().date(),
+  dataInicio: z.string(),
   formacaoAcad: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'INATIVO']),
 });

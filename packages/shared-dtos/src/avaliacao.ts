@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const AvaliacaoSchema = z.object({
   id: z.number().int().positive(),
   turmaId: z.number().int().positive(),
-  data: z.string().date(),
+  data: z.string(),
   tipo: z.enum(['PROVA', 'TRABALHO', 'PARTICIPACAO', 'OUTRO']),
   codigo: z.string().max(8),
   descricao: z.string().max(50),

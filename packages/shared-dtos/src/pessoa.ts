@@ -16,7 +16,7 @@ export const PessoaSchema = z.object({
   sexo: z.enum(['M', 'F', 'O']),
   email: z.string().email().max(120).optional(),
   cpf: z.string().regex(/^\d{11}$/, 'CPF deve ter 11 dígitos').optional(),
-  dataNasc: z.string().date().optional(),
+  dataNasc: z.string().optional(),
   telefone: z.string().max(20).optional(),
   endereco: EnderecoSchema.optional(),
   createdAt: z.string().datetime(),
