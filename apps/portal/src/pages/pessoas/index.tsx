@@ -62,6 +62,7 @@ export default function PessoasPage() {
   } = useQuery({
     queryKey: ['pessoas'],
     queryFn: apiService.getPessoas,
+    retry: false, // Don't retry in development with mock data
   });
 
   // Create mutation
