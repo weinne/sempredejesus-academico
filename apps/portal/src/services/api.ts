@@ -49,7 +49,9 @@ class ApiService {
             error.message?.includes('Network Error') ||
             error.message?.includes('timeout')) {
           this.isOfflineMode = true;
-          console.warn('🚨 Backend offline - using mock data for development');
+          if (!this.isOfflineMode) {
+            console.warn('🚨 Backend offline - using mock data for development');
+          }
           // Return mock data for development
           return this.handleOfflineMode(error.config);
         }
