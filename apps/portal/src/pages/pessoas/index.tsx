@@ -318,7 +318,7 @@ export default function PessoasPage() {
                   <div className="flex space-x-2">
                     <Button
                       type="submit"
-                      disabled={createMutation.isPending || updateMutation.isPending}
+                      disabled={createMutation.isLoading || updateMutation.isLoading}
                     >
                       {editingPessoa ? 'Atualizar' : 'Criar'}
                     </Button>
