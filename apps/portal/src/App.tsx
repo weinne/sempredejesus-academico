@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/components/auth/protected-route';
 // Pages
 import LoginPage from '@/pages/login';
 import DashboardPage from '@/pages/dashboard';
+import PessoasPage from '@/pages/pessoas';
 import AlunosPage from '@/pages/alunos';
 import AlunoDetailPage from '@/pages/alunos/[id]';
 import ProfessoresPage from '@/pages/professores';
@@ -27,6 +28,7 @@ function App() {
           {/* Protected routes */}
           <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/pessoas" element={<ProtectedRoute><PessoasPage /></ProtectedRoute>} />
           <Route path="/alunos" element={<ProtectedRoute><AlunosPage /></ProtectedRoute>} />
           <Route path="/alunos/:ra" element={<ProtectedRoute><AlunoDetailPage /></ProtectedRoute>} />
           <Route path="/professores" element={<ProtectedRoute><ProfessoresPage /></ProtectedRoute>} />
