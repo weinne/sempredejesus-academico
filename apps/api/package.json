@@ -13,7 +13,8 @@
     "db:push": "drizzle-kit push:pg",
     "db:migrate": "drizzle-kit generate:pg && drizzle-kit migrate:pg",
     "db:seed": "ts-node src/db/seed.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "seed:users": "ts-node src/scripts/seed-mock-users.ts"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.1",

@@ -25,8 +25,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 const pessoaSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
-  cpf: z.string().min(11, 'CPF deve ter 11 dígitos').max(14, 'CPF inválido'),
-  email: z.string().email('Email inválido'),
+  sexo: z.enum(['M', 'F']).optional(),
+  email: z.string().email('Email inválido').optional().or(z.literal('')),
+  cpf: z.string().optional(),
   telefone: z.string().optional(),
   endereco: z.string().optional(),
   data_nascimento: z.string().optional(),
@@ -41,6 +42,8 @@ export default function PessoasPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingPessoa, setEditingPessoa] = useState<Pessoa | null>(null);
+
+
 
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
 
@@ -64,6 +67,8 @@ export default function PessoasPage() {
     queryFn: apiService.getPessoas,
     retry: false, // Don't retry in development with mock data
   });
+
+
 
   // Create mutation
   const createMutation = useMutation({
@@ -131,8 +136,8 @@ export default function PessoasPage() {
   // Filter pessoas by search term
   const filteredPessoas = pessoas.filter((pessoa) =>
     pessoa.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pessoa.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    pessoa.cpf.includes(searchTerm)
+    (pessoa.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (pessoa.cpf || '').includes(searchTerm)
   );
 
   // Handle form submission
@@ -150,8 +155,9 @@ export default function PessoasPage() {
     setShowForm(true);
     reset({
       nome: pessoa.nome,
-      cpf: pessoa.cpf,
-      email: pessoa.email,
+      sexo: pessoa.sexo,
+      email: pessoa.email || '',
+      cpf: pessoa.cpf || '',
       telefone: pessoa.telefone || '',
       endereco: pessoa.endereco || '',
       data_nascimento: pessoa.data_nascimento || '',
@@ -261,6 +267,37 @@ export default function PessoasPage() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Sexo
+                      </label>
+                      <select
+                        {...register('sexo')}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.sexo ? 'border-red-500' : ''}`}
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="M">Masculino</option>
+                        <option value="F">Feminino</option>
+                      </select>
+                      {errors.sexo && (
+                        <p className="mt-1 text-sm text-red-600">{errors.sexo.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <Input
+                        type="email"
+                        {...register('email')}
+                        className={errors.email ? 'border-red-500' : ''}
+                      />
+                      {errors.email && (
+                        <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         CPF *
                       </label>
                       <Input
@@ -270,20 +307,6 @@ export default function PessoasPage() {
                       />
                       {errors.cpf && (
                         <p className="mt-1 text-sm text-red-600">{errors.cpf.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email *
-                      </label>
-                      <Input
-                        type="email"
-                        {...register('email')}
-                        className={errors.email ? 'border-red-500' : ''}
-                      />
-                      {errors.email && (
-                        <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
                       )}
                     </div>
 
@@ -318,7 +341,7 @@ export default function PessoasPage() {
                   <div className="flex space-x-2">
                     <Button
                       type="submit"
-                      disabled={createMutation.isLoading || updateMutation.isLoading}
+                      disabled={createMutation.isPending || updateMutation.isPending}
                     >
                       {editingPessoa ? 'Atualizar' : 'Criar'}
                     </Button>
@@ -383,10 +406,10 @@ export default function PessoasPage() {
                                 <Edit className="h-4 w-4" />
                               </Button>
                               <Button
-                                variant="ghost"
+                                variant="destructive"
                                 size="sm"
                                 onClick={() => handleDelete(pessoa.id)}
-                                disabled={deleteMutation.isLoading}
+                                disabled={deleteMutation.isPending}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

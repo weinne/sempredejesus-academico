@@ -223,8 +223,8 @@ O sistema está 100% pronto para:
 - `docs/project-specs.md` - Especificações completas
 - `docs/progress-tracker.md` - Tracking detalhado
 - `docs/database-setup.md` - Setup do banco
-- `SETUP-DATABASE.md` - Guia rápido
-- `PROJECT-STATUS.md` - Status atual
+- `docs/configuracao-banco.md` - Guia rápido
+- `docs/status-do-projeto.md` - Status atual
 
 ---
 

@@ -258,10 +258,19 @@ class ApiService {
 
   // Auth methods
   async login(credentials: LoginRequest): Promise<LoginResponse> {
-    const response: AxiosResponse<LoginResponse> = await this.api.post('/api/auth/login', credentials);
-    this.setTokens(response.data.access_token, response.data.refresh_token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
-    return response.data;
+    const response = await this.api.post('/api/auth/login', credentials);
+    
+    // Map backend response structure to frontend expected structure
+    const backendData = response.data.data; // Backend returns: { success, message, data: { accessToken, refreshToken, user } }
+    const mappedResponse: LoginResponse = {
+      access_token: backendData.accessToken,
+      refresh_token: backendData.refreshToken,
+      user: backendData.user
+    };
+    
+    this.setTokens(mappedResponse.access_token, mappedResponse.refresh_token);
+    localStorage.setItem('user', JSON.stringify(mappedResponse.user));
+    return mappedResponse;
   }
 
   async refreshToken(): Promise<void> {
@@ -289,84 +298,179 @@ class ApiService {
 
   // User methods
   getCurrentUser(): User | null {
-    const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
-  }
-
-  // Pessoas CRUD
-  async getPessoas(): Promise<Pessoa[]> {
     try {
-      const response: AxiosResponse<Pessoa[]> = await this.api.get('/api/pessoas');
-      return response.data;
-    } catch (error: any) {
-      // If backend is offline, return mock data
-      console.warn('Using mock data for pessoas');
-      return [
-        {
-          id: '1',
-          nome: 'João Silva Mock',
-          cpf: '123.456.789-00',
-          email: 'joao@example.com',
-          telefone: '(11) 99999-9999',
-          endereco: 'Rua Example, 123',
-          data_nascimento: '1990-01-01',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          nome: 'Maria Santos Mock',
-          cpf: '987.654.321-00',
-          email: 'maria@example.com',
-          telefone: '(11) 88888-8888',
-          endereco: 'Av. Test, 456',
-          data_nascimento: '1985-05-15',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-      ];
+      const userStr = localStorage.getItem('user');
+      if (!userStr || userStr === 'undefined' || userStr === 'null') {
+        return null;
+      }
+      return JSON.parse(userStr);
+    } catch (error) {
+      console.warn('Error parsing user from localStorage:', error);
+      // Clear corrupted data
+      localStorage.removeItem('user');
+      return null;
     }
   }
 
-  async getPessoa(id: string): Promise<Pessoa> {
+  // Pessoas CRUD
+  getPessoas = async (): Promise<Pessoa[]> => {
+    try {
+      const response = await this.api.get('/api/pessoas');
+      
+      // Map backend response structure and field names
+      return response.data.data.map((pessoa: any) => ({
+        id: pessoa.id.toString(),
+        nome: pessoa.nomeCompleto,
+        sexo: pessoa.sexo,
+        cpf: pessoa.cpf || '',
+        email: pessoa.email || '',
+        telefone: pessoa.telefone || '',
+        endereco: typeof pessoa.endereco === 'object' 
+          ? JSON.stringify(pessoa.endereco) 
+          : pessoa.endereco || '',
+        data_nascimento: pessoa.dataNasc || '',
+        created_at: pessoa.createdAt,
+        updated_at: pessoa.updatedAt,
+      }));
+    } catch (error) {
+      if (this.isOfflineMode) {
+        return this.handleOfflineMode('/api/pessoas');
+      }
+      throw this.handleError(error);
+    }
+  }
+
+  getPessoa = async (id: string): Promise<Pessoa> => {
     const response: AxiosResponse<Pessoa> = await this.api.get(`/api/pessoas/${id}`);
     return response.data;
   }
 
-  async createPessoa(pessoa: Omit<Pessoa, 'id' | 'created_at' | 'updated_at'>): Promise<Pessoa> {
+  createPessoa = async (pessoa: Omit<Pessoa, 'id' | 'created_at' | 'updated_at'>): Promise<Pessoa> => {
     try {
-      const response: AxiosResponse<Pessoa> = await this.api.post('/api/pessoas', pessoa);
-      return response.data;
-    } catch (error: any) {
-      console.warn('Using mock data for create pessoa');
-      return {
-        id: Date.now().toString(),
-        ...pessoa,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+      // Map frontend fields to backend expected structure
+      const backendData: any = {
+        nomeCompleto: pessoa.nome,
+        sexo: pessoa.sexo,
       };
-    }
-  }
 
-  async updatePessoa(id: string, pessoa: Partial<Pessoa>): Promise<Pessoa> {
-    try {
-      const response: AxiosResponse<Pessoa> = await this.api.patch(`/api/pessoas/${id}`, pessoa);
-      return response.data;
-    } catch (error: any) {
-      console.warn('Using mock data for update pessoa');
+      // Only include optional fields if they have values
+      if (pessoa.email && pessoa.email.trim()) {
+        backendData.email = pessoa.email;
+      }
+      
+      if (pessoa.cpf && pessoa.cpf.trim()) {
+        backendData.cpf = pessoa.cpf;
+      }
+      
+      if (pessoa.data_nascimento && pessoa.data_nascimento.trim()) {
+        backendData.dataNasc = pessoa.data_nascimento;
+      }
+      
+      if (pessoa.telefone && pessoa.telefone.trim()) {
+        backendData.telefone = pessoa.telefone;
+      }
+      
+      if (pessoa.endereco && pessoa.endereco.trim()) {
+        backendData.endereco = {
+          logradouro: pessoa.endereco,
+          numero: '',
+          complemento: '',
+          bairro: '',
+          cidade: 'São Paulo',
+          estado: 'SP',
+          cep: ''
+        };
+      }
+      
+      const response = await this.api.post('/api/pessoas', backendData);
+      
+      // Map response back to frontend structure
+      const created = response.data.data;
       return {
-        id,
-        nome: '',
-        cpf: '',
-        email: '',
-        created_at: new Date().toISOString(),
-        ...pessoa,
-        updated_at: new Date().toISOString(),
-      } as Pessoa;
+        id: created.id.toString(),
+        nome: created.nomeCompleto,
+        sexo: created.sexo,
+        cpf: created.cpf || '',
+        email: created.email || '',
+        telefone: created.telefone || '',
+        endereco: typeof created.endereco === 'object' 
+          ? JSON.stringify(created.endereco) 
+          : created.endereco || '',
+        data_nascimento: created.dataNasc || '',
+        created_at: created.createdAt,
+        updated_at: created.updatedAt,
+      };
+    } catch (error) {
+      throw this.handleError(error);
     }
   }
 
-  async deletePessoa(id: string): Promise<void> {
+  updatePessoa = async (id: string, pessoa: Partial<Pessoa>): Promise<Pessoa> => {
+    try {
+      // Map frontend fields to backend expected structure, similar to createPessoa
+      const backendData: any = {};
+
+      // Only include fields that have values
+      if (pessoa.nome && pessoa.nome.trim()) {
+        backendData.nomeCompleto = pessoa.nome;
+      }
+      
+      if (pessoa.sexo) {
+        backendData.sexo = pessoa.sexo;
+      }
+      
+      if (pessoa.email && pessoa.email.trim()) {
+        backendData.email = pessoa.email;
+      }
+      
+      if (pessoa.cpf && pessoa.cpf.trim()) {
+        backendData.cpf = pessoa.cpf;
+      }
+      
+      if (pessoa.data_nascimento && pessoa.data_nascimento.trim()) {
+        backendData.dataNasc = pessoa.data_nascimento;
+      }
+      
+      if (pessoa.telefone && pessoa.telefone.trim()) {
+        backendData.telefone = pessoa.telefone;
+      }
+      
+      if (pessoa.endereco && pessoa.endereco.trim() && pessoa.endereco !== 'null') {
+        backendData.endereco = {
+          logradouro: pessoa.endereco,
+          numero: '',
+          complemento: '',
+          bairro: '',
+          cidade: 'São Paulo',
+          estado: 'SP',
+          cep: ''
+        };
+      }
+
+      const response = await this.api.patch(`/api/pessoas/${id}`, backendData);
+      
+      // Map response back to frontend structure
+      const updated = response.data.data;
+      return {
+        id: updated.id.toString(),
+        nome: updated.nomeCompleto,
+        sexo: updated.sexo,
+        cpf: updated.cpf || '',
+        email: updated.email || '',
+        telefone: updated.telefone || '',
+        endereco: typeof updated.endereco === 'object' 
+          ? JSON.stringify(updated.endereco) 
+          : updated.endereco || '',
+        data_nascimento: updated.dataNasc || '',
+        created_at: updated.createdAt,
+        updated_at: updated.updatedAt,
+      };
+    } catch (error: any) {
+      throw this.handleError(error);
+    }
+  }
+
+  deletePessoa = async (id: string): Promise<void> => {
     try {
       await this.api.delete(`/api/pessoas/${id}`);
     } catch (error: any) {

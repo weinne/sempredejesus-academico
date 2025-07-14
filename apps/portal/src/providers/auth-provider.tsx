@@ -33,21 +33,49 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     // Check if user is already logged in
-    const currentUser = apiService.getCurrentUser();
-    setUser(currentUser);
-    setIsLoading(false);
+    try {
+      const currentUser = apiService.getCurrentUser();
+      setUser(currentUser);
+    } catch (error) {
+      console.warn('Error loading user from localStorage:', error);
+      // Clear corrupted data and start fresh
+      localStorage.removeItem('user');
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   const login = async (credentials: LoginRequest) => {
     try {
       setIsLoading(true);
       const response = await apiService.login(credentials);
+      
+      // Debug: log the actual response structure
+      console.log('Login response:', response);
+      console.log('User object:', response.user);
+      
+      // Validate user object structure
+      if (!response.user || !response.user.nome || !response.user.email || !response.user.role) {
+        console.error('Invalid user structure:', {
+          hasUser: !!response.user,
+          hasNome: !!(response.user && response.user.nome),
+          hasEmail: !!(response.user && response.user.email),
+          hasRole: !!(response.user && response.user.role),
+          actualUser: response.user
+        });
+        throw new Error('Invalid user data received from server');
+      }
+      
       setUser(response.user);
       toast({
         title: "Login realizado com sucesso",
         description: `Bem-vindo(a), ${response.user.nome}!`,
       });
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Erro no login",
         description: error.message || "Credenciais inválidas",

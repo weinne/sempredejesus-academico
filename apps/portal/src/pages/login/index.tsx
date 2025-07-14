@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
+import { useToast } from '@/hooks/use-toast';
 import { LoginRequest } from '@/types/api';
 
 const loginSchema = z.object({
@@ -19,15 +20,30 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const { login, isAuthenticated, isLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
   const location = useLocation();
+  
+  // Detectar ambiente de desenvolvimento
+  const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+
+  // Função para copiar email e preencher o formulário
+  const fillCredentials = (email: string, password: string) => {
+    setValue('email', email);
+    setValue('password', password);
+    toast({
+      title: "Credenciais preenchidas",
+      description: `Email: ${email}`,
+    });
+  };
 
   // Redirect if already authenticated
   if (isAuthenticated) {
@@ -123,18 +139,59 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 border-t pt-6">
-              <div className="text-sm text-gray-600">
-                <p className="mb-2">Usuários de teste disponíveis:</p>
-                <div className="grid grid-cols-1 gap-2 text-xs bg-gray-50 p-3 rounded">
-                  <div><strong>Admin:</strong> admin@seminario.edu</div>
-                  <div><strong>Secretaria:</strong> secretaria@seminario.edu</div>
-                  <div><strong>Professor:</strong> professor@seminario.edu</div>
-                  <div><strong>Aluno:</strong> aluno@seminario.edu</div>
-                  <div className="mt-1 text-gray-500">Senha padrão: <code>123456</code></div>
+            {/* Credenciais de teste - apenas em desenvolvimento */}
+            {isDevelopment && (
+              <div className="mt-6 border-t pt-6">
+                <div className="text-sm text-gray-600">
+                  <p className="mb-2 font-medium">🧪 Usuários de teste (desenvolvimento):</p>
+                  <div className="space-y-2 text-xs bg-gray-50 p-4 rounded-lg border">
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        type="button"
+                        onClick={() => fillCredentials('admin@seminario.edu', 'admin123')}
+                        className="text-left p-2 rounded hover:bg-blue-50 transition-colors border border-transparent hover:border-blue-200"
+                      >
+                        <p className="font-semibold text-blue-700 mb-1">ADMIN</p>
+                        <p className="text-gray-700">admin@seminario.edu</p>
+                        <p className="text-gray-500">admin123</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fillCredentials('secretaria@seminario.edu', 'test123')}
+                        className="text-left p-2 rounded hover:bg-green-50 transition-colors border border-transparent hover:border-green-200"
+                      >
+                        <p className="font-semibold text-green-700 mb-1">SECRETARIA</p>
+                        <p className="text-gray-700">secretaria@seminario.edu</p>
+                        <p className="text-gray-500">test123</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fillCredentials('professor@seminario.edu', 'test123')}
+                        className="text-left p-2 rounded hover:bg-purple-50 transition-colors border border-transparent hover:border-purple-200"
+                      >
+                        <p className="font-semibold text-purple-700 mb-1">PROFESSOR</p>
+                        <p className="text-gray-700">professor@seminario.edu</p>
+                        <p className="text-gray-500">test123</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fillCredentials('aluno@seminario.edu', 'test123')}
+                        className="text-left p-2 rounded hover:bg-orange-50 transition-colors border border-transparent hover:border-orange-200"
+                      >
+                        <p className="font-semibold text-orange-700 mb-1">ALUNO</p>
+                        <p className="text-gray-700">aluno@seminario.edu</p>
+                        <p className="text-gray-500">test123</p>
+                      </button>
+                    </div>
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <p className="text-gray-500 text-center">
+                        💡 <strong>Dica:</strong> Clique em qualquer usuário acima para preencher o formulário
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

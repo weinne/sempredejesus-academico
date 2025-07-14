@@ -153,10 +153,14 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Reques
 
   const userData = userQuery[0];
 
-  // For now, we'll create a simple password validation
-  // In a real implementation, you'd verify against userData.passwordHash
-  // This is just for demo purposes
-  const isValidPassword = password === 'admin123'; // Simplified for demo
+  // Check if user is active
+  if (userData.isActive !== 'S') {
+    throw createError('Account is inactive', 401);
+  }
+
+  // Verify password against stored hash
+  const bcrypt = require('bcrypt');
+  const isValidPassword = await bcrypt.compare(password, userData.passwordHash);
 
   if (!isValidPassword) {
     throw createError('Invalid credentials', 401);
