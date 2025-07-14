@@ -8,7 +8,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint . --max-warnings 0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured for shared-config\""
   },
   "dependencies": {
     "dotenv-flow": "^4.0.1",

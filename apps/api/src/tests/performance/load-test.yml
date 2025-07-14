@@ -1,0 +1,121 @@
+config:
+  target: 'http://localhost:4000'
+  phases:
+    - duration: 60
+      arrivalRate: 10
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 50
+      name: "Load test"
+    - duration: 60
+      arrivalRate: 100
+      name: "Spike test"
+  processor: "./load-test-processor.js"
+
+scenarios:
+  - name: "Health Check Load Test"
+    weight: 20
+    flow:
+      - get:
+          url: "/health"
+          capture:
+            - json: "$.status"
+              as: "healthStatus"
+      - think: 1
+
+  - name: "Authentication Load Test"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+            - json: "$.data.refreshToken"
+              as: "refreshToken"
+      - think: 2
+      - post:
+          url: "/api/auth/refresh"
+          json:
+            refreshToken: "{{ refreshToken }}"
+          capture:
+            - json: "$.data.accessToken"
+              as: "newAccessToken"
+      - think: 1
+      - post:
+          url: "/api/auth/logout"
+          headers:
+            Authorization: "Bearer {{ newAccessToken }}"
+
+  - name: "Protected Routes Load Test"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+      - get:
+          url: "/api/pessoas"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+      - think: 1
+      - get:
+          url: "/api/alunos"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+      - think: 1
+      - get:
+          url: "/api/professores"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+      - think: 1
+      - get:
+          url: "/api/cursos"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+
+  - name: "Database Operations Load Test"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            email: "{{ adminEmail }}"
+            password: "{{ adminPassword }}"
+          capture:
+            - json: "$.data.accessToken"
+              as: "accessToken"
+      - post:
+          url: "/api/pessoas"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            nome: "Load Test Person {{ $randomString() }}"
+            email: "loadtest{{ $randomInt(1, 10000) }}@test.com"
+            cpf: "{{ $randomInt(10000000000, 99999999999) }}"
+            telefone: "11{{ $randomInt(100000000, 999999999) }}"
+            endereco: "Test Address {{ $randomInt(1, 1000) }}"
+            dataNascimento: "1990-01-01"
+          capture:
+            - json: "$.data.id"
+              as: "pessoaId"
+      - think: 2
+      - get:
+          url: "/api/pessoas/{{ pessoaId }}"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+      - think: 1
+      - patch:
+          url: "/api/pessoas/{{ pessoaId }}"
+          headers:
+            Authorization: "Bearer {{ accessToken }}"
+          json:
+            telefone: "11{{ $randomInt(100000000, 999999999) }}"
+      - think: 1 
