@@ -6,13 +6,36 @@ export enum Role {
 }
 
 export interface User {
-  id: string;
-  email: string;
-  nome: string;
+  id: number;
+  pessoaId: number;
+  username: string;
   role: Role;
-  pessoa_id?: string;
-  created_at: string;
-  updated_at: string;
+  isActive: 'S' | 'N';
+  lastLogin?: string;
+  createdAt: string;
+  updatedAt: string;
+  pessoa?: Pessoa;
+}
+
+export interface CreateUser {
+  pessoaId: number;
+  username: string;
+  password: string;
+  role: Role;
+  isActive?: 'S' | 'N';
+}
+
+export interface UpdateUser {
+  username?: string;
+  password?: string;
+  role?: Role;
+  isActive?: 'S' | 'N';
+}
+
+export interface ChangePassword {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export interface LoginRequest {
