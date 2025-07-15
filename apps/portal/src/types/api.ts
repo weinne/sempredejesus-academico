@@ -67,15 +67,33 @@ export interface Pessoa {
 }
 
 export interface Aluno {
-  id: string;
   ra: string;
-  pessoa_id: string;
-  curso_id?: string;
-  status: 'ATIVO' | 'INATIVO' | 'TRANCADO' | 'FORMADO';
-  data_matricula: string;
-  created_at: string;
-  updated_at: string;
+  pessoaId: number;
+  cursoId: number;
+  anoIngresso: number;
+  igreja?: string;
+  situacao: 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO';
+  coeficienteAcad?: number;
+  createdAt: string;
+  updatedAt: string;
   pessoa?: Pessoa;
+  curso?: Curso;
+}
+
+export interface CreateAluno {
+  ra: string;
+  pessoaId: number;
+  cursoId: number;
+  anoIngresso: number;
+  igreja?: string;
+  situacao: 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO';
+  coeficienteAcad?: number;
+}
+
+export interface CreateAlunoWithUser extends CreateAluno {
+  createUser?: boolean;
+  username?: string;
+  password?: string;
 }
 
 export interface Professor {
@@ -91,14 +109,9 @@ export interface Professor {
 }
 
 export interface Curso {
-  id: string;
+  id: number;
   nome: string;
-  codigo: string;
-  descricao?: string;
-  grau: 'BACHARELADO' | 'LICENCIATURA' | 'ESPECIALIZACAO' | 'MESTRADO';
-  duracao_semestres: number;
-  created_at: string;
-  updated_at: string;
+  grau: string;
 }
 
 export interface ApiError {

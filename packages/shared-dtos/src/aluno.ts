@@ -17,6 +17,12 @@ export const CreateAlunoSchema = AlunoSchema.omit({
   updatedAt: true,
 });
 
+export const CreateAlunoWithUserSchema = CreateAlunoSchema.extend({
+  createUser: z.boolean().default(false),
+  username: z.string().min(3).max(50).optional(),
+  password: z.string().min(6).max(100).optional(),
+});
+
 export const UpdateAlunoSchema = CreateAlunoSchema.partial().omit({ ra: true });
 
 export const AlunoComPessoaSchema = AlunoSchema.extend({
@@ -35,5 +41,6 @@ export const AlunoComPessoaSchema = AlunoSchema.extend({
 
 export type Aluno = z.infer<typeof AlunoSchema>;
 export type CreateAluno = z.infer<typeof CreateAlunoSchema>;
+export type CreateAlunoWithUser = z.infer<typeof CreateAlunoWithUserSchema>;
 export type UpdateAluno = z.infer<typeof UpdateAlunoSchema>;
 export type AlunoComPessoa = z.infer<typeof AlunoComPessoaSchema>; 

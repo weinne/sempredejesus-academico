@@ -9,6 +9,8 @@ import {
   ChangePassword,
   Pessoa, 
   Aluno, 
+  CreateAluno,
+  CreateAlunoWithUser,
   Professor, 
   Curso,
   ApiError 
@@ -483,37 +485,74 @@ class ApiService {
   }
 
   // Alunos CRUD
-  async getAlunos(): Promise<Aluno[]> {
+  async getAlunos(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Aluno[]; pagination: any }> {
     try {
-      const response: AxiosResponse<Aluno[]> = await this.api.get('/api/alunos');
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/alunos?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
       console.warn('Using mock data for alunos');
-      return [
-        {
-          id: '1',
-          ra: '2024001',
-          pessoa_id: '1',
-          status: 'ATIVO',
-          data_matricula: '2024-01-01',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          pessoa: {
-            id: '1',
-            nome: 'João Silva Mock',
-            cpf: '123.456.789-00',
-            email: 'joao@example.com',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+      return {
+        data: [
+          {
+            ra: '2024001',
+            pessoaId: 1,
+            cursoId: 1,
+            anoIngresso: 2024,
+            igreja: 'Igreja Exemplo',
+            situacao: 'ATIVO',
+            coeficienteAcad: 8.5,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            pessoa: {
+              id: '1',
+              nome: 'João Silva Mock',
+              cpf: '123.456.789-00',
+              email: 'joao@example.com',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            curso: {
+              id: 1,
+              nome: 'Bacharelado em Teologia',
+              grau: 'BACHARELADO',
+            }
           }
-        }
-      ];
+        ],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+      };
     }
   }
 
   async getAluno(ra: string): Promise<Aluno> {
-    const response: AxiosResponse<Aluno> = await this.api.get(`/api/alunos/${ra}`);
-    return response.data;
+    const response = await this.api.get(`/api/alunos/${ra}`);
+    return response.data.data;
+  }
+
+  async createAluno(aluno: CreateAlunoWithUser): Promise<{ aluno: Aluno; user?: any }> {
+    const response = await this.api.post('/api/alunos', aluno);
+    return response.data.data;
+  }
+
+  async updateAluno(ra: string, aluno: Partial<CreateAluno>): Promise<Aluno> {
+    const response = await this.api.patch(`/api/alunos/${ra}`, aluno);
+    return response.data.data;
+  }
+
+  async deleteAluno(ra: string): Promise<void> {
+    await this.api.delete(`/api/alunos/${ra}`);
   }
 
   // Professores CRUD
@@ -547,24 +586,39 @@ class ApiService {
   }
 
   // Cursos CRUD
-  async getCursos(): Promise<Curso[]> {
+  async getCursos(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Curso[]; pagination?: any }> {
     try {
-      const response: AxiosResponse<Curso[]> = await this.api.get('/api/cursos');
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/cursos?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
       console.warn('Using mock data for cursos');
-      return [
-        {
-          id: '1',
-          nome: 'Bacharelado em Teologia Mock',
-          codigo: 'TEOL001',
-          descricao: 'Curso completo de Teologia',
-          grau: 'BACHARELADO',
-          duracao_semestres: 8,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-      ];
+      return {
+        data: [
+          {
+            id: 1,
+            nome: 'Bacharelado em Teologia',
+            grau: 'BACHARELADO',
+          },
+          {
+            id: 2,
+            nome: 'Licenciatura em Ensino Religioso',
+            grau: 'LICENCIATURA',
+          }
+        ]
+      };
     }
   }
 
