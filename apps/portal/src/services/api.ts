@@ -12,6 +12,8 @@ import {
   CreateAluno,
   CreateAlunoWithUser,
   Professor, 
+  CreateProfessor,
+  CreateProfessorWithUser,
   Curso,
   ApiError 
 } from '@/types/api';
@@ -556,33 +558,64 @@ class ApiService {
   }
 
   // Professores CRUD
-  async getProfessores(): Promise<Professor[]> {
+  async getProfessores(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Professor[]; pagination?: any }> {
     try {
-      const response: AxiosResponse<Professor[]> = await this.api.get('/api/professores');
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/professores?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
       console.warn('Using mock data for professores');
-      return [
-        {
-          id: '1',
-          matricula: 'PROF001',
-          pessoa_id: '2',
-          status: 'ATIVO',
-          especialidade: 'Teologia',
-          data_contratacao: '2020-01-01',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          pessoa: {
-            id: '2',
-            nome: 'Prof. Maria Santos Mock',
-            cpf: '987.654.321-00',
-            email: 'maria@example.com',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+      return {
+        data: [
+          {
+            matricula: 'PROF001',
+            pessoaId: 2,
+            dataInicio: '2020-01-01',
+            formacaoAcad: 'Doutorado em Teologia',
+            situacao: 'ATIVO',
+            pessoa: {
+              id: '2',
+              nome: 'Prof. Maria Santos Mock',
+              cpf: '987.654.321-00',
+              email: 'maria@example.com',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
           }
-        }
-      ];
+        ]
+      };
     }
+  }
+
+  async getProfessor(matricula: string): Promise<Professor> {
+    const response = await this.api.get(`/api/professores/${matricula}`);
+    return response.data.data;
+  }
+
+  async createProfessor(professor: CreateProfessorWithUser): Promise<{ professor: Professor; user?: any }> {
+    const response = await this.api.post('/api/professores', professor);
+    return response.data.data;
+  }
+
+  async updateProfessor(matricula: string, professor: Partial<CreateProfessor>): Promise<Professor> {
+    const response = await this.api.patch(`/api/professores/${matricula}`, professor);
+    return response.data.data;
+  }
+
+  async deleteProfessor(matricula: string): Promise<void> {
+    await this.api.delete(`/api/professores/${matricula}`);
   }
 
   // Cursos CRUD

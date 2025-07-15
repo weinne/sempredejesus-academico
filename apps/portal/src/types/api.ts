@@ -97,15 +97,26 @@ export interface CreateAlunoWithUser extends CreateAluno {
 }
 
 export interface Professor {
-  id: string;
   matricula: string;
-  pessoa_id: string;
-  especialidade?: string;
-  status: 'ATIVO' | 'INATIVO';
-  data_contratacao: string;
-  created_at: string;
-  updated_at: string;
+  pessoaId: number;
+  dataInicio: string;
+  formacaoAcad?: string;
+  situacao: 'ATIVO' | 'INATIVO';
   pessoa?: Pessoa;
+}
+
+export interface CreateProfessor {
+  matricula: string;
+  pessoaId: number;
+  dataInicio: string;
+  formacaoAcad?: string;
+  situacao: 'ATIVO' | 'INATIVO';
+}
+
+export interface CreateProfessorWithUser extends CreateProfessor {
+  createUser?: boolean;
+  username?: string;
+  password?: string;
 }
 
 export interface Curso {
