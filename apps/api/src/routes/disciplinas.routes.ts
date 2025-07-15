@@ -1,9 +1,12 @@
 import { Router } from 'express';
-import { SimpleCrudFactory } from '../core/crud.factory.simple';
-import { disciplinas } from '../db/schema';
+import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
+import { disciplinas, cursos } from '../db/schema';
 import { CreateDisciplinaSchema, UpdateDisciplinaSchema, IdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
-import { validateParams } from '../middleware/validation.middleware';
+import { validateParams, validateBody } from '../middleware/validation.middleware';
+import { eq } from 'drizzle-orm';
+import { db } from '../db';
+import { asyncHandler, createError } from '../middleware/error.middleware';
 
 /**
  * @swagger
@@ -145,27 +148,73 @@ import { validateParams } from '../middleware/validation.middleware';
 
 const router = Router();
 
-// Create CRUD factory for disciplinas (simplified)
-const disciplinasCrud = new SimpleCrudFactory({
+// Create Enhanced CRUD factory for disciplinas with joins
+const disciplinasCrud = new EnhancedCrudFactory({
   table: disciplinas,
   createSchema: CreateDisciplinaSchema,
   updateSchema: UpdateDisciplinaSchema,
+  joinTables: [
+    {
+      table: cursos,
+      on: eq(disciplinas.cursoId, cursos.id),
+    }
+  ],
+  searchFields: ['nome', 'codigo'], // Search by discipline name or code
+  orderBy: [{ field: 'nome', direction: 'asc' }],
+});
+
+// Custom method to get disciplina with complete information  
+const getDisciplinaComplete = asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  const result = await db
+    .select({
+      // Disciplina fields
+      id: disciplinas.id,
+      cursoId: disciplinas.cursoId,
+      codigo: disciplinas.codigo,
+      nome: disciplinas.nome,
+      creditos: disciplinas.creditos,
+      cargaHoraria: disciplinas.cargaHoraria,
+      ementa: disciplinas.ementa,
+      bibliografia: disciplinas.bibliografia,
+      ativo: disciplinas.ativo,
+      // Curso fields
+      curso: {
+        id: cursos.id,
+        nome: cursos.nome,
+        grau: cursos.grau,
+      }
+    })
+    .from(disciplinas)
+    .leftJoin(cursos, eq(disciplinas.cursoId, cursos.id))
+    .where(eq(disciplinas.id, id))
+    .limit(1);
+
+  if (result.length === 0) {
+    throw createError('Disciplina not found', 404);
+  }
+
+  res.json({
+    success: true,
+    data: result[0],
+  });
 });
 
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /disciplinas - List all disciplinas (any authenticated user can view)
+// GET /disciplinas - List all disciplinas with curso information
 router.get('/', disciplinasCrud.getAll);
 
-// GET /disciplinas/:id - Get disciplina by ID (any authenticated user can view)
-router.get('/:id', validateParams(IdParamSchema), disciplinasCrud.getById);
+// GET /disciplinas/:id - Get disciplina by ID with complete information
+router.get('/:id', validateParams(IdParamSchema), getDisciplinaComplete);
 
 // POST /disciplinas - Create new disciplina (requires ADMIN or SECRETARIA)
-router.post('/', requireSecretaria, disciplinasCrud.create);
+router.post('/', requireSecretaria, validateBody(CreateDisciplinaSchema), disciplinasCrud.create);
 
 // PATCH /disciplinas/:id - Update disciplina (requires ADMIN or SECRETARIA)
-router.patch('/:id', validateParams(IdParamSchema), requireSecretaria, disciplinasCrud.update);
+router.patch('/:id', validateParams(IdParamSchema), requireSecretaria, validateBody(UpdateDisciplinaSchema), disciplinasCrud.update);
 
 // DELETE /disciplinas/:id - Delete disciplina (requires ADMIN or SECRETARIA)
 router.delete('/:id', validateParams(IdParamSchema), requireSecretaria, disciplinasCrud.delete);

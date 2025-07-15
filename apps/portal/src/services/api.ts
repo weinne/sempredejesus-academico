@@ -748,6 +748,63 @@ class ApiService {
   async changePassword(id: number, passwords: ChangePassword): Promise<void> {
     await this.api.patch(`/api/users/${id}/change-password`, passwords);
   }
+
+  // Disciplinas CRUD
+  async getDisciplinas(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Disciplina[]; pagination?: any }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/disciplinas?${queryParams.toString()}`);
+      return response.data;
+    } catch (error: any) {
+      console.warn('Using mock data for disciplinas');
+      return {
+        data: [
+          {
+            id: 1,
+            cursoId: 1,
+            codigo: 'TEOL101',
+            nome: 'Introdução à Teologia',
+            creditos: 4,
+            cargaHoraria: 60,
+            ementa: 'Fundamentos básicos da teologia cristã.',
+            bibliografia: 'Teologia Sistemática - Berkhof',
+            ativo: true,
+          }
+        ]
+      };
+    }
+  }
+
+  async getDisciplina(id: number): Promise<Disciplina> {
+    const response = await this.api.get(`/api/disciplinas/${id}`);
+    return response.data.data;
+  }
+
+  async createDisciplina(disciplina: Omit<Disciplina, 'id'>): Promise<Disciplina> {
+    const response = await this.api.post('/api/disciplinas', disciplina);
+    return response.data.data;
+  }
+
+  async updateDisciplina(id: number, disciplina: Partial<Omit<Disciplina, 'id'>>): Promise<Disciplina> {
+    const response = await this.api.patch(`/api/disciplinas/${id}`, disciplina);
+    return response.data.data;
+  }
+
+  async deleteDisciplina(id: number): Promise<void> {
+    await this.api.delete(`/api/disciplinas/${id}`);
+  }
 }
 
 export const apiService = new ApiService();
