@@ -21,6 +21,7 @@ import professoresRoutes from './routes/professores.routes';
 import cursosRoutes from './routes/cursos.routes';
 import disciplinasRoutes from './routes/disciplinas.routes';
 import turmasRoutes from './routes/turmas.routes';
+import usersRoutes from './routes/users.routes';
 
 // Import middleware
 import { securityHeaders, requestMonitoring, apiVersion } from './middleware/security.middleware';
@@ -117,6 +118,7 @@ apiRouter.use('/professores', professoresRoutes);
 apiRouter.use('/cursos', cursosRoutes);
 apiRouter.use('/disciplinas', disciplinasRoutes);
 apiRouter.use('/turmas', turmasRoutes);
+apiRouter.use('/users', usersRoutes);
 
 app.use('/api', apiRouter);
 

@@ -6,13 +6,36 @@ export enum Role {
 }
 
 export interface User {
-  id: string;
-  email: string;
-  nome: string;
+  id: number;
+  pessoaId: number;
+  username: string;
   role: Role;
-  pessoa_id?: string;
-  created_at: string;
-  updated_at: string;
+  isActive: 'S' | 'N';
+  lastLogin?: string;
+  createdAt: string;
+  updatedAt: string;
+  pessoa?: Pessoa;
+}
+
+export interface CreateUser {
+  pessoaId: number;
+  username: string;
+  password: string;
+  role: Role;
+  isActive?: 'S' | 'N';
+}
+
+export interface UpdateUser {
+  username?: string;
+  password?: string;
+  role?: Role;
+  isActive?: 'S' | 'N';
+}
+
+export interface ChangePassword {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 export interface LoginRequest {
@@ -44,38 +67,83 @@ export interface Pessoa {
 }
 
 export interface Aluno {
-  id: string;
   ra: string;
-  pessoa_id: string;
-  curso_id?: string;
-  status: 'ATIVO' | 'INATIVO' | 'TRANCADO' | 'FORMADO';
-  data_matricula: string;
-  created_at: string;
-  updated_at: string;
+  pessoaId: number;
+  cursoId: number;
+  anoIngresso: number;
+  igreja?: string;
+  situacao: 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO';
+  coeficienteAcad?: number;
+  createdAt: string;
+  updatedAt: string;
   pessoa?: Pessoa;
+  curso?: Curso;
+}
+
+export interface CreateAluno {
+  ra: string;
+  pessoaId: number;
+  cursoId: number;
+  anoIngresso: number;
+  igreja?: string;
+  situacao: 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO';
+  coeficienteAcad?: number;
+}
+
+export interface CreateAlunoWithUser extends CreateAluno {
+  createUser?: boolean;
+  username?: string;
+  password?: string;
 }
 
 export interface Professor {
-  id: string;
   matricula: string;
-  pessoa_id: string;
-  especialidade?: string;
-  status: 'ATIVO' | 'INATIVO';
-  data_contratacao: string;
-  created_at: string;
-  updated_at: string;
+  pessoaId: number;
+  dataInicio: string;
+  formacaoAcad?: string;
+  situacao: 'ATIVO' | 'INATIVO';
   pessoa?: Pessoa;
 }
 
+export interface CreateProfessor {
+  matricula: string;
+  pessoaId: number;
+  dataInicio: string;
+  formacaoAcad?: string;
+  situacao: 'ATIVO' | 'INATIVO';
+}
+
+export interface CreateProfessorWithUser extends CreateProfessor {
+  createUser?: boolean;
+  username?: string;
+  password?: string;
+}
+
 export interface Curso {
-  id: string;
+  id: number;
   nome: string;
+  grau: string;
+  disciplinas?: Disciplina[];
+  totalDisciplinas?: number;
+  disciplinasAtivas?: number;
+  cargaHorariaTotal?: number;
+}
+
+export interface CreateCurso {
+  nome: string;
+  grau: string;
+}
+
+export interface Disciplina {
+  id: number;
+  cursoId: number;
   codigo: string;
-  descricao?: string;
-  grau: 'BACHARELADO' | 'LICENCIATURA' | 'ESPECIALIZACAO' | 'MESTRADO';
-  duracao_semestres: number;
-  created_at: string;
-  updated_at: string;
+  nome: string;
+  creditos: number;
+  cargaHoraria: number;
+  ementa?: string;
+  bibliografia?: string;
+  ativo: boolean;
 }
 
 export interface ApiError {

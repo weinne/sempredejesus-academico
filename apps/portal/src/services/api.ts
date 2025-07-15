@@ -4,10 +4,19 @@ import {
   LoginResponse, 
   RefreshTokenResponse, 
   User, 
+  CreateUser,
+  UpdateUser,
+  ChangePassword,
   Pessoa, 
   Aluno, 
+  CreateAluno,
+  CreateAlunoWithUser,
   Professor, 
+  CreateProfessor,
+  CreateProfessorWithUser,
   Curso,
+  CreateCurso,
+  Disciplina,
   ApiError 
 } from '@/types/api';
 
@@ -480,95 +489,321 @@ class ApiService {
   }
 
   // Alunos CRUD
-  async getAlunos(): Promise<Aluno[]> {
+  async getAlunos(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Aluno[]; pagination: any }> {
     try {
-      const response: AxiosResponse<Aluno[]> = await this.api.get('/api/alunos');
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/alunos?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
       console.warn('Using mock data for alunos');
-      return [
-        {
-          id: '1',
-          ra: '2024001',
-          pessoa_id: '1',
-          status: 'ATIVO',
-          data_matricula: '2024-01-01',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          pessoa: {
-            id: '1',
-            nome: 'João Silva Mock',
-            cpf: '123.456.789-00',
-            email: 'joao@example.com',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+      return {
+        data: [
+          {
+            ra: '2024001',
+            pessoaId: 1,
+            cursoId: 1,
+            anoIngresso: 2024,
+            igreja: 'Igreja Exemplo',
+            situacao: 'ATIVO',
+            coeficienteAcad: 8.5,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            pessoa: {
+              id: '1',
+              nome: 'João Silva Mock',
+              cpf: '123.456.789-00',
+              email: 'joao@example.com',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            },
+            curso: {
+              id: 1,
+              nome: 'Bacharelado em Teologia',
+              grau: 'BACHARELADO',
+            }
           }
-        }
-      ];
+        ],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+      };
     }
   }
 
   async getAluno(ra: string): Promise<Aluno> {
-    const response: AxiosResponse<Aluno> = await this.api.get(`/api/alunos/${ra}`);
-    return response.data;
+    const response = await this.api.get(`/api/alunos/${ra}`);
+    return response.data.data;
+  }
+
+  async createAluno(aluno: CreateAlunoWithUser): Promise<{ aluno: Aluno; user?: any }> {
+    const response = await this.api.post('/api/alunos', aluno);
+    return response.data.data;
+  }
+
+  async updateAluno(ra: string, aluno: Partial<CreateAluno>): Promise<Aluno> {
+    const response = await this.api.patch(`/api/alunos/${ra}`, aluno);
+    return response.data.data;
+  }
+
+  async deleteAluno(ra: string): Promise<void> {
+    await this.api.delete(`/api/alunos/${ra}`);
   }
 
   // Professores CRUD
-  async getProfessores(): Promise<Professor[]> {
+  async getProfessores(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Professor[]; pagination?: any }> {
     try {
-      const response: AxiosResponse<Professor[]> = await this.api.get('/api/professores');
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/professores?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
       console.warn('Using mock data for professores');
-      return [
-        {
-          id: '1',
-          matricula: 'PROF001',
-          pessoa_id: '2',
-          status: 'ATIVO',
-          especialidade: 'Teologia',
-          data_contratacao: '2020-01-01',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          pessoa: {
-            id: '2',
-            nome: 'Prof. Maria Santos Mock',
-            cpf: '987.654.321-00',
-            email: 'maria@example.com',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
+      return {
+        data: [
+          {
+            matricula: 'PROF001',
+            pessoaId: 2,
+            dataInicio: '2020-01-01',
+            formacaoAcad: 'Doutorado em Teologia',
+            situacao: 'ATIVO',
+            pessoa: {
+              id: '2',
+              nome: 'Prof. Maria Santos Mock',
+              cpf: '987.654.321-00',
+              email: 'maria@example.com',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
           }
-        }
-      ];
+        ]
+      };
     }
   }
 
+  async getProfessor(matricula: string): Promise<Professor> {
+    const response = await this.api.get(`/api/professores/${matricula}`);
+    return response.data.data;
+  }
+
+  async createProfessor(professor: CreateProfessorWithUser): Promise<{ professor: Professor; user?: any }> {
+    const response = await this.api.post('/api/professores', professor);
+    return response.data.data;
+  }
+
+  async updateProfessor(matricula: string, professor: Partial<CreateProfessor>): Promise<Professor> {
+    const response = await this.api.patch(`/api/professores/${matricula}`, professor);
+    return response.data.data;
+  }
+
+  async deleteProfessor(matricula: string): Promise<void> {
+    await this.api.delete(`/api/professores/${matricula}`);
+  }
+
   // Cursos CRUD
-  async getCursos(): Promise<Curso[]> {
+  async getCursos(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Curso[]; pagination?: any }> {
     try {
-      const response: AxiosResponse<Curso[]> = await this.api.get('/api/cursos');
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/cursos?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
       console.warn('Using mock data for cursos');
-      return [
-        {
-          id: '1',
-          nome: 'Bacharelado em Teologia Mock',
-          codigo: 'TEOL001',
-          descricao: 'Curso completo de Teologia',
-          grau: 'BACHARELADO',
-          duracao_semestres: 8,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }
-      ];
+      return {
+        data: [
+          {
+            id: 1,
+            nome: 'Bacharelado em Teologia',
+            grau: 'BACHARELADO',
+          },
+          {
+            id: 2,
+            nome: 'Licenciatura em Ensino Religioso',
+            grau: 'LICENCIATURA',
+          }
+        ]
+      };
     }
+  }
+
+  async getCurso(id: number): Promise<Curso> {
+    const response = await this.api.get(`/api/cursos/${id}`);
+    return response.data.data;
+  }
+
+  async createCurso(curso: CreateCurso): Promise<Curso> {
+    const response = await this.api.post('/api/cursos', curso);
+    return response.data.data;
+  }
+
+  async updateCurso(id: number, curso: Partial<CreateCurso>): Promise<Curso> {
+    const response = await this.api.patch(`/api/cursos/${id}`, curso);
+    return response.data.data;
+  }
+
+  async deleteCurso(id: number): Promise<void> {
+    await this.api.delete(`/api/cursos/${id}`);
   }
 
   // Health check
   async healthCheck(): Promise<{ status: string }> {
     const response: AxiosResponse<{ status: string }> = await this.api.get('/health');
     return response.data;
+  }
+
+  // Users CRUD
+  async getUsers(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: User[]; pagination: any }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/users?${queryParams.toString()}`);
+      return response.data;
+    } catch (error: any) {
+      console.warn('Using mock data for users');
+      return {
+        data: [
+          {
+            id: 1,
+            pessoaId: 1,
+            username: 'admin',
+            role: 'ADMIN',
+            isActive: 'S',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            pessoa: {
+              id: '1',
+              nome: 'Administrador Mock',
+              email: 'admin@seminario.edu',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            }
+          }
+        ],
+        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+      };
+    }
+  }
+
+  async getUser(id: number): Promise<User> {
+    const response = await this.api.get(`/api/users/${id}`);
+    return response.data.data;
+  }
+
+  async createUser(user: CreateUser): Promise<User> {
+    const response = await this.api.post('/api/users', user);
+    return response.data.data;
+  }
+
+  async updateUser(id: number, user: UpdateUser): Promise<User> {
+    const response = await this.api.patch(`/api/users/${id}`, user);
+    return response.data.data;
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await this.api.delete(`/api/users/${id}`);
+  }
+
+  async changePassword(id: number, passwords: ChangePassword): Promise<void> {
+    await this.api.patch(`/api/users/${id}/change-password`, passwords);
+  }
+
+  // Disciplinas CRUD
+  async getDisciplinas(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Disciplina[]; pagination?: any }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/disciplinas?${queryParams.toString()}`);
+      return response.data;
+    } catch (error: any) {
+      console.warn('Using mock data for disciplinas');
+      return {
+        data: [
+          {
+            id: 1,
+            cursoId: 1,
+            codigo: 'TEOL101',
+            nome: 'Introdução à Teologia',
+            creditos: 4,
+            cargaHoraria: 60,
+            ementa: 'Fundamentos básicos da teologia cristã.',
+            bibliografia: 'Teologia Sistemática - Berkhof',
+            ativo: true,
+          }
+        ]
+      };
+    }
+  }
+
+  async getDisciplina(id: number): Promise<Disciplina> {
+    const response = await this.api.get(`/api/disciplinas/${id}`);
+    return response.data.data;
+  }
+
+  async createDisciplina(disciplina: Omit<Disciplina, 'id'>): Promise<Disciplina> {
+    const response = await this.api.post('/api/disciplinas', disciplina);
+    return response.data.data;
+  }
+
+  async updateDisciplina(id: number, disciplina: Partial<Omit<Disciplina, 'id'>>): Promise<Disciplina> {
+    const response = await this.api.patch(`/api/disciplinas/${id}`, disciplina);
+    return response.data.data;
+  }
+
+  async deleteDisciplina(id: number): Promise<void> {
+    await this.api.delete(`/api/disciplinas/${id}`);
   }
 }
 

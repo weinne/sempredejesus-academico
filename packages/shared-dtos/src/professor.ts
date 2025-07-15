@@ -10,6 +10,12 @@ export const ProfessorSchema = z.object({
 
 export const CreateProfessorSchema = ProfessorSchema;
 
+export const CreateProfessorWithUserSchema = CreateProfessorSchema.extend({
+  createUser: z.boolean().default(false),
+  username: z.string().min(3).max(50).optional(),
+  password: z.string().min(6).max(100).optional(),
+});
+
 export const UpdateProfessorSchema = CreateProfessorSchema.partial().omit({ matricula: true });
 
 export const ProfessorComPessoaSchema = ProfessorSchema.extend({
@@ -23,5 +29,6 @@ export const ProfessorComPessoaSchema = ProfessorSchema.extend({
 
 export type Professor = z.infer<typeof ProfessorSchema>;
 export type CreateProfessor = z.infer<typeof CreateProfessorSchema>;
+export type CreateProfessorWithUser = z.infer<typeof CreateProfessorWithUserSchema>;
 export type UpdateProfessor = z.infer<typeof UpdateProfessorSchema>;
 export type ProfessorComPessoa = z.infer<typeof ProfessorComPessoaSchema>; 

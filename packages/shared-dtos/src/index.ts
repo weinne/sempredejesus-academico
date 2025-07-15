@@ -1,5 +1,6 @@
 // Auth DTOs
 export * from './auth';
+export * from './user';
 
 // Academic DTOs
 export * from './pessoa';

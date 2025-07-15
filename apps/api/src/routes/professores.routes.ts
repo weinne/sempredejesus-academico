@@ -1,9 +1,13 @@
 import { Router } from 'express';
-import { SimpleCrudFactory } from '../core/crud.factory.simple';
-import { professores } from '../db/schema';
-import { CreateProfessorSchema, UpdateProfessorSchema, StringIdParamSchema } from '@seminario/shared-dtos';
+import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
+import { professores, pessoas, users } from '../db/schema';
+import { CreateProfessorSchema, UpdateProfessorSchema, CreateProfessorWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireProfessor } from '../middleware/auth.middleware';
-import { validateParams } from '../middleware/validation.middleware';
+import { validateParams, validateBody } from '../middleware/validation.middleware';
+import { eq } from 'drizzle-orm';
+import { db } from '../db';
+import { asyncHandler, createError } from '../middleware/error.middleware';
+import bcrypt from 'bcrypt';
 
 /**
  * @swagger
@@ -295,24 +299,114 @@ import { validateParams } from '../middleware/validation.middleware';
 
 const router = Router();
 
-// Create CRUD factory for professores (simplified)
-const professoresCrud = new SimpleCrudFactory({
+// Create Enhanced CRUD factory for professores with joins
+const professoresCrud = new EnhancedCrudFactory({
   table: professores,
   createSchema: CreateProfessorSchema,
   updateSchema: UpdateProfessorSchema,
+  joinTables: [
+    {
+      table: pessoas,
+      on: eq(professores.pessoaId, pessoas.id),
+    }
+  ],
+  searchFields: ['nomeCompleto'], // Search by pessoa name
+  orderBy: [{ field: 'matricula', direction: 'asc' }],
+});
+
+// Custom method to create professor with automatic user creation
+const createProfessorWithUser = asyncHandler(async (req, res) => {
+  const validatedData = CreateProfessorWithUserSchema.parse(req.body);
+  const { createUser, username, password, ...professorData } = validatedData;
+
+  // Start transaction
+  const result = await db.transaction(async (tx) => {
+    // Create professor
+    const [novoProfessor] = await tx
+      .insert(professores)
+      .values(professorData)
+      .returning();
+
+    // Create user if requested
+    let novoUser = null;
+    if (createUser && username && password) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      
+      [novoUser] = await tx
+        .insert(users)
+        .values({
+          pessoaId: professorData.pessoaId,
+          username,
+          passwordHash,
+          role: 'PROFESSOR',
+          isActive: 'S',
+        })
+        .returning();
+    }
+
+    return { professor: novoProfessor, user: novoUser };
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Professor criado com sucesso',
+    data: {
+      professor: result.professor,
+      user: result.user ? { id: result.user.id, username: result.user.username } : null,
+    },
+  });
+});
+
+// Custom method to get professor with complete information  
+const getProfessorComplete = asyncHandler(async (req, res) => {
+  const matricula = req.params.id;
+
+  const result = await db
+    .select({
+      // Professor fields
+      matricula: professores.matricula,
+      pessoaId: professores.pessoaId,
+      dataInicio: professores.dataInicio,
+      formacaoAcad: professores.formacaoAcad,
+      situacao: professores.situacao,
+      // Pessoa fields
+      pessoa: {
+        id: pessoas.id,
+        nomeCompleto: pessoas.nomeCompleto,
+        sexo: pessoas.sexo,
+        email: pessoas.email,
+        cpf: pessoas.cpf,
+        dataNasc: pessoas.dataNasc,
+        telefone: pessoas.telefone,
+        endereco: pessoas.endereco,
+      }
+    })
+    .from(professores)
+    .leftJoin(pessoas, eq(professores.pessoaId, pessoas.id))
+    .where(eq(professores.matricula, matricula))
+    .limit(1);
+
+  if (result.length === 0) {
+    throw createError('Professor not found', 404);
+  }
+
+  res.json({
+    success: true,
+    data: result[0],
+  });
 });
 
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /professores - List all professores (any authenticated user can view)
+// GET /professores - List all professores with pessoa information
 router.get('/', professoresCrud.getAll);
 
-// GET /professores/:id - Get professor by matricula (any authenticated user can view)
-router.get('/:id', validateParams(StringIdParamSchema), professoresCrud.getById);
+// GET /professores/:id - Get professor by matricula with complete information
+router.get('/:id', validateParams(StringIdParamSchema), getProfessorComplete);
 
-// POST /professores - Create new professor (requires ADMIN or SECRETARIA)
-router.post('/', requireSecretaria, professoresCrud.create);
+// POST /professores - Create new professor with optional user creation
+router.post('/', requireSecretaria, createProfessorWithUser);
 
 // PATCH /professores/:id - Update professor (requires ADMIN or SECRETARIA)
 router.patch('/:id', validateParams(StringIdParamSchema), requireSecretaria, professoresCrud.update);
