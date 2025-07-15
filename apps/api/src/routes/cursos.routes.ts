@@ -1,9 +1,12 @@
 import { Router } from 'express';
-import { SimpleCrudFactory } from '../core/crud.factory.simple';
-import { cursos } from '../db/schema';
+import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
+import { cursos, disciplinas } from '../db/schema';
 import { CreateCursoSchema, UpdateCursoSchema, IdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
-import { validateParams } from '../middleware/validation.middleware';
+import { validateParams, validateBody } from '../middleware/validation.middleware';
+import { eq } from 'drizzle-orm';
+import { db } from '../db';
+import { asyncHandler, createError } from '../middleware/error.middleware';
 
 /**
  * @swagger
@@ -146,27 +149,75 @@ import { validateParams } from '../middleware/validation.middleware';
 
 const router = Router();
 
-// Create CRUD factory for cursos (simplified)
-const cursosCrud = new SimpleCrudFactory({
+// Create Enhanced CRUD factory for cursos
+const cursosCrud = new EnhancedCrudFactory({
   table: cursos,
   createSchema: CreateCursoSchema,
   updateSchema: UpdateCursoSchema,
+  searchFields: ['nome'], // Search by course name
+  orderBy: [{ field: 'nome', direction: 'asc' }],
+});
+
+// Custom method to get curso with disciplinas
+const getCursoWithDisciplinas = asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id);
+
+  // Get curso
+  const cursoResult = await db
+    .select()
+    .from(cursos)
+    .where(eq(cursos.id, id))
+    .limit(1);
+
+  if (cursoResult.length === 0) {
+    throw createError('Curso not found', 404);
+  }
+
+  // Get disciplinas for this curso
+  const disciplinasResult = await db
+    .select({
+      id: disciplinas.id,
+      codigo: disciplinas.codigo,
+      nome: disciplinas.nome,
+      creditos: disciplinas.creditos,
+      cargaHoraria: disciplinas.cargaHoraria,
+      ementa: disciplinas.ementa,
+      bibliografia: disciplinas.bibliografia,
+      ativo: disciplinas.ativo,
+    })
+    .from(disciplinas)
+    .where(eq(disciplinas.cursoId, id))
+    .orderBy(disciplinas.nome);
+
+  const curso = cursoResult[0];
+  const result = {
+    ...curso,
+    disciplinas: disciplinasResult,
+    totalDisciplinas: disciplinasResult.length,
+    disciplinasAtivas: disciplinasResult.filter(d => d.ativo).length,
+    cargaHorariaTotal: disciplinasResult.reduce((total, d) => total + d.cargaHoraria, 0),
+  };
+
+  res.json({
+    success: true,
+    data: result,
+  });
 });
 
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /cursos - List all cursos (any authenticated user can view)
+// GET /cursos - List all cursos
 router.get('/', cursosCrud.getAll);
 
-// GET /cursos/:id - Get curso by ID (any authenticated user can view)
-router.get('/:id', validateParams(IdParamSchema), cursosCrud.getById);
+// GET /cursos/:id - Get curso by ID with disciplinas
+router.get('/:id', validateParams(IdParamSchema), getCursoWithDisciplinas);
 
 // POST /cursos - Create new curso (requires ADMIN or SECRETARIA)
-router.post('/', requireSecretaria, cursosCrud.create);
+router.post('/', requireSecretaria, validateBody(CreateCursoSchema), cursosCrud.create);
 
 // PATCH /cursos/:id - Update curso (requires ADMIN or SECRETARIA)
-router.patch('/:id', validateParams(IdParamSchema), requireSecretaria, cursosCrud.update);
+router.patch('/:id', validateParams(IdParamSchema), requireSecretaria, validateBody(UpdateCursoSchema), cursosCrud.update);
 
 // DELETE /cursos/:id - Delete curso (requires ADMIN or SECRETARIA)
 router.delete('/:id', validateParams(IdParamSchema), requireSecretaria, cursosCrud.delete);

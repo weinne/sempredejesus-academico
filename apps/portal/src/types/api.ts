@@ -123,6 +123,27 @@ export interface Curso {
   id: number;
   nome: string;
   grau: string;
+  disciplinas?: Disciplina[];
+  totalDisciplinas?: number;
+  disciplinasAtivas?: number;
+  cargaHorariaTotal?: number;
+}
+
+export interface CreateCurso {
+  nome: string;
+  grau: string;
+}
+
+export interface Disciplina {
+  id: number;
+  cursoId: number;
+  codigo: string;
+  nome: string;
+  creditos: number;
+  cargaHoraria: number;
+  ementa?: string;
+  bibliografia?: string;
+  ativo: boolean;
 }
 
 export interface ApiError {

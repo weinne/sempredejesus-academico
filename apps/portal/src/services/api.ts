@@ -15,6 +15,8 @@ import {
   CreateProfessor,
   CreateProfessorWithUser,
   Curso,
+  CreateCurso,
+  Disciplina,
   ApiError 
 } from '@/types/api';
 
@@ -653,6 +655,25 @@ class ApiService {
         ]
       };
     }
+  }
+
+  async getCurso(id: number): Promise<Curso> {
+    const response = await this.api.get(`/api/cursos/${id}`);
+    return response.data.data;
+  }
+
+  async createCurso(curso: CreateCurso): Promise<Curso> {
+    const response = await this.api.post('/api/cursos', curso);
+    return response.data.data;
+  }
+
+  async updateCurso(id: number, curso: Partial<CreateCurso>): Promise<Curso> {
+    const response = await this.api.patch(`/api/cursos/${id}`, curso);
+    return response.data.data;
+  }
+
+  async deleteCurso(id: number): Promise<void> {
+    await this.api.delete(`/api/cursos/${id}`);
   }
 
   // Health check
