@@ -41,6 +41,7 @@ COPY --from=builder /app/packages/*/dist ./packages/*/dist
 # Copy built API
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY apps/api/src/db ./apps/api/src/db
+COPY scripts/start-production.sh ./scripts/start-production.sh
 
 # Copy built portal (static files)
 COPY --from=portal-builder /app/apps/portal/dist ./public
@@ -52,14 +53,16 @@ WORKDIR /app/apps/api
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
 RUN chown -R nextjs:nodejs /app
+RUN chmod +x /app/scripts/start-production.sh
 USER nextjs
 
 # Expose port
 EXPOSE 4000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:4000/health || exit 1
 
-# Start the application
-CMD ["node", "dist/server.js"] 
+# Start the application with migrations
+WORKDIR /app
+CMD ["/app/scripts/start-production.sh"] 
