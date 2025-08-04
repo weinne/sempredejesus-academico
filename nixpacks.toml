@@ -1,0 +1,21 @@
+[variables]
+NODE_ENV = "production"
+PORT = "4000"
+
+[providers]
+node = "18"
+
+[install]
+cmds = ["pnpm install --frozen-lockfile"]
+
+[build]
+cmds = [
+    "pnpm run build",
+    "chmod +x scripts/nixpacks-start.sh"
+]
+
+[start]
+cmd = "./scripts/nixpacks-start.sh"
+
+[staticAssets]
+"/public" = "apps/portal/dist"

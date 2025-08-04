@@ -1,0 +1,21 @@
+# Nixpacks Configuration for Coolify
+providers = ["node"]
+
+[variables]
+NODE_ENV = "production"
+PORT = "4000"
+
+[phases.setup]
+nixPkgs = ["nodejs_18", "pnpm", "postgresql"]
+
+[phases.install] 
+cmds = ["pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+    "pnpm run build",
+    "chmod +x scripts/nixpacks-start.sh"
+]
+
+[start]
+cmd = "./scripts/nixpacks-start.sh"

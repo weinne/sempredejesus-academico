@@ -1,88 +1,98 @@
-# 🚀 Guia de Deploy no Coolify - Sistema Acadêmico
+# 🚀 Guia de Deploy no Coolify - Sistema Acadêmico (Nixpacks)
 
-## 📋 Configuração de Environment Variables
+## 📋 Configuração Simplificada com Nixpacks
 
-Configure estas variáveis no Coolify (Application > Environment Variables):
-
-### 🗄️ Database
-```bash
-DATABASE_URL=postgresql://username:password@host:5432/seminario_db
-```
-
-### 🔐 Authentication
-```bash
-JWT_SECRET=your-production-jwt-secret-256-bits-minimum
-JWT_EXPIRES_IN=7d
-REFRESH_TOKEN_SECRET=your-refresh-secret-256-bits-minimum
-```
-
-### 🌐 Application
-```bash
-NODE_ENV=production
-PORT=4000
-APP_URL=https://seudominio.com
-API_URL=https://api.seudominio.com
-```
-
-### 🛡️ Security (Opcional)
-```bash
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
-```
+O projeto agora está configurado para usar **Nixpacks** que é mais simples e tem suporte nativo no Coolify.
 
 ## 📦 Configuração no Coolify
 
 ### 1. Criar PostgreSQL Service
-- Service Type: PostgreSQL
-- Database Name: `seminario_db` 
-- Username: `postgres`
-- Password: gerar senha segura
+- **Service Type**: PostgreSQL 15
+- **Database Name**: `seminario_db` 
+- **Username**: `postgres`
+- **Password**: gerar senha segura (anotar para usar no DATABASE_URL)
 
-### 2. Configuração da Aplicação
+### 2. Criar Nova Aplicação
 - **Source**: Repository GitHub/GitLab
-- **Build Type**: Docker
-- **Port**: 4000
+- **Build Pack**: **Nixpacks** (detectado automaticamente)
+- **Port**: `4000`
 - **Health Check Path**: `/health`
 
-### 3. Variables de Ambiente
-Configurar as variáveis listadas acima na interface do Coolify.
+### 3. Environment Variables
+Configure na interface do Coolify (Application > Environment Variables):
 
-## 🔄 Processo de Deploy
+```bash
+# Database (OBRIGATÓRIO)
+DATABASE_URL=postgresql://postgres:SUA_SENHA@postgresql-service:5432/seminario_db
 
-1. **Build**: Coolify constrói a imagem Docker
-2. **Migration**: Script automático executa migrações do banco
-3. **Start**: Aplicação inicia na porta 4000
-4. **Health Check**: Verifica se aplicação está rodando
+# Authentication (GERAR CHAVES SEGURAS)
+JWT_SECRET=sua-chave-jwt-256-bits-segura
+JWT_EXPIRES_IN=7d
+REFRESH_TOKEN_SECRET=sua-chave-refresh-256-bits-segura
 
-## ✅ Verificação Pós-Deploy
+# Application
+NODE_ENV=production
+PORT=4000
+APP_URL=https://seudominio.com
+API_URL=https://api.seudominio.com
 
-- **Health Check**: `https://seudominio.com/health`
+# Security (Opcional)
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+```
+
+## � Arquivos de Configuração Criados
+
+- ✅ `nixpacks.toml` - Configuração principal do Nixpacks
+- ✅ `scripts/nixpacks-start.sh` - Script de inicialização com migrações
+- ✅ `apps/api/src/scripts/migrate-production.ts` - Script de migração
+
+## 🚀 Processo de Deploy (Automático)
+
+1. **Detecção**: Coolify detecta Nixpacks automaticamente
+2. **Build**: Instala dependências e builda o projeto
+3. **Migrations**: Script aguarda banco e executa migrações
+4. **Start**: Inicia aplicação na porta 4000
+5. **Health Check**: Verifica `/health` endpoint
+
+## ✅ Vantagens do Nixpacks vs Docker
+
+- ✅ **Mais simples** - Sem Dockerfile complexo
+- ✅ **Detecção automática** - Coolify reconhece o projeto
+- ✅ **Otimizado** - Build mais rápido
+- ✅ **Menos configuração** - Funciona out-of-the-box
+- ✅ **Mesmo resultado** - Migrações automáticas mantidas
+
+## 🎯 Deploy Steps
+
+1. **Push** o código para seu repositório
+2. **Criar PostgreSQL** service no Coolify
+3. **Criar aplicação** no Coolify (vai detectar Nixpacks)
+4. **Configurar environment variables** (principalmente DATABASE_URL)
+5. **Deploy** - Tudo automático!
+
+## 🔍 Verificação Pós-Deploy
+
+- **API Health**: `https://seudominio.com/health`
+- **Database Status**: `https://seudominio.com/health/database`  
 - **API Docs**: `https://seudominio.com/api-docs`
-- **Database Status**: `https://seudominio.com/health/database`
+- **Logs**: Interface do Coolify
 
 ## 🐛 Troubleshooting
 
-### Erro de Conexão com Banco
+### Database Connection Issues
 ```bash
-# Verificar logs no Coolify
-# Endpoint de verificação
-curl https://api.seudominio.com/health/database
+# Check logs no Coolify
+# Verificar se DATABASE_URL está correto
+# Verificar se PostgreSQL service está rodando
 ```
 
-### Migrations não Executaram
+### Build Issues
 ```bash
-# Conectar ao container via Coolify terminal
-cd apps/api
-pnpm run migrate:prod
+# Nixpacks logs estarão visíveis no Coolify
+# Verificar se pnpm-lock.yaml está commitado
 ```
 
-## 🎯 Features Incluídas
+## � Ready to Deploy!
 
-- ✅ **Auto-migrations** na inicialização
-- ✅ **Health checks** configurados  
-- ✅ **Production optimized** Dockerfile
-- ✅ **Security headers** via Helmet
-- ✅ **Rate limiting** configurado
-- ✅ **CORS** configurado para produção
-- ✅ **Compression** habilitada
-- ✅ **SSL/HTTPS** ready
+O projeto está **100% configurado** para Nixpacks + Coolify. Apenas configure as environment variables e faça o deploy!
