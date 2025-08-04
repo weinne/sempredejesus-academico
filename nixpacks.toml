@@ -1,14 +1,19 @@
+# Nixpacks Configuration for Sistema Acadêmico
+# https://nixpacks.com/docs/configuration/file
+
+providers = ["node"]
+
 [variables]
 NODE_ENV = "production"
 PORT = "4000"
 
-[providers]
-node = "18"
+[phases.setup]
+nixPkgs = ["nodejs_18", "pnpm", "postgresql"]
 
-[install]
+[phases.install]
 cmds = ["pnpm install --frozen-lockfile"]
 
-[build]
+[phases.build]
 cmds = [
     "pnpm run build",
     "chmod +x scripts/nixpacks-start.sh"

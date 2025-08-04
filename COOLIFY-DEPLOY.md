@@ -1,4 +1,8 @@
-# 🚀 Guia de Deploy no Coolify - Sistema Acadêmico (Nixpacks)
+# 🚀 Guia de Deploy no Coolify - Sistema Ac## 🔧 Arquivos de Configuração Criados
+
+- ✅ `nixpacks.toml` - Configuração principal do Nixpacks (CORRIGIDA - formato providers)
+- ✅ `scripts/nixpacks-start.sh` - Script de inicialização com migrações
+- ✅ `apps/api/src/scripts/migrate-production.ts` - Script de migraçãoco (Nixpacks)
 
 ## 📋 Configuração Simplificada com Nixpacks
 
