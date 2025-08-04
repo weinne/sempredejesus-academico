@@ -15,8 +15,18 @@ cmds = ["pnpm install --frozen-lockfile"]
 
 [phases.build]
 cmds = [
-    "pnpm run build",
-    "chmod +x scripts/nixpacks-start.sh"
+    "echo '🔨 Building packages...'",
+    "pnpm run build --filter=@seminario/shared-config",
+    "pnpm run build --filter=@seminario/shared-auth", 
+    "pnpm run build --filter=@seminario/shared-dtos",
+    "pnpm run build --filter=@seminario/shared-tests",
+    "echo '🔨 Building API...'",
+    "cd apps/api && pnpm run build",
+    "echo '🔨 Building Portal...'", 
+    "cd apps/portal && pnpm run build",
+    "echo '🔧 Setting permissions...'",
+    "chmod +x scripts/nixpacks-start.sh",
+    "echo '✅ Build completed!'"
 ]
 
 [start]
