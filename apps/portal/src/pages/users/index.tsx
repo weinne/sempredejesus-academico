@@ -234,12 +234,12 @@ export default function UsersPage() {
   );
 
   // Handle form submission
-  const onSubmit = (data: UserFormData) => {
+  const onSubmit = (data: UserFormData | UpdateUserFormData) => {
     if (editingUser) {
-      const { password, ...updateData } = data;
+      const { password, ...updateData } = data as UserFormData;
       updateMutation.mutate({ id: editingUser.id, data: updateData });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(data as UserFormData);
     }
   };
 

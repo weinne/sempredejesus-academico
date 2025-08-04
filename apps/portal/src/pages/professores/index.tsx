@@ -187,12 +187,12 @@ export default function ProfessoresPage() {
   );
 
   // Handle form submission
-  const onSubmit = (data: ProfessorFormData) => {
+  const onSubmit = (data: ProfessorFormData | UpdateProfessorFormData) => {
     if (editingProfessor) {
-      const { createUser, username, password, ...updateData } = data;
+      const { createUser, username, password, ...updateData } = data as ProfessorFormData;
       updateMutation.mutate({ matricula: editingProfessor.matricula, data: updateData });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(data as ProfessorFormData);
     }
   };
 
