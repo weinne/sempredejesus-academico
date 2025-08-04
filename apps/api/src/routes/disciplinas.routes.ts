@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
 import { disciplinas, cursos } from '../db/schema';
 import { CreateDisciplinaSchema, UpdateDisciplinaSchema, IdParamSchema } from '@seminario/shared-dtos';
@@ -164,7 +164,7 @@ const disciplinasCrud = new EnhancedCrudFactory({
 });
 
 // Custom method to get disciplina with complete information  
-const getDisciplinaComplete = asyncHandler(async (req, res) => {
+const getDisciplinaComplete = asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
 
   const result = await db

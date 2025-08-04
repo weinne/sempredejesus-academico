@@ -81,7 +81,7 @@ export interface Aluno {
 }
 
 export interface CreateAluno {
-  ra: string;
+  ra?: string;
   pessoaId: number;
   cursoId: number;
   anoIngresso: number;
@@ -144,6 +144,49 @@ export interface Disciplina {
   ementa?: string;
   bibliografia?: string;
   ativo: boolean;
+}
+
+export interface Semestre {
+  id: number;
+  ano: number;
+  periodo: number;
+  dataInicio: string;
+  dataFim: string;
+  ativo: boolean;
+}
+
+export interface Turma {
+  id: number;
+  disciplinaId: number;
+  professorId: string;
+  semestreId: number;
+  sala?: string;
+  horario?: string;
+  secao?: string;
+  disciplina?: Disciplina;
+  professor?: Professor;
+  semestre?: Semestre;
+  inscritos?: TurmaInscrito[];
+  totalInscritos?: number;
+}
+
+export interface CreateTurma {
+  disciplinaId: number;
+  professorId: string;
+  semestreId: number;
+  sala?: string;
+  horario?: string;
+  secao?: string;
+}
+
+export interface TurmaInscrito {
+  id: number;
+  turmaId: number;
+  alunoId: string;
+  media?: number;
+  frequencia?: number;
+  status: 'MATRICULADO' | 'CANCELADO' | 'APROVADO' | 'REPROVADO';
+  aluno?: Aluno;
 }
 
 export interface ApiError {

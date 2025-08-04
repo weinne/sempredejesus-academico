@@ -58,11 +58,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log('User object:', response.user);
       
       // Validate user object structure
-      if (!response.user || !response.user.nome || !response.user.email || !response.user.role) {
+      if (!response.user || !response.user.role) {
         console.error('Invalid user structure:', {
           hasUser: !!response.user,
-          hasNome: !!(response.user && response.user.nome),
-          hasEmail: !!(response.user && response.user.email),
+          hasNome: !!(response.user && (response.user.pessoa?.nome || response.user.username)),
+                      hasEmail: !!(response.user && response.user.pessoa?.email),
           hasRole: !!(response.user && response.user.role),
           actualUser: response.user
         });
@@ -72,7 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(response.user);
       toast({
         title: "Login realizado com sucesso",
-        description: `Bem-vindo(a), ${response.user.nome}!`,
+        description: `Bem-vindo(a), ${response.user.pessoa?.nome || response.user.username}!`,
       });
     } catch (error: any) {
       console.error('Login error:', error);

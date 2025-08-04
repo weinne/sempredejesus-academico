@@ -76,7 +76,7 @@ export default function CursosPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: apiService.createCurso,
+    mutationFn: (curso: CreateCurso) => apiService.createCurso(curso),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cursos'] });
       toast({
@@ -120,7 +120,7 @@ export default function CursosPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: apiService.deleteCurso,
+    mutationFn: (id: number) => apiService.deleteCurso(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cursos'] });
       toast({

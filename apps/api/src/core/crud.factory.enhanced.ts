@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 
 interface EnhancedCrudOptions {
   table: any;
+  primaryKey?: string; // Campo da chave primária (padrão: 'id')
   createSchema?: AnyZodObject;
   updateSchema?: AnyZodObject;
   joinTables?: {
@@ -36,8 +37,11 @@ export class EnhancedCrudFactory {
     const limitNum = Math.min(parseInt(limit as string), 100);
     const offset = (pageNum - 1) * limitNum;
 
-    let query = db.select().from(this.options.table);
-
+    let query: any;
+    
+    // Build select query - select all fields to get joined data
+    query = db.select().from(this.options.table);
+    
     // Add joins if specified
     if (this.options.joinTables) {
       for (const join of this.options.joinTables) {
@@ -54,7 +58,8 @@ export class EnhancedCrudFactory {
     }
 
     // Add ordering
-    const orderField = this.options.table[sortBy as string] || this.options.table.id;
+    const primaryKeyField = this.options.primaryKey || 'id';
+    const orderField = this.options.table[sortBy as string] || this.options.table[primaryKeyField];
     const orderDirection = sortOrder === 'desc' ? desc : asc;
     query = query.orderBy(orderDirection(orderField));
 
@@ -62,7 +67,7 @@ export class EnhancedCrudFactory {
     const data = await query.limit(limitNum).offset(offset);
 
     // Get total count for pagination
-    let countQuery = db.select({ count: this.options.table.id }).from(this.options.table);
+    let countQuery = db.select({ count: this.options.table[primaryKeyField] }).from(this.options.table);
     if (search && this.options.searchFields) {
       const searchConditions = this.options.searchFields.map(field =>
         like(this.options.table[field], `%${search}%`)
@@ -91,26 +96,42 @@ export class EnhancedCrudFactory {
   getById = asyncHandler(async (req: Request, res: Response) => {
     const id = this.parseId(req.params.id);
     
-    let query = db.select().from(this.options.table);
-
-    // Add joins if specified
+    let query: any;
+    
+    // Build select query with explicit field selection when using joins
     if (this.options.joinTables) {
+      // Create explicit select for main table fields
+      const mainTableFields: any = {};
+      const tableColumns = Object.keys(this.options.table);
+      
+      // Add all fields from main table
+      for (const column of tableColumns) {
+        if (this.options.table[column]) {
+          mainTableFields[column] = this.options.table[column];
+        }
+      }
+      
+      query = db.select(mainTableFields).from(this.options.table);
+      
+      // Add joins
       for (const join of this.options.joinTables) {
         query = query.leftJoin(join.table, join.on);
       }
+    } else {
+      query = db.select().from(this.options.table);
     }
 
-    const result = await query
-      .where(eq(this.options.table.id || this.options.table[Object.keys(this.options.table)[0]], id))
+    const [result] = await query
+      .where(eq(this.options.table[this.options.primaryKey || 'id'], id))
       .limit(1);
 
-    if (result.length === 0) {
+    if (!result) {
       throw createError('Resource not found', 404);
     }
 
     res.json({
       success: true,
-      data: result[0],
+      data: result,
     });
   });
 
@@ -159,8 +180,8 @@ export class EnhancedCrudFactory {
     // Hash password fields if specified
     if (this.options.passwordFields) {
       for (const field of this.options.passwordFields) {
-        if (updateData[field]) {
-          updateData[field.replace('password', 'passwordHash')] = await bcrypt.hash(updateData[field], 12);
+        if (updateData[field] && typeof updateData[field] === 'string') {
+          updateData[field.replace('password', 'passwordHash')] = await bcrypt.hash(updateData[field] as string, 12);
           delete updateData[field];
         }
       }
@@ -173,7 +194,7 @@ export class EnhancedCrudFactory {
     const result = await db
       .update(this.options.table)
       .set(updateData)
-      .where(eq(this.options.table.id || this.options.table[Object.keys(this.options.table)[0]], id))
+      .where(eq(this.options.table[this.options.primaryKey || 'id'], id))
       .returning();
 
     if (result.length === 0) {
@@ -193,7 +214,7 @@ export class EnhancedCrudFactory {
 
     const result = await db
       .delete(this.options.table)
-      .where(eq(this.options.table.id || this.options.table[Object.keys(this.options.table)[0]], id))
+      .where(eq(this.options.table[this.options.primaryKey || 'id'], id))
       .returning();
 
     if (result.length === 0) {
@@ -226,7 +247,7 @@ export class EnhancedCrudFactory {
     const user = await db
       .select()
       .from(this.options.table)
-      .where(eq(this.options.table.id, id))
+      .where(eq(this.options.table[this.options.primaryKey || 'id'], id))
       .limit(1);
 
     if (user.length === 0) {
@@ -246,13 +267,13 @@ export class EnhancedCrudFactory {
     const result = await db
       .update(this.options.table)
       .set({ passwordHash: newPasswordHash })
-      .where(eq(this.options.table.id, id))
+      .where(eq(this.options.table[this.options.primaryKey || 'id'], id))
       .returning();
 
     res.json({
       success: true,
       message: 'Password updated successfully',
-      data: { id: result[0].id },
+      data: { [this.options.primaryKey || 'id']: result[0][this.options.primaryKey || 'id'] },
     });
   });
 }

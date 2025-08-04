@@ -17,12 +17,16 @@ import {
   Curso,
   CreateCurso,
   Disciplina,
+  Turma,
+  CreateTurma,
+  Semestre,
+  Role,
   ApiError 
 } from '@/types/api';
 
 class ApiService {
   private api: AxiosInstance;
-  private baseURL = 'http://localhost:4000'; // Backend API URL
+  private baseURL = import.meta.env.VITE_API_URL || 'http://localhost:4000'; // Backend API URL
   private isOfflineMode = false;
 
   constructor() {
@@ -104,7 +108,7 @@ class ApiService {
             id: '1',
             email: 'admin@seminario.edu',
             nome: 'Administrador Mock',
-            role: 'ADMIN',
+            role: Role.ADMIN,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }
@@ -114,71 +118,21 @@ class ApiService {
 
     if (url === '/api/pessoas' && method === 'get') {
       return Promise.resolve({
-        data: [
-          {
-            id: '1',
-            nome: 'João Silva Mock',
-            cpf: '123.456.789-00',
-            email: 'joao@example.com',
-            telefone: '(11) 99999-9999',
-            endereco: 'Rua Example, 123',
-            data_nascimento: '1990-01-01',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            nome: 'Maria Santos Mock',
-            cpf: '987.654.321-00',
-            email: 'maria@example.com',
-            telefone: '(11) 88888-8888',
-            endereco: 'Av. Test, 456',
-            data_nascimento: '1985-05-15',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-        ]
+        data: []
       });
     }
 
     if (url === '/api/alunos' && method === 'get') {
       return Promise.resolve({
-        data: [
-          {
-            id: '1',
-            ra: '2024001',
-            pessoa_id: '1',
-            status: 'ATIVO',
-            data_matricula: '2024-01-01',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            pessoa: {
-              nome: 'João Silva Mock',
-              email: 'joao@example.com'
-            }
-          }
-        ]
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
       });
     }
 
     if (url === '/api/professores' && method === 'get') {
       return Promise.resolve({
-        data: [
-          {
-            id: '1',
-            matricula: 'PROF001',
-            pessoa_id: '2',
-            status: 'ATIVO',
-            especialidade: 'Teologia',
-            data_contratacao: '2020-01-01',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            pessoa: {
-              nome: 'Prof. Maria Santos Mock',
-              email: 'maria@example.com'
-            }
-          }
-        ]
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
       });
     }
 
@@ -507,35 +461,10 @@ class ApiService {
       const response = await this.api.get(`/api/alunos?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
-      console.warn('Using mock data for alunos');
+      console.warn('API offline - showing empty alunos list');
       return {
-        data: [
-          {
-            ra: '2024001',
-            pessoaId: 1,
-            cursoId: 1,
-            anoIngresso: 2024,
-            igreja: 'Igreja Exemplo',
-            situacao: 'ATIVO',
-            coeficienteAcad: 8.5,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            pessoa: {
-              id: '1',
-              nome: 'João Silva Mock',
-              cpf: '123.456.789-00',
-              email: 'joao@example.com',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-            curso: {
-              id: 1,
-              nome: 'Bacharelado em Teologia',
-              grau: 'BACHARELADO',
-            }
-          }
-        ],
-        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
       };
     }
   }
@@ -578,25 +507,10 @@ class ApiService {
       const response = await this.api.get(`/api/professores?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
-      console.warn('Using mock data for professores');
+      console.warn('API offline - showing empty professores list');
       return {
-        data: [
-          {
-            matricula: 'PROF001',
-            pessoaId: 2,
-            dataInicio: '2020-01-01',
-            formacaoAcad: 'Doutorado em Teologia',
-            situacao: 'ATIVO',
-            pessoa: {
-              id: '2',
-              nome: 'Prof. Maria Santos Mock',
-              cpf: '987.654.321-00',
-              email: 'maria@example.com',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }
-          }
-        ]
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
       };
     }
   }
@@ -639,20 +553,10 @@ class ApiService {
       const response = await this.api.get(`/api/cursos?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
-      console.warn('Using mock data for cursos');
+      console.warn('API offline - showing empty cursos list');
       return {
-        data: [
-          {
-            id: 1,
-            nome: 'Bacharelado em Teologia',
-            grau: 'BACHARELADO',
-          },
-          {
-            id: 2,
-            nome: 'Licenciatura em Ensino Religioso',
-            grau: 'LICENCIATURA',
-          }
-        ]
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
       };
     }
   }
@@ -701,27 +605,10 @@ class ApiService {
       const response = await this.api.get(`/api/users?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
-      console.warn('Using mock data for users');
+      console.warn('API offline - showing empty users list');
       return {
-        data: [
-          {
-            id: 1,
-            pessoaId: 1,
-            username: 'admin',
-            role: 'ADMIN',
-            isActive: 'S',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            pessoa: {
-              id: '1',
-              nome: 'Administrador Mock',
-              email: 'admin@seminario.edu',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            }
-          }
-        ],
-        pagination: { page: 1, limit: 50, total: 1, totalPages: 1 }
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
       };
     }
   }
@@ -768,21 +655,10 @@ class ApiService {
       const response = await this.api.get(`/api/disciplinas?${queryParams.toString()}`);
       return response.data;
     } catch (error: any) {
-      console.warn('Using mock data for disciplinas');
+      console.warn('API offline - showing empty disciplinas list');
       return {
-        data: [
-          {
-            id: 1,
-            cursoId: 1,
-            codigo: 'TEOL101',
-            nome: 'Introdução à Teologia',
-            creditos: 4,
-            cargaHoraria: 60,
-            ementa: 'Fundamentos básicos da teologia cristã.',
-            bibliografia: 'Teologia Sistemática - Berkhof',
-            ativo: true,
-          }
-        ]
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
       };
     }
   }
@@ -804,6 +680,63 @@ class ApiService {
 
   async deleteDisciplina(id: number): Promise<void> {
     await this.api.delete(`/api/disciplinas/${id}`);
+  }
+
+  // Turmas CRUD
+  async getTurmas(params?: { 
+    page?: number; 
+    limit?: number; 
+    search?: string; 
+    sortBy?: string; 
+    sortOrder?: 'asc' | 'desc' 
+  }): Promise<{ data: Turma[]; pagination?: any }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.page) queryParams.append('page', params.page.toString());
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.search) queryParams.append('search', params.search);
+      if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+      if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+      const response = await this.api.get(`/api/turmas?${queryParams.toString()}`);
+      return response.data;
+    } catch (error: any) {
+      console.warn('API offline - showing empty turmas list');
+      return {
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 }
+      };
+    }
+  }
+
+  async getTurma(id: number): Promise<Turma> {
+    const response = await this.api.get(`/api/turmas/${id}`);
+    return response.data.data;
+  }
+
+  async createTurma(turma: CreateTurma): Promise<Turma> {
+    const response = await this.api.post('/api/turmas', turma);
+    return response.data.data;
+  }
+
+  async updateTurma(id: number, turma: Partial<CreateTurma>): Promise<Turma> {
+    const response = await this.api.patch(`/api/turmas/${id}`, turma);
+    return response.data.data;
+  }
+
+  async deleteTurma(id: number): Promise<void> {
+    await this.api.delete(`/api/turmas/${id}`);
+  }
+
+  // Semestres CRUD
+  async getSemestres(): Promise<Semestre[]> {
+    try {
+      const response = await this.api.get('/api/semestres');
+      return response.data.data;
+    } catch (error: any) {
+      console.warn('API offline - showing empty semestres list');
+      return [];
+    }
   }
 }
 

@@ -1,8 +1,7 @@
 import request from 'supertest';
-import { Express } from 'express';
 
 export class ApiTestHelper {
-  constructor(private app: Express) {}
+  constructor(private app: any) {}
 
   async login(email: string, password: string) {
     const response = await request(this.app)
@@ -13,13 +12,13 @@ export class ApiTestHelper {
     return response.body.accessToken;
   }
 
-  async authenticatedRequest(token: string, method: 'get' | 'post' | 'put' | 'patch' | 'delete', path: string) {
+  async authenticatedRequest(token: string, method: 'get' | 'post' | 'put' | 'patch' | 'delete', path: string): Promise<any> {
     return request(this.app)
       [method](path)
       .set('Authorization', `Bearer ${token}`);
   }
 
-  async createTestUser(userData: any) {
+  async createTestUser(userData: any): Promise<any> {
     return request(this.app)
       .post('/api/pessoas')
       .send(userData);

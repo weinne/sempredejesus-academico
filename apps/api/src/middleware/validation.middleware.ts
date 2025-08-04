@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { AnyZodObject, ZodError } from 'zod';
+import { AnyZodObject, ZodError, ZodSchema } from 'zod';
 import { logger } from '@seminario/shared-config';
 
-export const validateBody = (schema: AnyZodObject) => {
+export const validateBody = (schema: ZodSchema<any>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
       req.body = schema.parse(req.body);

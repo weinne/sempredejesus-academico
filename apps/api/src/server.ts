@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
@@ -100,7 +100,7 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }));
 
 // Swagger JSON spec endpoint
-app.get('/api-docs.json', (req, res) => {
+app.get('/api-docs.json', (req: Request, res: Response) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });
@@ -127,7 +127,7 @@ if (config.server.nodeEnv === 'production') {
   app.use(express.static('public'));
   
   // Catch-all handler for SPA
-  app.get('*', (req, res) => {
+  app.get('*', (req: Request, res: Response) => {
     res.sendFile('index.html', { root: 'public' });
   });
 }

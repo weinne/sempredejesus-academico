@@ -39,11 +39,11 @@ export default function MeuPortalPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Nome</label>
-                <p className="mt-1 text-sm text-gray-900">{user?.nome}</p>
+                <p className="mt-1 text-sm text-gray-900">{user?.pessoa?.nome || user?.username}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Email</label>
-                <p className="mt-1 text-sm text-gray-900">{user?.email}</p>
+                                  <p className="mt-1 text-sm text-gray-900">{user?.pessoa?.email || 'Email não informado'}</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Perfil</label>

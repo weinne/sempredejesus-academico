@@ -9,6 +9,7 @@ import DashboardPage from '@/pages/dashboard';
 import PessoasPage from '@/pages/pessoas';
 import AlunosPage from '@/pages/alunos';
 import AlunoDetailPage from '@/pages/alunos/[id]';
+import AlunoEditPage from '@/pages/alunos/edit/[ra]';
 import ProfessoresPage from '@/pages/professores';
 import CursosPage from '@/pages/cursos';
 import TurmasPage from '@/pages/turmas';
@@ -31,6 +32,7 @@ function App() {
           <Route path="/pessoas" element={<ProtectedRoute><PessoasPage /></ProtectedRoute>} />
           <Route path="/alunos" element={<ProtectedRoute><AlunosPage /></ProtectedRoute>} />
           <Route path="/alunos/:ra" element={<ProtectedRoute><AlunoDetailPage /></ProtectedRoute>} />
+          <Route path="/alunos/edit/:ra" element={<ProtectedRoute><AlunoEditPage /></ProtectedRoute>} />
           <Route path="/professores" element={<ProtectedRoute><ProfessoresPage /></ProtectedRoute>} />
           <Route path="/cursos" element={<ProtectedRoute><CursosPage /></ProtectedRoute>} />
           <Route path="/turmas" element={<ProtectedRoute><TurmasPage /></ProtectedRoute>} />

@@ -30,7 +30,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 const disciplinaSchema = z.object({
   cursoId: z.number().min(1, 'Selecione um curso'),
-  codigo: z.string().max(10).optional(),
+  codigo: z.string().min(1, 'Código é obrigatório').max(10),
   nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(120),
   creditos: z.number().min(1).max(32767),
   cargaHoraria: z.number().min(1),
@@ -97,7 +97,7 @@ export default function DisciplinasPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: apiService.createDisciplina,
+    mutationFn: (disciplina: Omit<Disciplina, 'id'>) => apiService.createDisciplina(disciplina),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['disciplinas'] });
       toast({
@@ -141,7 +141,7 @@ export default function DisciplinasPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: apiService.deleteDisciplina,
+    mutationFn: (id: number) => apiService.deleteDisciplina(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['disciplinas'] });
       toast({

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
 import { professores, pessoas, users } from '../db/schema';
 import { CreateProfessorSchema, UpdateProfessorSchema, CreateProfessorWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
@@ -315,7 +315,7 @@ const professoresCrud = new EnhancedCrudFactory({
 });
 
 // Custom method to create professor with automatic user creation
-const createProfessorWithUser = asyncHandler(async (req, res) => {
+const createProfessorWithUser = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = CreateProfessorWithUserSchema.parse(req.body);
   const { createUser, username, password, ...professorData } = validatedData;
 
@@ -358,7 +358,7 @@ const createProfessorWithUser = asyncHandler(async (req, res) => {
 });
 
 // Custom method to get professor with complete information  
-const getProfessorComplete = asyncHandler(async (req, res) => {
+const getProfessorComplete = asyncHandler(async (req: Request, res: Response) => {
   const matricula = req.params.id;
 
   const result = await db

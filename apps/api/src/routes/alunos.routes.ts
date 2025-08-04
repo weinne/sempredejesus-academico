@@ -1,12 +1,13 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
 import { alunos, pessoas, cursos, users } from '../db/schema';
 import { CreateAlunoSchema, UpdateAlunoSchema, CreateAlunoWithUserSchema, StringIdParamSchema, CreateUserSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, like, asc, desc, sql, or } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
+import { logger } from '@seminario/shared-config';
 import bcrypt from 'bcrypt';
 
 /**
@@ -142,9 +143,10 @@ import bcrypt from 'bcrypt';
 
 const router = Router();
 
-// Create Enhanced CRUD factory for alunos with joins
+// Create Enhanced CRUD factory for alunos with proper primaryKey and joins
 const alunosCrud = new EnhancedCrudFactory({
   table: alunos,
+  primaryKey: 'ra', // Chave primária correta para alunos
   createSchema: CreateAlunoSchema,
   updateSchema: UpdateAlunoSchema,
   joinTables: [
@@ -157,21 +159,59 @@ const alunosCrud = new EnhancedCrudFactory({
       on: eq(alunos.cursoId, cursos.id),
     }
   ],
-  searchFields: ['nomeCompleto'], // Search by pessoa name
+  searchFields: ['ra'], // Busca por RA
   orderBy: [{ field: 'ra', direction: 'asc' }],
 });
 
+// Helper function to generate unique RA
+const generateUniqueRA = async (anoIngresso: number): Promise<string> => {
+  const year = anoIngresso.toString();
+  let sequencial = 1;
+  let ra: string;
+  
+  do {
+    ra = `${year}${sequencial.toString().padStart(3, '0')}`;
+    const existing = await db.select().from(alunos).where(eq(alunos.ra, ra)).limit(1);
+    if (existing.length === 0) break;
+    sequencial++;
+  } while (sequencial <= 999);
+  
+  if (sequencial > 999) {
+    throw createError('Não foi possível gerar RA único para o ano', 400);
+  }
+  
+  return ra;
+};
+
 // Custom method to create aluno with automatic user creation
-const createAlunoWithUser = asyncHandler(async (req, res) => {
+const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = CreateAlunoWithUserSchema.parse(req.body);
   const { createUser, username, password, ...alunoData } = validatedData;
+
+  // Check if RA already exists
+  if (alunoData.ra) {
+    const existingAluno = await db.select().from(alunos).where(eq(alunos.ra, alunoData.ra)).limit(1);
+    if (existingAluno.length > 0) {
+      throw createError(`RA ${alunoData.ra} já está em uso`, 400);
+    }
+  }
+
+  // Generate RA if not provided
+  const ra = alunoData.ra || await generateUniqueRA(alunoData.anoIngresso);
+
+  // Convert coeficienteAcad from number to string for database
+  const alunoDataForDB = {
+    ...alunoData,
+    ra,
+    coeficienteAcad: alunoData.coeficienteAcad?.toString(),
+  };
 
   // Start transaction
   const result = await db.transaction(async (tx) => {
     // Create aluno
     const [novoAluno] = await tx
       .insert(alunos)
-      .values(alunoData)
+      .values(alunoDataForDB)
       .returning();
 
     // Create user if requested
@@ -182,7 +222,7 @@ const createAlunoWithUser = asyncHandler(async (req, res) => {
       [novoUser] = await tx
         .insert(users)
         .values({
-          pessoaId: alunoData.pessoaId,
+          pessoaId: alunoDataForDB.pessoaId,
           username,
           passwordHash,
           role: 'ALUNO',
@@ -205,39 +245,11 @@ const createAlunoWithUser = asyncHandler(async (req, res) => {
 });
 
 // Custom method to get aluno with complete information  
-const getAlunoComplete = asyncHandler(async (req, res) => {
+const getAlunoComplete = asyncHandler(async (req: Request, res: Response) => {
   const ra = req.params.id;
 
   const result = await db
-    .select({
-      // Aluno fields
-      ra: alunos.ra,
-      pessoaId: alunos.pessoaId,
-      cursoId: alunos.cursoId,
-      anoIngresso: alunos.anoIngresso,
-      igreja: alunos.igreja,
-      situacao: alunos.situacao,
-      coeficienteAcad: alunos.coeficienteAcad,
-      createdAt: alunos.createdAt,
-      updatedAt: alunos.updatedAt,
-      // Pessoa fields
-      pessoa: {
-        id: pessoas.id,
-        nomeCompleto: pessoas.nomeCompleto,
-        sexo: pessoas.sexo,
-        email: pessoas.email,
-        cpf: pessoas.cpf,
-        dataNasc: pessoas.dataNasc,
-        telefone: pessoas.telefone,
-        endereco: pessoas.endereco,
-      },
-      // Curso fields
-      curso: {
-        id: cursos.id,
-        nome: cursos.nome,
-        grau: cursos.grau,
-      }
-    })
+    .select()
     .from(alunos)
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
@@ -248,17 +260,150 @@ const getAlunoComplete = asyncHandler(async (req, res) => {
     throw createError('Aluno not found', 404);
   }
 
+  const row = result[0];
+  
+  // Process data to match frontend expected structure
+  const data = {
+    ra: row.alunos.ra,
+    pessoaId: row.alunos.pessoaId,
+    cursoId: row.alunos.cursoId,
+    anoIngresso: row.alunos.anoIngresso,
+    igreja: row.alunos.igreja,
+    situacao: row.alunos.situacao,
+    coeficienteAcad: row.alunos.coeficienteAcad,
+    createdAt: row.alunos.createdAt,
+    updatedAt: row.alunos.updatedAt,
+    pessoa: row.pessoas ? {
+      id: row.pessoas.id,
+      nome: row.pessoas.nomeCompleto, // Map nomeCompleto to nome for frontend
+      sexo: row.pessoas.sexo,
+      email: row.pessoas.email,
+      cpf: row.pessoas.cpf,
+      data_nascimento: row.pessoas.dataNasc,
+      telefone: row.pessoas.telefone,
+      endereco: row.pessoas.endereco,
+    } : null,
+    curso: row.cursos ? {
+      id: row.cursos.id,
+      nome: row.cursos.nome,
+      grau: row.cursos.grau,
+    } : null
+  };
+
   res.json({
     success: true,
-    data: result[0],
+    data,
   });
 });
 
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /alunos - List all alunos with pessoa and curso information
-router.get('/', alunosCrud.getAll);
+// GET /alunos - List all alunos using EnhancedCrudFactory but with custom processing
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  const {
+    page = 1,
+    limit = 50,
+    search = '',
+    sortBy = 'ra',
+    sortOrder = 'asc'
+  } = req.query;
+
+  const pageNum = parseInt(page as string);
+  const limitNum = Math.min(parseInt(limit as string), 100);
+  const offset = (pageNum - 1) * limitNum;
+
+  let query = db
+    .select()
+    .from(alunos)
+    .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
+    .leftJoin(cursos, eq(alunos.cursoId, cursos.id));
+
+  // Add search if specified
+  if (search) {
+    query = query.where(
+      or(
+        like(alunos.ra, `%${search}%`),
+        like(pessoas.nomeCompleto, `%${search}%`),
+        like(pessoas.email, `%${search}%`),
+        like(cursos.nome, `%${search}%`)
+      )
+    );
+  }
+
+  // Add ordering
+  const orderDirection = sortOrder === 'desc' ? desc : asc;
+  if (sortBy === 'ra') {
+    query = query.orderBy(orderDirection(alunos.ra));
+  } else {
+    query = query.orderBy(orderDirection(alunos.ra)); // Default to RA ordering
+  }
+
+  // Get data with pagination
+  const rawData = await query.limit(limitNum).offset(offset);
+
+  // Process data to match frontend expected structure
+  const data = rawData.map((row: any) => ({
+    ra: row.alunos.ra,
+    pessoaId: row.alunos.pessoaId,
+    cursoId: row.alunos.cursoId,
+    anoIngresso: row.alunos.anoIngresso,
+    igreja: row.alunos.igreja,
+    situacao: row.alunos.situacao,
+    coeficienteAcad: row.alunos.coeficienteAcad,
+    createdAt: row.alunos.createdAt,
+    updatedAt: row.alunos.updatedAt,
+    pessoa: row.pessoas ? {
+      id: row.pessoas.id,
+      nome: row.pessoas.nomeCompleto, // Map nomeCompleto to nome for frontend
+      sexo: row.pessoas.sexo,
+      email: row.pessoas.email,
+      cpf: row.pessoas.cpf,
+      data_nascimento: row.pessoas.dataNasc,
+      telefone: row.pessoas.telefone,
+      endereco: row.pessoas.endereco,
+    } : null,
+    curso: row.cursos ? {
+      id: row.cursos.id,
+      nome: row.cursos.nome,
+      grau: row.cursos.grau,
+    } : null
+  }));
+
+  // Get total count for pagination
+  let countQuery = db
+    .select({ count: sql`count(*)` })
+    .from(alunos)
+    .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
+    .leftJoin(cursos, eq(alunos.cursoId, cursos.id));
+
+  if (search) {
+    countQuery = countQuery.where(
+      or(
+        like(alunos.ra, `%${search}%`),
+        like(pessoas.nomeCompleto, `%${search}%`),
+        like(pessoas.email, `%${search}%`),
+        like(cursos.nome, `%${search}%`)
+      )
+    );
+  }
+
+  const [{ count }] = await countQuery;
+  const total = parseInt(count as string);
+  const totalPages = Math.ceil(total / limitNum);
+
+  res.json({
+    success: true,
+    data,
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages,
+    },
+    message: `Found ${data.length} records`,
+  });
+}));
 
 // GET /alunos/:id - Get aluno by RA with complete information
 router.get('/:id', validateParams(StringIdParamSchema), getAlunoComplete);

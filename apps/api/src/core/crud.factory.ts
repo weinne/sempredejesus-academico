@@ -45,7 +45,10 @@ export class CrudFactory {
       }
       
       if (searchConditions.length > 0) {
-        whereConditions.push(or(...searchConditions));
+        const orCondition = or(...searchConditions);
+        if (orCondition) {
+          whereConditions.push(orCondition);
+        }
       }
     }
 

@@ -1,30 +1,12 @@
-import { render, RenderOptions } from '@testing-library/react';
-import { ReactElement } from 'react';
+import { vi } from 'vitest';
 
-interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  initialEntries?: string[];
-  user?: any;
-}
-
-export const renderWithProviders = (
-  ui: ReactElement,
-  options: CustomRenderOptions = {}
-) => {
-  const { initialEntries, user, ...renderOptions } = options;
-
-  // Wrapper que incluirá providers necessários (React Query, Zustand, etc.)
-  const Wrapper = ({ children }: { children: React.ReactNode }) => {
-    // Será implementado quando os providers estiverem configurados
-    return <>{children}</>;
-  };
-
-  return {
-    user,
-    ...render(ui, { wrapper: Wrapper, ...renderOptions }),
-  };
+// Component helpers will be implemented when React is properly configured
+export const renderWithProviders = (): any => {
+  console.warn('renderWithProviders: React not configured in shared-tests package');
+  return null;
 };
 
-export const createMockRouter = (pathname: string = '/') => {
+export const createMockRouter = (pathname: string = '/'): any => {
   return {
     pathname,
     route: pathname,

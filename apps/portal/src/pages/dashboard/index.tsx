@@ -84,7 +84,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user?.nome}</p>
+                <p className="text-sm font-medium text-gray-900">{user?.pessoa?.nome || user?.username}</p>
                 <p className="text-xs text-gray-500">{user?.role && getRoleDisplayName(user.role)}</p>
               </div>
               <Button variant="outline" onClick={logout}>
@@ -101,7 +101,7 @@ export default function DashboardPage() {
           {/* Welcome Card */}
           <Card className="mb-8">
             <CardHeader>
-              <CardTitle>Bem-vindo(a), {user?.nome}!</CardTitle>
+                              <CardTitle>Bem-vindo(a), {user?.pessoa?.nome || user?.username}!</CardTitle>
               <CardDescription>
                 Você está logado como {user?.role && getRoleDisplayName(user.role)}. 
                 Selecione uma das opções abaixo para começar.

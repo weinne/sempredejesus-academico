@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
 import { cursos, disciplinas } from '../db/schema';
 import { CreateCursoSchema, UpdateCursoSchema, IdParamSchema } from '@seminario/shared-dtos';
@@ -159,7 +159,7 @@ const cursosCrud = new EnhancedCrudFactory({
 });
 
 // Custom method to get curso with disciplinas
-const getCursoWithDisciplinas = asyncHandler(async (req, res) => {
+const getCursoWithDisciplinas = asyncHandler(async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
 
   // Get curso

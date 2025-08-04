@@ -29,7 +29,7 @@ const userSchema = z.object({
   pessoaId: z.number().min(1, 'Selecione uma pessoa'),
   username: z.string().min(3, 'Username deve ter pelo menos 3 caracteres').max(50),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').max(100),
-  role: z.enum(['ADMIN', 'SECRETARIA', 'PROFESSOR', 'ALUNO']),
+  role: z.nativeEnum(Role),
   isActive: z.enum(['S', 'N']).default('S'),
 });
 
@@ -143,7 +143,7 @@ export default function UsersPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: apiService.createUser,
+    mutationFn: (user: CreateUser) => apiService.createUser(user),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast({
@@ -187,7 +187,7 @@ export default function UsersPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: apiService.deleteUser,
+    mutationFn: (id: number) => apiService.deleteUser(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast({

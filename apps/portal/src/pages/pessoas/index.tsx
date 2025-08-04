@@ -72,7 +72,7 @@ export default function PessoasPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: apiService.createPessoa,
+    mutationFn: (pessoa: Omit<Pessoa, 'id' | 'created_at' | 'updated_at'>) => apiService.createPessoa(pessoa),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pessoas'] });
       toast({
@@ -116,7 +116,7 @@ export default function PessoasPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: apiService.deletePessoa,
+    mutationFn: (id: string) => apiService.deletePessoa(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pessoas'] });
       toast({

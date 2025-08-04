@@ -65,7 +65,7 @@ import { eq } from 'drizzle-orm';
  *           example: "ALUNO"
  *         isActive:
  *           type: string
- *           description: Status inicial (padrão: S)
+ *           description: "Status inicial (padrão: S)"
  *           enum: ["S", "N"]
  *           example: "S"
  *       required:

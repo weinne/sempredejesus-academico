@@ -114,7 +114,7 @@ export default function ProfessoresPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: apiService.createProfessor,
+    mutationFn: (professor: CreateProfessorWithUser) => apiService.createProfessor(professor),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['professores'] });
       toast({
@@ -160,7 +160,7 @@ export default function ProfessoresPage() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: apiService.deleteProfessor,
+    mutationFn: (matricula: string) => apiService.deleteProfessor(matricula),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['professores'] });
       toast({

@@ -15,6 +15,8 @@ export const AlunoSchema = z.object({
 export const CreateAlunoSchema = AlunoSchema.omit({
   createdAt: true,
   updatedAt: true,
+}).extend({
+  ra: z.string().max(8).optional(),
 });
 
 export const CreateAlunoWithUserSchema = CreateAlunoSchema.extend({
