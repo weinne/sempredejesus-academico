@@ -10,9 +10,5 @@
   "keywords": ["academic", "management", "api", "react", "typescript"],
   "engines": {
     "node": ">=18.0.0"
-  },
-  "nixpacks": {
-    "providers": ["node"],
-    "startCommand": "./scripts/nixpacks-start.sh"
   }
 }

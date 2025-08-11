@@ -4,6 +4,7 @@
   "description": "Sistema de Gestão Acadêmica do Seminário Presbiteriano de Jesus",
   "scripts": {
     "build": "turbo run build",
+    "start": "node scripts/start.js",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "test": "turbo run test",
