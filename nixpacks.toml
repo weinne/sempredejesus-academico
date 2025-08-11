@@ -26,11 +26,14 @@ cmds = [
     "cd apps/portal && pnpm run build",
     "echo '🔧 Setting permissions...'",
     "chmod +x scripts/nixpacks-start.sh",
+    "ls -l scripts/nixpacks-start.sh",
     "echo '✅ Build completed!'"
 ]
 
+# Start command using bash explicitly to avoid dependency on executable bit
+# This prevents "Permission denied" errors if +x permissions are lost between build layers
 [start]
-cmd = "./scripts/nixpacks-start.sh"
+cmd = "bash scripts/nixpacks-start.sh"
 
 [staticAssets]
 "/public" = "apps/portal/dist"
