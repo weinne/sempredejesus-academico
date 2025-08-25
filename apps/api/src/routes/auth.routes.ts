@@ -6,7 +6,7 @@ import { validateBody } from '../middleware/validation.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { db } from '../db';
 import { pessoas, alunos, professores, users } from '../db/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, or } from 'drizzle-orm';
 import { tokenBlacklistService } from '../core/token-blacklist.service';
 
 /**
@@ -128,9 +128,10 @@ const passwordService = new PasswordService();
 
 // POST /auth/login
 router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Request, res: Response) => {
-  const { email, password, rememberMe } = req.body;
+  const { email, identifier, password, rememberMe } = req.body as { email?: string; identifier?: string; password: string; rememberMe?: boolean };
+  const loginInput = email ?? identifier ?? '';
 
-  // Find user by email (join with users table)
+  // Find user by email or username (join with users table)
   const userQuery = await db
     .select({
       userId: users.id,
@@ -144,7 +145,7 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Reques
     })
     .from(users)
     .innerJoin(pessoas, eq(users.pessoaId, pessoas.id))
-    .where(eq(pessoas.email, email))
+    .where(or(eq(pessoas.email, loginInput), eq(users.username, loginInput)))
     .limit(1);
 
   if (userQuery.length === 0) {

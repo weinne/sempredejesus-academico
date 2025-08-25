@@ -32,47 +32,47 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
-    try {
-      const currentUser = apiService.getCurrentUser();
-      setUser(currentUser);
-    } catch (error) {
-      console.warn('Error loading user from localStorage:', error);
-      // Clear corrupted data and start fresh
-      localStorage.removeItem('user');
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+    // Load last user from storage and then refresh from API (/api/me) to keep data up-to-date
+    const init = async () => {
+      try {
+        let cached = apiService.getCurrentUser();
+        if (cached) setUser(cached);
+
+        // Only attempt to load fresh profile if we have a token
+        const hasToken = !!localStorage.getItem('access_token');
+        if (!hasToken) {
+          return;
+        }
+
+        const fresh = await apiService.getMyProfile();
+        setUser(fresh);
+        localStorage.setItem('user', JSON.stringify(fresh));
+      } catch (error) {
+        const cached = apiService.getCurrentUser();
+        if (cached) return; // stay with cached if API not available
+        console.warn('Error loading current user:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    init();
   }, []);
 
   const login = async (credentials: LoginRequest) => {
     try {
       setIsLoading(true);
       const response = await apiService.login(credentials);
-      
-      // Debug: log the actual response structure
-      console.log('Login response:', response);
-      console.log('User object:', response.user);
-      
-      // Validate user object structure
-      if (!response.user || !response.user.role) {
-        console.error('Invalid user structure:', {
-          hasUser: !!response.user,
-          hasNome: !!(response.user && (response.user.pessoa?.nome || response.user.username)),
-                      hasEmail: !!(response.user && response.user.pessoa?.email),
-          hasRole: !!(response.user && response.user.role),
-          actualUser: response.user
-        });
-        throw new Error('Invalid user data received from server');
-      }
-      
-      setUser(response.user);
+      // After tokens are stored, fetch full profile so UI has pessoa.nome/username immediately
+      const profile = await apiService.getMyProfile();
+      setUser(profile);
+      localStorage.setItem('user', JSON.stringify(profile));
       toast({
         title: "Login realizado com sucesso",
-        description: `Bem-vindo(a), ${response.user.pessoa?.nome || response.user.username}!`,
+        description: `Bem-vindo(a), ${profile.pessoa?.nome || profile.username}!`,
       });
     } catch (error: any) {
       console.error('Login error:', error);

@@ -242,6 +242,8 @@ export class EnhancedCrudFactory {
   changePassword = asyncHandler(async (req: Request, res: Response) => {
     const id = this.parseId(req.params.id);
     const { currentPassword, newPassword } = req.body;
+    const requester = (req as any).user || {};
+    const isAdmin = requester?.role === 'ADMIN';
 
     // Get current user
     const user = await db
@@ -254,10 +256,24 @@ export class EnhancedCrudFactory {
       throw createError('User not found', 404);
     }
 
-    // Verify current password
-    const isValidPassword = await bcrypt.compare(currentPassword, user[0].passwordHash);
-    if (!isValidPassword) {
-      throw createError('Current password is incorrect', 400);
+    // Enforce ownership: non-admin can only change own password
+    if (!isAdmin && requester?.id?.toString?.() !== String(user[0].id)) {
+      throw createError('Forbidden - You can only change your own password', 403);
+    }
+
+    // Admin override: ADMIN may change password without current password for non-admin targets
+    const targetRole = (user[0] as any).role;
+    const canBypassCurrent = isAdmin && targetRole !== 'ADMIN' && String(requester?.id) !== String(user[0].id);
+
+    if (!canBypassCurrent) {
+      // Require and verify current password
+      if (!currentPassword || typeof currentPassword !== 'string') {
+        throw createError('Current password is required', 400);
+      }
+      const isValidPassword = await bcrypt.compare(currentPassword, (user[0] as any).passwordHash);
+      if (!isValidPassword) {
+        throw createError('Current password is incorrect', 400);
+      }
     }
 
     // Hash new password

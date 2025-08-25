@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/providers/auth-provider';
 import { ProtectedRoute } from '@/components/auth/protected-route';
+import { Role } from '@/types/api';
 
 // Pages
 import LoginPage from '@/pages/login';
@@ -15,6 +16,7 @@ import CursosPage from '@/pages/cursos';
 import TurmasPage from '@/pages/turmas';
 import TurmaDetailPage from '@/pages/turmas/[id]';
 import RelatoriosPage from '@/pages/relatorios';
+import UsersPage from '@/pages/users';
 import MeuPortalPage from '@/pages/meu-portal';
 import ConfigPage from '@/pages/config';
 
@@ -29,6 +31,7 @@ function App() {
           {/* Protected routes */}
           <Route path="/" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+          <Route path="/users" element={<ProtectedRoute roles={[Role.ADMIN]}><UsersPage /></ProtectedRoute>} />
           <Route path="/pessoas" element={<ProtectedRoute><PessoasPage /></ProtectedRoute>} />
           <Route path="/alunos" element={<ProtectedRoute><AlunosPage /></ProtectedRoute>} />
           <Route path="/alunos/:ra" element={<ProtectedRoute><AlunoDetailPage /></ProtectedRoute>} />

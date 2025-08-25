@@ -73,8 +73,14 @@ class ApiService {
         }
 
         if (error.response?.status === 401) {
-          // Token expired, try to refresh
+          // If we have a refresh token, try to refresh; otherwise, just clear tokens
           try {
+            const hasRefresh = !!this.getRefreshToken();
+            if (!hasRefresh) {
+              this.clearTokens();
+              return Promise.reject(this.handleError(error));
+            }
+
             await this.refreshToken();
             // Retry the original request
             const originalRequest = error.config;
@@ -84,10 +90,9 @@ class ApiService {
             }
             return this.api.request(originalRequest);
           } catch (refreshError) {
-            // Refresh failed, redirect to login
+            // Refresh failed, clear tokens and propagate error
             this.clearTokens();
-            window.location.href = '/login';
-            return Promise.reject(refreshError);
+            return Promise.reject(this.handleError(refreshError));
           }
         }
         return Promise.reject(this.handleError(error));
@@ -288,6 +293,67 @@ class ApiService {
       localStorage.removeItem('user');
       return null;
     }
+  }
+
+  // Self (me) endpoints
+  async getMyProfile(): Promise<User> {
+    const response = await this.api.get('/api/me');
+    const row = response.data.data || {};
+    const main = row.users ? row.users : row;
+    const pessoa = row.pessoas || row.pessoa || null;
+    const base: User = {
+      id: Number(main.id),
+      pessoaId: Number(main.pessoaId),
+      username: main.username,
+      role: main.role,
+      isActive: (main.isActive as 'S' | 'N') || 'S',
+      lastLogin: main.lastLogin || undefined,
+      createdAt: main.createdAt,
+      updatedAt: main.updatedAt,
+    } as User;
+    if (pessoa) {
+      base.pessoa = {
+        id: pessoa.id?.toString?.() || '',
+        nome: pessoa.nomeCompleto || pessoa.nome || '',
+        sexo: pessoa.sexo,
+        cpf: pessoa.cpf || '',
+        email: pessoa.email || '',
+        telefone: pessoa.telefone || '',
+        endereco: typeof pessoa.endereco === 'object' ? JSON.stringify(pessoa.endereco) : pessoa.endereco || '',
+        data_nascimento: pessoa.dataNasc || pessoa.data_nascimento || '',
+        created_at: pessoa.createdAt || '',
+        updated_at: pessoa.updatedAt || '',
+      };
+    }
+    return base;
+  }
+
+  async updateMyProfile(pessoa: Partial<Pessoa>): Promise<Pessoa> {
+    // Map frontend Pessoa to backend UpdatePessoa fields
+    const backendData: any = {};
+    if (pessoa.nome) backendData.nomeCompleto = pessoa.nome;
+    if (pessoa.email) backendData.email = pessoa.email;
+    if (pessoa.telefone) backendData.telefone = pessoa.telefone;
+    if (pessoa.cpf) backendData.cpf = pessoa.cpf;
+    if (pessoa.data_nascimento) backendData.dataNasc = pessoa.data_nascimento;
+    const response = await this.api.patch('/api/me/profile', backendData);
+    const updated = response.data.data;
+    return {
+      id: updated.id.toString(),
+      nome: updated.nomeCompleto,
+      sexo: updated.sexo,
+      cpf: updated.cpf || '',
+      email: updated.email || '',
+      telefone: updated.telefone || '',
+      endereco: typeof updated.endereco === 'object' ? JSON.stringify(updated.endereco) : updated.endereco || '',
+      data_nascimento: updated.dataNasc || '',
+      created_at: updated.createdAt,
+      updated_at: updated.updatedAt,
+    };
+  }
+
+  async changeMyPassword(payloads: ChangePassword): Promise<void> {
+    await this.api.patch('/api/me/change-password', payloads);
   }
 
   // Pessoas CRUD
@@ -618,7 +684,38 @@ class ApiService {
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
       const response = await this.api.get(`/api/users?${queryParams.toString()}`);
-      return response.data;
+      const rows = response.data.data || [];
+      const mapped: User[] = rows.map((row: any) => {
+        // Support both flat and joined shapes
+        const main = row.users ? row.users : row; // drizzle join returns { users, pessoas }
+        const pessoa = row.pessoas || row.pessoa || null;
+        const base: User = {
+          id: Number(main.id),
+          pessoaId: Number(main.pessoaId),
+          username: main.username,
+          role: main.role,
+          isActive: (main.isActive as 'S' | 'N') || 'S',
+          lastLogin: main.lastLogin || undefined,
+          createdAt: main.createdAt,
+          updatedAt: main.updatedAt,
+        } as User;
+        if (pessoa) {
+          base.pessoa = {
+            id: pessoa.id?.toString?.() || '',
+            nome: pessoa.nomeCompleto || pessoa.nome || '',
+            sexo: pessoa.sexo,
+            cpf: pessoa.cpf || '',
+            email: pessoa.email || '',
+            telefone: pessoa.telefone || '',
+            endereco: typeof pessoa.endereco === 'object' ? JSON.stringify(pessoa.endereco) : pessoa.endereco || '',
+            data_nascimento: pessoa.dataNasc || pessoa.data_nascimento || '',
+            created_at: pessoa.createdAt || '',
+            updated_at: pessoa.updatedAt || '',
+          };
+        }
+        return base;
+      });
+      return { data: mapped, pagination: response.data.pagination };
     } catch (error: any) {
       console.warn('API offline - showing empty users list');
       return {
@@ -630,7 +727,34 @@ class ApiService {
 
   async getUser(id: number): Promise<User> {
     const response = await this.api.get(`/api/users/${id}`);
-    return response.data.data;
+    const row = response.data.data || {};
+    const main = row.users ? row.users : row;
+    const pessoa = row.pessoas || row.pessoa || null;
+    const base: User = {
+      id: Number(main.id),
+      pessoaId: Number(main.pessoaId),
+      username: main.username,
+      role: main.role,
+      isActive: (main.isActive as 'S' | 'N') || 'S',
+      lastLogin: main.lastLogin || undefined,
+      createdAt: main.createdAt,
+      updatedAt: main.updatedAt,
+    } as User;
+    if (pessoa) {
+      base.pessoa = {
+        id: pessoa.id?.toString?.() || '',
+        nome: pessoa.nomeCompleto || pessoa.nome || '',
+        sexo: pessoa.sexo,
+        cpf: pessoa.cpf || '',
+        email: pessoa.email || '',
+        telefone: pessoa.telefone || '',
+        endereco: typeof pessoa.endereco === 'object' ? JSON.stringify(pessoa.endereco) : pessoa.endereco || '',
+        data_nascimento: pessoa.dataNasc || pessoa.data_nascimento || '',
+        created_at: pessoa.createdAt || '',
+        updated_at: pessoa.updatedAt || '',
+      };
+    }
+    return base;
   }
 
   async createUser(user: CreateUser): Promise<User> {

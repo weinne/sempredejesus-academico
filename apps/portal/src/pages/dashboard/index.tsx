@@ -10,6 +10,7 @@ export default function DashboardPage() {
   const { user, logout, hasRole } = useAuth();
 
   const adminActions = [
+    { title: 'Gerenciar Usuários', description: 'Criar e administrar contas de acesso', href: '/users', icon: Users },
     { title: 'Gerenciar Pessoas', description: 'Cadastrar e editar pessoas', href: '/pessoas', icon: Users },
     { title: 'Gerenciar Alunos', description: 'Visualizar e editar alunos', href: '/alunos', icon: GraduationCap },
     { title: 'Gerenciar Professores', description: 'Visualizar e editar professores', href: '/professores', icon: User },
@@ -87,6 +88,12 @@ export default function DashboardPage() {
                 <p className="text-sm font-medium text-gray-900">{user?.pessoa?.nome || user?.username}</p>
                 <p className="text-xs text-gray-500">{user?.role && getRoleDisplayName(user.role)}</p>
               </div>
+              <Link to="/meu-portal" className="hidden sm:block">
+                <Button variant="secondary">Meu Portal</Button>
+              </Link>
+              <Link to="/meu-portal#alterar-senha" className="hidden sm:block">
+                <Button variant="outline">Alterar Senha</Button>
+              </Link>
               <Button variant="outline" onClick={logout}>
                 Sair
               </Button>

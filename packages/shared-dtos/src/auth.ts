@@ -1,10 +1,21 @@
 import { z } from 'zod';
 
-export const LoginSchema = z.object({
-  email: z.string().email('Email inválido'),
+const BaseLogin = {
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
   rememberMe: z.boolean().default(false),
+};
+
+const EmailLoginSchema = z.object({
+  email: z.string().email('Email inválido'),
+  ...BaseLogin,
 });
+
+const IdentifierLoginSchema = z.object({
+  identifier: z.string().min(3, 'Informe email ou usuário'),
+  ...BaseLogin,
+});
+
+export const LoginSchema = z.union([EmailLoginSchema, IdentifierLoginSchema]);
 
 export const JwtPayloadSchema = z.object({
   sub: z.string(),

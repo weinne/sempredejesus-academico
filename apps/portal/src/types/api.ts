@@ -39,7 +39,8 @@ export interface ChangePassword {
 }
 
 export interface LoginRequest {
-  email: string;
+  email?: string;
+  identifier?: string;
   password: string;
 }
 

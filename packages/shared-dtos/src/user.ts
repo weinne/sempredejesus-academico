@@ -32,7 +32,7 @@ export const UpdateUserSchema = z.object({
 });
 
 export const ChangePasswordSchema = z.object({
-  currentPassword: z.string().min(6),
+  currentPassword: z.string().min(6).optional(),
   newPassword: z.string().min(6).max(100),
   confirmPassword: z.string().min(6).max(100),
 }).refine((data) => data.newPassword === data.confirmPassword, {

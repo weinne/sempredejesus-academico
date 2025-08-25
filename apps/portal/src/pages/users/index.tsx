@@ -19,8 +19,10 @@ import {
   Shield,
   Eye,
   EyeOff,
-  Key
+  Key,
+  UserPlus
 } from 'lucide-react';
+import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,6 +37,28 @@ const userSchema = z.object({
 
 const updateUserSchema = userSchema.partial().omit({ password: true });
 
+// Creation schema that supports creating a new pessoa in the same form
+const createUserExtendedSchema = z.object({
+  createNewPessoa: z.boolean().default(true),
+  pessoaId: z.number().min(1, 'Selecione uma pessoa').optional(),
+  pessoaNome: z.string().min(2, 'Nome é obrigatório').optional(),
+  pessoaSexo: z.enum(['M', 'F', 'O']).optional(),
+  pessoaEmail: z.string().email('Email inválido').optional().or(z.literal('')),
+  pessoaCpf: z.string().optional(),
+  pessoaTelefone: z.string().optional(),
+  pessoaDataNasc: z.string().optional(),
+  pessoaEndereco: z.string().optional(),
+  username: z.string().min(3, 'Username deve ter pelo menos 3 caracteres').max(50),
+  password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').max(100),
+  role: z.nativeEnum(Role),
+  isActive: z.enum(['S', 'N']).default('S'),
+}).refine((data) => {
+  return data.createNewPessoa ? !!data.pessoaNome && !!data.pessoaSexo : !!data.pessoaId;
+}, {
+  message: 'Informe os dados da nova pessoa ou selecione uma pessoa existente',
+  path: ['pessoaId'],
+});
+
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(6, 'Senha atual é obrigatória'),
   newPassword: z.string().min(6, 'Nova senha deve ter pelo menos 6 caracteres'),
@@ -47,6 +71,7 @@ const changePasswordSchema = z.object({
 type UserFormData = z.infer<typeof userSchema>;
 type UpdateUserFormData = z.infer<typeof updateUserSchema>;
 type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
+type CreateUserExtendedFormData = z.infer<typeof createUserExtendedSchema>;
 
 export default function UsersPage() {
   const { hasRole } = useAuth();
@@ -59,6 +84,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [page, setPage] = useState(1);
+  const [showPessoaModal, setShowPessoaModal] = useState(false);
 
   const canEdit = hasRole([Role.ADMIN]);
 
@@ -90,10 +116,44 @@ export default function UsersPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
-  } = useForm<UserFormData>({
-    resolver: zodResolver(userSchema),
+  } = useForm<CreateUserExtendedFormData>({
+    resolver: zodResolver(createUserExtendedSchema),
+    defaultValues: { createNewPessoa: true, isActive: 'S' },
   });
+  const createNewPessoa = watch('createNewPessoa');
+  const [showMorePessoa, setShowMorePessoa] = useState(false);
+
+  // Format helpers
+  const formatCPF = (value: string) => {
+    const digits = (value || '').replace(/\D/g, '').slice(0, 11);
+    const parts = [] as string[];
+    if (digits.length > 3) {
+      parts.push(digits.slice(0, 3));
+      if (digits.length > 6) {
+        parts.push(digits.slice(3, 6));
+        parts.push(digits.slice(6, 9));
+      } else {
+        parts.push(digits.slice(3));
+      }
+    } else if (digits) {
+      parts.push(digits);
+    }
+    const rest = digits.length > 9 ? '-' + digits.slice(9, 11) : '';
+    return parts.length ? parts.join('.') + rest : digits;
+  };
+
+  const formatPhone = (value: string) => {
+    const digits = (value || '').replace(/\D/g, '').slice(0, 11);
+    if (!digits) return '';
+    const ddd = digits.slice(0, 2);
+    const nine = digits.length === 11;
+    const mid = nine ? digits.slice(2, 7) : digits.slice(2, 6);
+    const end = nine ? digits.slice(7, 11) : digits.slice(6, 10);
+    return `(${ddd}) ${mid}${end ? '-' + end : ''}`;
+  };
 
   const {
     register: registerUpdate,
@@ -156,6 +216,27 @@ export default function UsersPage() {
     onError: (error: any) => {
       toast({
         title: 'Erro ao criar usuário',
+        description: error.message || 'Erro desconhecido',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Create Pessoa mutation (for quick person creation)
+  const createPessoaMutation = useMutation({
+    mutationFn: (pessoa: Omit<Pessoa, 'id' | 'created_at' | 'updated_at'>) =>
+      apiService.createPessoa(pessoa),
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ['pessoas'] });
+      toast({
+        title: 'Pessoa cadastrada',
+        description: `Pessoa ${created.nome} criada com sucesso!`,
+      });
+      setShowPessoaModal(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao cadastrar pessoa',
         description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
@@ -227,19 +308,63 @@ export default function UsersPage() {
   });
 
   // Filter users by search term
-  const filteredUsers = users.filter((user) =>
-    user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (user.pessoa?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const search = (searchTerm || '').toLowerCase();
+  const filteredUsers = users.filter((u) => {
+    const username = (u?.username || '').toString().toLowerCase();
+    const pessoaNome = ((u as any)?.pessoa?.nome || (u as any)?.pessoa?.nomeCompleto || '').toString().toLowerCase();
+    const roleStr = (typeof u?.role === 'string' ? u.role : '').toString().toLowerCase();
+    return username.includes(search) || pessoaNome.includes(search) || roleStr.includes(search);
+  });
 
   // Handle form submission
-  const onSubmit = (data: UserFormData | UpdateUserFormData) => {
+  const onSubmit = async (data: CreateUserExtendedFormData | UpdateUserFormData) => {
     if (editingUser) {
-      const { password, ...updateData } = data as UserFormData;
+      const { password, ...updateData } = data as UpdateUserFormData & { password?: string };
       updateMutation.mutate({ id: editingUser.id, data: updateData });
-    } else {
-      createMutation.mutate(data as UserFormData);
+      return;
+    }
+
+    // Creation flow: optionally create Pessoa then create User
+    const formData = data as CreateUserExtendedFormData;
+    let pessoaIdToUse: number | null = null;
+    let createdPessoaId: string | null = null;
+    try {
+      if (formData.createNewPessoa) {
+        const created = await apiService.createPessoa({
+          nome: formData.pessoaNome || '',
+          sexo: (formData.pessoaSexo as any) || 'M',
+          email: formData.pessoaEmail || '',
+          cpf: (formData.pessoaCpf || '').replace(/\D/g, ''),
+          telefone: formData.pessoaTelefone || '',
+          data_nascimento: formData.pessoaDataNasc || '',
+          endereco: formData.pessoaEndereco || '',
+          created_at: '',
+          updated_at: '',
+          id: '' as any,
+        } as any);
+        pessoaIdToUse = Number(created.id);
+        createdPessoaId = created.id;
+        // refresh pessoas list
+        queryClient.invalidateQueries({ queryKey: ['pessoas'] });
+      } else {
+        pessoaIdToUse = Number(formData.pessoaId);
+      }
+
+      await createMutation.mutateAsync({
+        pessoaId: pessoaIdToUse!,
+        username: formData.username,
+        password: formData.password,
+        role: formData.role,
+        isActive: formData.isActive,
+      });
+      reset();
+      setShowForm(false);
+    } catch (err: any) {
+      // Rollback: if user creation failed and we created a pessoa, delete it
+      if (createdPessoaId) {
+        try { await apiService.deletePessoa(createdPessoaId); } catch {}
+      }
+      toast({ title: 'Erro ao cadastrar', description: err.message || 'Falha no cadastro de usuário', variant: 'destructive' });
     }
   };
 
@@ -325,10 +450,16 @@ export default function UsersPage() {
                 <p className="text-sm text-gray-600">Criação, edição e controle de acesso de usuários</p>
               </div>
             </div>
-            <Button onClick={handleNew}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Usuário
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => setShowPessoaModal(true)}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Nova Pessoa
+              </Button>
+              <Button onClick={handleNew}>
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Usuário
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -364,25 +495,104 @@ export default function UsersPage() {
               <CardContent>
                 <form onSubmit={editingUser ? handleSubmitUpdate(onSubmit) : handleSubmit(onSubmit)} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Pessoa *
-                      </label>
-                      <select
-                        {...(editingUser ? registerUpdate('pessoaId') : register('pessoaId'))}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${(editingUser ? errorsUpdate.pessoaId : errors.pessoaId) ? 'border-red-500' : ''}`}
-                      >
-                        <option value="">Selecione uma pessoa...</option>
-                        {pessoas.map((pessoa) => (
-                          <option key={pessoa.id} value={pessoa.id}>
-                            {pessoa.nome} {pessoa.email ? `(${pessoa.email})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                      {(editingUser ? errorsUpdate.pessoaId : errors.pessoaId) && (
-                        <p className="mt-1 text-sm text-red-600">{(editingUser ? errorsUpdate.pessoaId : errors.pessoaId)?.message}</p>
-                      )}
-                    </div>
+                    {!editingUser && (
+                      <div className="md:col-span-2">
+                        <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                          <input type="checkbox" {...register('createNewPessoa')} defaultChecked />
+                          Cadastrar nova pessoa
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Pessoa - either select existing or fill new data */}
+                    {editingUser ? (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Pessoa *</label>
+                        <select
+                          {...registerUpdate('pessoaId')}
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errorsUpdate.pessoaId ? 'border-red-500' : ''}`}
+                        >
+                          <option value="">Selecione uma pessoa...</option>
+                          {pessoas.map((p) => (
+                            <option key={p.id} value={p.id}>{p.nome} {p.email ? `(${p.email})` : ''}</option>
+                          ))}
+                        </select>
+                        {errorsUpdate.pessoaId && (<p className="mt-1 text-sm text-red-600">{errorsUpdate.pessoaId.message}</p>)}
+                      </div>
+                    ) : createNewPessoa ? (
+                      <>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Nome da Pessoa *</label>
+                          <Input {...register('pessoaNome')} className={errors.pessoaNome ? 'border-red-500' : ''} />
+                          {errors.pessoaNome && (<p className="mt-1 text-sm text-red-600">{errors.pessoaNome.message}</p>)}
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Sexo *</label>
+                          <select {...register('pessoaSexo')} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.pessoaSexo ? 'border-red-500' : ''}`}>
+                            <option value="">Selecione...</option>
+                            <option value="M">Masculino</option>
+                            <option value="F">Feminino</option>
+                            <option value="O">Outro</option>
+                          </select>
+                          {errors.pessoaSexo && (<p className="mt-1 text-sm text-red-600">{errors.pessoaSexo.message}</p>)}
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                          <Input type="email" {...register('pessoaEmail')} className={errors.pessoaEmail ? 'border-red-500' : ''} />
+                          {errors.pessoaEmail && (<p className="mt-1 text-sm text-red-600">{errors.pessoaEmail.message}</p>)}
+                        </div>
+
+                        {/* Mostrar mais campos opcionais */}
+                        <div className="md:col-span-2">
+                          <Button type="button" variant="outline" onClick={() => setShowMorePessoa(!showMorePessoa)}>
+                            {showMorePessoa ? 'Ocultar campos opcionais' : 'Mostrar mais'}
+                          </Button>
+                        </div>
+
+                        {showMorePessoa && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
+                              <Input
+                                {...register('pessoaCpf')}
+                                onChange={(e) => setValue('pessoaCpf', formatCPF(e.target.value))}
+                                placeholder="000.000.000-00"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                              <Input
+                                {...register('pessoaTelefone')}
+                                onChange={(e) => setValue('pessoaTelefone', formatPhone(e.target.value))}
+                                placeholder="(11) 99999-9999"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                              <Input type="date" {...register('pessoaDataNasc')} />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                              <Input {...register('pessoaEndereco')} placeholder="Rua, número, bairro, cidade" />
+                            </div>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Pessoa *</label>
+                        <select
+                          {...register('pessoaId')}
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.pessoaId ? 'border-red-500' : ''}`}
+                        >
+                          <option value="">Selecione uma pessoa...</option>
+                          {pessoas.map((p) => (
+                            <option key={p.id} value={p.id}>{p.nome} {p.email ? `(${p.email})` : ''}</option>
+                          ))}
+                        </select>
+                        {errors.pessoaId && (<p className="mt-1 text-sm text-red-600">{errors.pessoaId.message}</p>)}
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -495,19 +705,22 @@ export default function UsersPage() {
               <CardContent>
                 <form onSubmit={handleSubmitPassword(onPasswordSubmit)} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Senha Atual *
-                      </label>
-                      <Input
-                        type="password"
-                        {...registerPassword('currentPassword')}
-                        className={errorsPassword.currentPassword ? 'border-red-500' : ''}
-                      />
-                      {errorsPassword.currentPassword && (
-                        <p className="mt-1 text-sm text-red-600">{errorsPassword.currentPassword.message}</p>
-                      )}
-                    </div>
+                    {/* Hide current password when ADMIN changing a non-admin user's password */}
+                    {!(hasRole([Role.ADMIN]) && selectedUser.role !== Role.ADMIN) && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Senha Atual *
+                        </label>
+                        <Input
+                          type="password"
+                          {...registerPassword('currentPassword')}
+                          className={errorsPassword.currentPassword ? 'border-red-500' : ''}
+                        />
+                        {errorsPassword.currentPassword && (
+                          <p className="mt-1 text-sm text-red-600">{errorsPassword.currentPassword.message}</p>
+                        )}
+                      </div>
+                    )}
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -678,6 +891,22 @@ export default function UsersPage() {
           </Card>
         </div>
       </main>
+      <PessoaFormModal
+        isOpen={showPessoaModal}
+        onClose={() => setShowPessoaModal(false)}
+        isLoading={createPessoaMutation.isPending}
+        onSubmit={async (data) => {
+          await createPessoaMutation.mutateAsync({
+            nome: data.nome,
+            sexo: (data as any).sexo,
+            email: data.email,
+            cpf: data.cpf,
+            telefone: data.telefone,
+            endereco: data.endereco,
+            data_nascimento: data.data_nascimento,
+          } as any);
+        }}
+      />
     </div>
   );
 }

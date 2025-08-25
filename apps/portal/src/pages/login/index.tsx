@@ -12,7 +12,7 @@ import { LoginRequest } from '@/types/api';
 import { apiService } from '@/services/api';
 
 const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
+  identifier: z.string().min(3, 'Informe email ou usuário'),
   password: z.string().min(1, 'Senha é obrigatória'),
 });
 
@@ -56,12 +56,12 @@ export default function LoginPage() {
   });
 
   // Função para copiar email e preencher o formulário
-  const fillCredentials = (email: string, password: string) => {
-    setValue('email', email);
+  const fillCredentials = (emailOrUser: string, password: string) => {
+    setValue('identifier', emailOrUser);
     setValue('password', password);
     toast({
       title: "Credenciais preenchidas",
-      description: `Email: ${email}`,
+      description: `Login: ${emailOrUser}`,
     });
   };
 
@@ -70,7 +70,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsSubmitting(true);
-      await login(data as LoginRequest);
+      await login({ identifier: data.identifier, password: data.password } as LoginRequest);
     } catch (error) {
       // Error handling is done in the AuthProvider
     } finally {
@@ -120,7 +120,7 @@ export default function LoginPage() {
       setIsSubmitting(true);
       await apiService.bootstrapAdmin({ nome: data.nome, email: data.email, password: data.password });
       toast({ title: 'Administrador criado', description: 'Efetuando login...' });
-      await login({ email: data.email, password: data.password } as LoginRequest);
+      await login({ identifier: data.email, password: data.password } as LoginRequest);
       resetBootstrap();
     } catch (error: any) {
       toast({ title: 'Falha ao criar administrador', description: error?.message || 'Tente novamente', variant: 'destructive' });
@@ -248,18 +248,18 @@ export default function LoginPage() {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
+                <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email ou usuário
                 </label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  {...register('email')}
-                  className={errors.email ? 'border-red-500' : ''}
+                  id="identifier"
+                  type="text"
+                  placeholder="email@exemplo.com ou seu usuário"
+                  {...register('identifier')}
+                  className={errors.identifier ? 'border-red-500' : ''}
                 />
-                {errors.email && (
-                  <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                {errors.identifier && (
+                  <p className="mt-1 text-sm text-red-600">{errors.identifier.message}</p>
                 )}
               </div>
 
