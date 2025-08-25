@@ -45,12 +45,39 @@ app.use(apiVersion);
 app.use(requestMonitoring);
 app.use(metricsMiddleware);
 
-// CORS configuration
+// CORS configuration (allow same-origin and configured domains)
+const allowedOrigins = new Set<string>([
+  config.server.appUrl,
+  config.server.apiUrl,
+  'http://localhost:3000',
+  'http://localhost:4000',
+  'https://siga.sempredejesus.org.br',
+  'https://www.siga.sempredejesus.org.br',
+]);
+
 app.use(cors({
-  origin: config.server.appUrl,
+  origin: (origin, callback) => {
+    if (!origin) {
+      // Same-origin or non-browser request
+      return callback(null, true);
+    }
+    try {
+      if (allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+      const hostname = new URL(origin).hostname;
+      if (hostname.endsWith('sempredejesus.org.br')) {
+        return callback(null, true);
+      }
+    } catch {
+      // If URL parsing fails, deny by default
+    }
+    return callback(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
 }));
 
 // Rate limiting
