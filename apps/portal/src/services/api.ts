@@ -29,7 +29,7 @@ import {
 
 class ApiService {
   private api: AxiosInstance;
-  private baseURL = import.meta.env.VITE_API_URL || 'http://localhost:4000'; // Backend API URL
+  private baseURL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) || (typeof window !== 'undefined' ? window.location.origin : ''); // Prefer env, fallback to same-origin
   private isOfflineMode = false;
 
   constructor() {

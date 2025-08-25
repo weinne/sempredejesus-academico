@@ -34,7 +34,19 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
     directives: {
+      defaultSrc: ["'self'"],
       imgSrc: ["'self'", "data:", "https:"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https:"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https:"],
+      connectSrc: [
+        "'self'",
+        config.server.apiUrl,
+        config.server.appUrl,
+        'http://localhost:3000',
+        'http://localhost:4000',
+        'https://siga.sempredejesus.org.br',
+        'https://www.siga.sempredejesus.org.br',
+      ],
     },
   },
 }));
