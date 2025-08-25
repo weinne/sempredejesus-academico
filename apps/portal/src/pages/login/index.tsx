@@ -65,11 +65,7 @@ export default function LoginPage() {
     });
   };
 
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    const from = (location.state as any)?.from?.pathname || '/dashboard';
-    return <Navigate to={from} replace />;
-  }
+  // (Redirect check moved below to keep hook order consistent)
 
   const onSubmit = async (data: LoginFormData) => {
     try {
@@ -82,13 +78,7 @@ export default function LoginPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
+  // (Loading UI moved below to keep hook order consistent)
 
   // Check if admin exists on mount
   useEffect(() => {
@@ -110,6 +100,20 @@ export default function LoginPage() {
       mounted = false;
     };
   }, []);
+
+  // Ensure all hooks run before conditional returns to avoid hook-order mismatch
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    const from = (location.state as any)?.from?.pathname || '/dashboard';
+    return <Navigate to={from} replace />;
+  }
 
   const onCreateAdmin = async (data: BootstrapFormData) => {
     try {
