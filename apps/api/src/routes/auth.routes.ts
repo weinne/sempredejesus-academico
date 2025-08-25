@@ -6,7 +6,7 @@ import { validateBody } from '../middleware/validation.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { db } from '../db';
 import { pessoas, alunos, professores, users } from '../db/schema';
-import { and, count, eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { tokenBlacklistService } from '../core/token-blacklist.service';
 
 /**
