@@ -161,15 +161,13 @@ apiRouter.use('/users', usersRoutes);
 
 app.use('/api', apiRouter);
 
-// Serve static files from portal build (for production)
-if (config.server.nodeEnv === 'production') {
-  app.use(express.static('public'));
-  
-  // Catch-all handler for SPA
-  app.get('*', (req: Request, res: Response) => {
-    res.sendFile('index.html', { root: 'public' });
-  });
-}
+// Serve static files from portal build (SPA). Do this regardless of NODE_ENV if bundle exists
+app.use(express.static('public'));
+
+// Catch-all handler for SPA (non-API routes only)
+app.get(/^(?!\/api).*/, (req: Request, res: Response) => {
+  res.sendFile('index.html', { root: 'public' });
+});
 
 // Error handling middleware (must be last)
 app.use(notFoundHandler);
