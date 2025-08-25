@@ -16,6 +16,9 @@ export default function DashboardPage() {
     { title: 'Gerenciar Professores', description: 'Visualizar e editar professores', href: '/professores', icon: User },
     { title: 'Gerenciar Cursos', description: 'Cadastrar e editar cursos', href: '/cursos', icon: BookOpen },
     { title: 'Gerenciar Turmas', description: 'Organizar turmas e disciplinas', href: '/turmas', icon: Calendar },
+    { title: 'Aulas', description: 'Visualizar e gerenciar aulas', href: '/aulas', icon: BookOpen },
+    { title: 'Avaliações', description: 'Visualizar e gerenciar avaliações', href: '/avaliacoes', icon: FileText },
+    { title: 'Calendário', description: 'Consultar calendário acadêmico', href: '/calendario', icon: Calendar },
     { title: 'Relatórios', description: 'Visualizar relatórios gerenciais', href: '/relatorios', icon: FileText },
     { title: 'Configurações', description: 'Configurações do sistema', href: '/config', icon: Settings },
   ];
@@ -26,18 +29,29 @@ export default function DashboardPage() {
     { title: 'Gerenciar Professores', description: 'Visualizar professores', href: '/professores', icon: User },
     { title: 'Gerenciar Cursos', description: 'Visualizar cursos', href: '/cursos', icon: BookOpen },
     { title: 'Gerenciar Turmas', description: 'Organizar turmas', href: '/turmas', icon: Calendar },
+    { title: 'Aulas', description: 'Visualizar e gerenciar aulas', href: '/aulas', icon: BookOpen },
+    { title: 'Avaliações', description: 'Visualizar e gerenciar avaliações', href: '/avaliacoes', icon: FileText },
+    { title: 'Calendário', description: 'Consultar calendário acadêmico', href: '/calendario', icon: Calendar },
     { title: 'Relatórios', description: 'Visualizar relatórios', href: '/relatorios', icon: FileText },
   ];
 
   const professorActions = [
     { title: 'Minhas Turmas', description: 'Visualizar turmas que leciono', href: '/turmas', icon: Calendar },
     { title: 'Meus Alunos', description: 'Visualizar alunos das minhas turmas', href: '/alunos', icon: GraduationCap },
+    { title: 'Aulas', description: 'Visualizar minhas aulas', href: '/aulas', icon: BookOpen },
+    { title: 'Avaliações', description: 'Lançar e revisar avaliações', href: '/avaliacoes', icon: FileText },
+    { title: 'Calendário', description: 'Consultar calendário acadêmico', href: '/calendario', icon: Calendar },
+    { title: 'Relatórios', description: 'Visualizar relatórios', href: '/relatorios', icon: FileText },
     { title: 'Meu Portal', description: 'Informações pessoais', href: '/meu-portal', icon: User },
   ];
 
   const alunoActions = [
     { title: 'Minhas Notas', description: 'Visualizar minhas notas', href: '/meu-portal', icon: FileText },
     { title: 'Meu Curso', description: 'Informações do meu curso', href: '/cursos', icon: BookOpen },
+    { title: 'Aulas', description: 'Ver minhas aulas', href: '/aulas', icon: BookOpen },
+    { title: 'Avaliações', description: 'Ver avaliações e prazos', href: '/avaliacoes', icon: FileText },
+    { title: 'Calendário', description: 'Consultar calendário acadêmico', href: '/calendario', icon: Calendar },
+    { title: 'Relatórios', description: 'Visualizar relatórios', href: '/relatorios', icon: FileText },
     { title: 'Meu Portal', description: 'Informações pessoais', href: '/meu-portal', icon: User },
   ];
 

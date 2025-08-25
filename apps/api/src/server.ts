@@ -23,6 +23,10 @@ import disciplinasRoutes from './routes/disciplinas.routes';
 import turmasRoutes from './routes/turmas.routes';
 import usersRoutes from './routes/users.routes';
 import meRoutes from './routes/me.routes';
+import avaliacoesRoutes from './routes/avaliacoes.routes';
+import aulasRoutes from './routes/aulas.routes';
+import calendarioRoutes from './routes/calendario.routes';
+import reportsRoutes from './routes/reports.routes';
 
 // Import middleware
 import { securityHeaders, requestMonitoring, apiVersion } from './middleware/security.middleware';
@@ -160,6 +164,10 @@ apiRouter.use('/disciplinas', disciplinasRoutes);
 apiRouter.use('/turmas', turmasRoutes);
 apiRouter.use('/users', usersRoutes);
 apiRouter.use('/me', meRoutes);
+apiRouter.use('/avaliacoes', avaliacoesRoutes);
+apiRouter.use('/aulas', aulasRoutes);
+apiRouter.use('/calendario', calendarioRoutes);
+apiRouter.use('/reports', reportsRoutes);
 
 app.use('/api', apiRouter);
 

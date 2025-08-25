@@ -555,6 +555,72 @@ class ApiService {
     return response.data.data;
   }
 
+  // === Sprint 8: Avaliações ===
+  async getAvaliacoes(turmaId: number) {
+    const response = await this.api.get(`/api/avaliacoes`, { params: { turmaId } });
+    return response.data.data as import('@/types/api').Avaliacao[];
+  }
+
+  async createAvaliacao(payload: import('@/types/api').CreateAvaliacao) {
+    const response = await this.api.post(`/api/avaliacoes`, payload);
+    return response.data.data as import('@/types/api').Avaliacao;
+  }
+
+  async lancarNotas(avaliacaoId: number, notas: import('@/types/api').LancarNotaInput[]) {
+    await this.api.post(`/api/avaliacoes/${avaliacaoId}/notas`, { notas });
+  }
+
+  // === Sprint 8: Aulas & Frequência ===
+  async getAulas(turmaId: number) {
+    const response = await this.api.get(`/api/aulas`, { params: { turmaId } });
+    return response.data.data as import('@/types/api').Aula[];
+  }
+
+  async createAula(payload: import('@/types/api').CreateAula) {
+    const response = await this.api.post(`/api/aulas`, payload);
+    return response.data.data as import('@/types/api').Aula;
+  }
+
+  async lancarFrequencias(aulaId: number, frequencias: import('@/types/api').LancarFrequenciaInput[]) {
+    await this.api.post(`/api/aulas/${aulaId}/frequencias`, { frequencias });
+  }
+
+  // === Sprint 8: Calendário ===
+  async getCalendario() {
+    const response = await this.api.get(`/api/calendario`);
+    return response.data.data as import('@/types/api').CalendarioItem[];
+  }
+
+  async createCalendario(item: import('@/types/api').CreateCalendarioItem) {
+    const response = await this.api.post(`/api/calendario`, item);
+    return response.data.data as import('@/types/api').CalendarioItem;
+  }
+
+  async updateCalendario(id: number, data: Partial<import('@/types/api').CreateCalendarioItem>) {
+    const response = await this.api.patch(`/api/calendario/${id}`, data);
+    return response.data.data as import('@/types/api').CalendarioItem;
+  }
+
+  async deleteCalendario(id: number) {
+    await this.api.delete(`/api/calendario/${id}`);
+  }
+
+  // === Sprint 8: Relatórios ===
+  async reportHistorico(alunoId: string) {
+    const response = await this.api.get(`/api/reports/historico`, { params: { alunoId } });
+    return response.data.data as any[];
+  }
+
+  async reportFrequencia(turmaId: number, startDate?: string, endDate?: string) {
+    const response = await this.api.get(`/api/reports/frequencia`, { params: { turmaId, startDate, endDate } });
+    return response.data.data as any[];
+  }
+
+  async reportDesempenho(disciplinaId: number, semestreId: number) {
+    const response = await this.api.get(`/api/reports/desempenho`, { params: { disciplinaId, semestreId } });
+    return response.data.data as { turmas: number; alunos: number; mediaGeral: number | null };
+  }
+
   async createAluno(aluno: CreateAlunoWithUser): Promise<{ aluno: Aluno; user?: any }> {
     const response = await this.api.post('/api/alunos', aluno);
     return response.data.data;

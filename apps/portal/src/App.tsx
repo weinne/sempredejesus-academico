@@ -16,6 +16,9 @@ import CursosPage from '@/pages/cursos';
 import TurmasPage from '@/pages/turmas';
 import TurmaDetailPage from '@/pages/turmas/[id]';
 import RelatoriosPage from '@/pages/relatorios';
+import AvaliacoesPage from '@/pages/avaliacoes';
+import AulasPage from '@/pages/aulas';
+import CalendarioPage from '@/pages/calendario';
 import UsersPage from '@/pages/users';
 import MeuPortalPage from '@/pages/meu-portal';
 import ConfigPage from '@/pages/config';
@@ -41,6 +44,9 @@ function App() {
           <Route path="/turmas" element={<ProtectedRoute><TurmasPage /></ProtectedRoute>} />
           <Route path="/turmas/:id" element={<ProtectedRoute><TurmaDetailPage /></ProtectedRoute>} />
           <Route path="/relatorios" element={<ProtectedRoute><RelatoriosPage /></ProtectedRoute>} />
+          <Route path="/avaliacoes" element={<ProtectedRoute><AvaliacoesPage /></ProtectedRoute>} />
+          <Route path="/aulas" element={<ProtectedRoute><AulasPage /></ProtectedRoute>} />
+          <Route path="/calendario" element={<ProtectedRoute><CalendarioPage /></ProtectedRoute>} />
           <Route path="/meu-portal" element={<ProtectedRoute><MeuPortalPage /></ProtectedRoute>} />
           <Route path="/config" element={<ProtectedRoute><ConfigPage /></ProtectedRoute>} />
           

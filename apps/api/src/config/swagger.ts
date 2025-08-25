@@ -267,6 +267,22 @@ const options: swaggerJSDoc.Options = {
         description: 'Gerenciamento de turmas',
       },
       {
+        name: 'Avaliações',
+        description: 'Gestão de avaliações e notas',
+      },
+      {
+        name: 'Aulas',
+        description: 'Aulas e controle de frequência',
+      },
+      {
+        name: 'Calendário',
+        description: 'Eventos e prazos acadêmicos',
+      },
+      {
+        name: 'Relatórios',
+        description: 'Relatórios acadêmicos',
+      },
+      {
         name: 'Health',
         description: 'Endpoints de verificação de saúde da API',
       },

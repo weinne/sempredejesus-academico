@@ -205,6 +205,54 @@ export interface TurmaInscrito {
   aluno?: Aluno;
 }
 
+// Sprint 8: Avaliações, Aulas, Calendário, Relatórios
+export interface Avaliacao {
+  id: number;
+  turmaId: number;
+  data: string; // YYYY-MM-DD
+  tipo: 'PROVA' | 'TRABALHO' | 'PARTICIPACAO' | 'OUTRO';
+  codigo: string;
+  descricao: string;
+  peso: number;
+  arquivoUrl?: string | null;
+}
+
+export interface CreateAvaliacao extends Omit<Avaliacao, 'id'> {}
+
+export interface LancarNotaInput {
+  alunoId: string; // RA
+  nota: number; // 0..10
+  obs?: string;
+}
+
+export interface Aula {
+  id: number;
+  turmaId: number;
+  data: string; // YYYY-MM-DD
+  topico?: string;
+  materialUrl?: string;
+  observacao?: string;
+}
+
+export interface CreateAula extends Omit<Aula, 'id'> {}
+
+export interface LancarFrequenciaInput {
+  inscricaoId: number;
+  presente: boolean;
+  justificativa?: string;
+}
+
+export interface CalendarioItem {
+  id: number;
+  semestreId: number;
+  evento: string;
+  inicio: string; // YYYY-MM-DD
+  termino: string; // YYYY-MM-DD
+  obs?: string;
+}
+
+export interface CreateCalendarioItem extends Omit<CalendarioItem, 'id'> {}
+
 export interface ApiError {
   message: string;
   statusCode?: number;
