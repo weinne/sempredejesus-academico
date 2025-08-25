@@ -6,7 +6,7 @@ import { validateBody } from '../middleware/validation.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { db } from '../db';
 import { pessoas, alunos, professores, users } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import { tokenBlacklistService } from '../core/token-blacklist.service';
 
 /**
@@ -317,3 +317,78 @@ router.get('/me', asyncHandler(async (req: Request, res: Response) => {
 }));
 
 export default router;
+
+// New endpoints for initial admin setup
+// GET /auth/admin-exists - Check if any ADMIN user exists
+router.get('/admin-exists', asyncHandler(async (req: Request, res: Response) => {
+  const result = await db
+    .select({ total: count() })
+    .from(users)
+    .where(eq(users.role, 'ADMIN'))
+    .limit(1);
+
+  const total = Number(result?.[0]?.total || 0);
+  res.json({ success: true, data: { exists: total > 0 } });
+}));
+
+// POST /auth/bootstrap-admin - Create the first ADMIN if none exists
+router.post('/bootstrap-admin', asyncHandler(async (req: Request, res: Response) => {
+  // Prevent creating another admin if one already exists
+  const existing = await db
+    .select({ total: count() })
+    .from(users)
+    .where(eq(users.role, 'ADMIN'))
+    .limit(1);
+  const hasAdmin = Number(existing?.[0]?.total || 0) > 0;
+  if (hasAdmin) {
+    throw createError('Admin already exists', 400);
+  }
+
+  const { nome, email, password } = req.body || {};
+  if (!nome || !email || !password) {
+    throw createError('nome, email e password são obrigatórios', 400);
+  }
+
+  // Basic uniqueness check for email in pessoas
+  const existingPessoa = await db
+    .select({ id: pessoas.id })
+    .from(pessoas)
+    .where(eq(pessoas.email, email))
+    .limit(1);
+
+  let pessoaId: number;
+  if (existingPessoa.length > 0) {
+    pessoaId = existingPessoa[0].id;
+  } else {
+    const [newPessoa] = await db
+      .insert(pessoas)
+      .values({
+        nomeCompleto: nome,
+        sexo: 'M',
+        email,
+      })
+      .returning();
+    pessoaId = newPessoa.id;
+  }
+
+  const bcrypt = require('bcrypt');
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  const username = email;
+  const [newUser] = await db
+    .insert(users)
+    .values({
+      pessoaId,
+      username,
+      passwordHash,
+      role: 'ADMIN',
+      isActive: 'S',
+    })
+    .returning();
+
+  res.status(201).json({
+    success: true,
+    message: 'Administrator created successfully',
+    data: { id: newUser.id, username: newUser.username },
+  });
+}));

@@ -53,6 +53,21 @@ export interface RefreshTokenResponse {
   access_token: string;
 }
 
+export interface AdminExistsResponse {
+  exists: boolean;
+}
+
+export interface BootstrapAdminRequest {
+  nome: string;
+  email: string;
+  password: string;
+}
+
+export interface BootstrapAdminResponse {
+  id: number;
+  username: string;
+}
+
 export interface Pessoa {
   id: string;
   nome: string;

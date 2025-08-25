@@ -3,6 +3,9 @@ import {
   LoginRequest, 
   LoginResponse, 
   RefreshTokenResponse, 
+  AdminExistsResponse,
+  BootstrapAdminRequest,
+  BootstrapAdminResponse,
   User, 
   CreateUser,
   UpdateUser,
@@ -234,6 +237,18 @@ class ApiService {
     this.setTokens(mappedResponse.access_token, mappedResponse.refresh_token);
     localStorage.setItem('user', JSON.stringify(mappedResponse.user));
     return mappedResponse;
+  }
+
+  async adminExists(): Promise<AdminExistsResponse> {
+    const response = await this.api.get('/api/auth/admin-exists');
+    // Backend returns { success, data: { exists: boolean } }
+    return response.data.data as AdminExistsResponse;
+  }
+
+  async bootstrapAdmin(payload: BootstrapAdminRequest): Promise<BootstrapAdminResponse> {
+    const response = await this.api.post('/api/auth/bootstrap-admin', payload);
+    // Backend returns { success, data: { id, username } }
+    return response.data.data as BootstrapAdminResponse;
   }
 
   async refreshToken(): Promise<void> {
