@@ -6,7 +6,7 @@ import { validateBody } from '../middleware/validation.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { db } from '../db';
 import { pessoas, alunos, professores, users } from '../db/schema';
-import { and, count, eq } from 'drizzle-orm';
+import { and, count, eq, sql } from 'drizzle-orm';
 import { tokenBlacklistService } from '../core/token-blacklist.service';
 
 /**
@@ -322,7 +322,7 @@ export default router;
 // GET /auth/admin-exists - Check if any ADMIN user exists
 router.get('/admin-exists', asyncHandler(async (req: Request, res: Response) => {
   const result = await db
-    .select({ total: count() })
+    .select({ total: sql<number>`count(*)` })
     .from(users)
     .where(eq(users.role, 'ADMIN'))
     .limit(1);
@@ -333,9 +333,8 @@ router.get('/admin-exists', asyncHandler(async (req: Request, res: Response) => 
 
 // POST /auth/bootstrap-admin - Create the first ADMIN if none exists
 router.post('/bootstrap-admin', asyncHandler(async (req: Request, res: Response) => {
-  // Prevent creating another admin if one already exists
   const existing = await db
-    .select({ total: count() })
+    .select({ total: sql<number>`count(*)` })
     .from(users)
     .where(eq(users.role, 'ADMIN'))
     .limit(1);
