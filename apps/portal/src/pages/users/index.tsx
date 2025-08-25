@@ -647,8 +647,6 @@ export default function UsersPage() {
                         <option value="">Selecione uma role...</option>
                         <option value="ADMIN">Administrador</option>
                         <option value="SECRETARIA">Secretaria</option>
-                        <option value="PROFESSOR">Professor</option>
-                        <option value="ALUNO">Aluno</option>
                       </select>
                       {(editingUser ? errorsUpdate.role : errors.role) && (
                         <p className="mt-1 text-sm text-red-600">{(editingUser ? errorsUpdate.role : errors.role)?.message}</p>

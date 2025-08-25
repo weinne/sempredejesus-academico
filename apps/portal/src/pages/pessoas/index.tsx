@@ -211,12 +211,7 @@ export default function PessoasPage() {
                 <p className="text-sm text-gray-600">Cadastro e edição de pessoas</p>
               </div>
             </div>
-            {canEdit && (
-              <Button onClick={handleNew}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Pessoa
-              </Button>
-            )}
+            {/* Inserção de nova pessoa desabilitada na UI conforme requisito */}
           </div>
         </div>
       </header>
@@ -339,12 +334,14 @@ export default function PessoasPage() {
                   </div>
 
                   <div className="flex space-x-2">
-                    <Button
-                      type="submit"
-                      disabled={createMutation.isPending || updateMutation.isPending}
-                    >
-                      {editingPessoa ? 'Atualizar' : 'Criar'}
-                    </Button>
+                    {editingPessoa && (
+                      <Button
+                        type="submit"
+                        disabled={updateMutation.isPending}
+                      >
+                        Atualizar
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="outline"
@@ -354,7 +351,7 @@ export default function PessoasPage() {
                         reset();
                       }}
                     >
-                      Cancelar
+                      Fechar
                     </Button>
                   </div>
                 </form>
@@ -402,16 +399,9 @@ export default function PessoasPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(pessoa)}
+                                title="Editar"
                               >
                                 <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDelete(pessoa.id)}
-                                disabled={deleteMutation.isPending}
-                              >
-                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           )}

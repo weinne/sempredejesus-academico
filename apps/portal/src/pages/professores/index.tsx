@@ -31,11 +31,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 const professorSchema = z.object({
   matricula: z.string().length(8, 'Matrícula deve ter 8 caracteres'),
-  pessoaId: z.number().min(1, 'Selecione uma pessoa'),
+  pessoaId: z.number().min(1, 'Selecione uma pessoa').optional(),
   dataInicio: z.string().min(1, 'Data de início é obrigatória'),
   formacaoAcad: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'INATIVO']),
-  createUser: z.boolean().default(false),
+  createUser: z.boolean().default(true),
   username: z.string().min(3).max(50).optional(),
   password: z.string().min(6).max(100).optional(),
 });
@@ -54,6 +54,14 @@ export default function ProfessoresPage() {
   const [editingProfessor, setEditingProfessor] = useState<Professor | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [page, setPage] = useState(1);
+  const [createNewPessoa, setCreateNewPessoa] = useState(true);
+  const [pessoaNome, setPessoaNome] = useState('');
+  const [pessoaSexo, setPessoaSexo] = useState('');
+  const [pessoaEmail, setPessoaEmail] = useState('');
+  const [pessoaCpf, setPessoaCpf] = useState('');
+  const [pessoaTelefone, setPessoaTelefone] = useState('');
+  const [pessoaDataNasc, setPessoaDataNasc] = useState('');
+  const [pessoaEndereco, setPessoaEndereco] = useState('');
 
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
 
@@ -69,7 +77,7 @@ export default function ProfessoresPage() {
     defaultValues: {
       situacao: 'ATIVO',
       dataInicio: new Date().toISOString().split('T')[0],
-      createUser: false,
+      createUser: true,
     }
   });
 
@@ -187,12 +195,30 @@ export default function ProfessoresPage() {
   );
 
   // Handle form submission
-  const onSubmit = (data: ProfessorFormData | UpdateProfessorFormData) => {
+  const onSubmit = async (data: ProfessorFormData | UpdateProfessorFormData) => {
     if (editingProfessor) {
       const { createUser, username, password, ...updateData } = data as ProfessorFormData;
       updateMutation.mutate({ matricula: editingProfessor.matricula, data: updateData });
-    } else {
-      createMutation.mutate(data as ProfessorFormData);
+      return;
+    }
+    try {
+      let pessoaIdToUse = (data as ProfessorFormData).pessoaId as number | undefined;
+      if (createNewPessoa) {
+        const created = await apiService.createPessoa({
+          nome: pessoaNome,
+          sexo: (pessoaSexo as any) || 'M',
+          email: pessoaEmail,
+          cpf: pessoaCpf,
+          telefone: pessoaTelefone,
+          endereco: pessoaEndereco,
+          data_nascimento: pessoaDataNasc,
+        } as any);
+        pessoaIdToUse = Number(created.id);
+        queryClient.invalidateQueries({ queryKey: ['pessoas'] });
+      }
+      await createMutation.mutateAsync({ ...(data as ProfessorFormData), pessoaId: pessoaIdToUse! });
+    } catch (error: any) {
+      toast({ title: 'Erro ao cadastrar professor', description: error?.message || 'Falha ao cadastrar', variant: 'destructive' });
     }
   };
 
@@ -222,8 +248,16 @@ export default function ProfessoresPage() {
     reset({
       situacao: 'ATIVO',
       dataInicio: new Date().toISOString().split('T')[0],
-      createUser: false,
+      createUser: true,
     });
+    setCreateNewPessoa(true);
+    setPessoaNome('');
+    setPessoaSexo('');
+    setPessoaEmail('');
+    setPessoaCpf('');
+    setPessoaTelefone('');
+    setPessoaDataNasc('');
+    setPessoaEndereco('');
   };
 
   const getSituacaoColor = (situacao: string) => {
@@ -333,23 +367,69 @@ export default function ProfessoresPage() {
                         </div>
                       )}
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Pessoa *
-                        </label>
-                        <select
-                          {...(editingProfessor ? registerUpdate('pessoaId') : register('pessoaId'))}
-                          className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${(editingProfessor ? errorsUpdate.pessoaId : errors.pessoaId) ? 'border-red-500' : ''}`}
-                        >
-                          <option value="">Selecione uma pessoa...</option>
-                          {pessoas.map((pessoa) => (
-                            <option key={pessoa.id} value={pessoa.id}>
-                              {pessoa.nome} {pessoa.email ? `(${pessoa.email})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        {(editingProfessor ? errorsUpdate.pessoaId : errors.pessoaId) && (
-                          <p className="mt-1 text-sm text-red-600">{(editingProfessor ? errorsUpdate.pessoaId : errors.pessoaId)?.message}</p>
+                      <div className="md:col-span-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="block text-sm font-medium text-gray-700">Pessoa *</label>
+                          {!editingProfessor && (
+                            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                              <input type="checkbox" checked={createNewPessoa} onChange={(e) => setCreateNewPessoa(e.target.checked)} />
+                              Cadastrar nova pessoa
+                            </label>
+                          )}
+                        </div>
+                        {createNewPessoa && !editingProfessor ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+                              <Input value={pessoaNome} onChange={(e) => setPessoaNome(e.target.value)} />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Sexo *</label>
+                              <select value={pessoaSexo} onChange={(e) => setPessoaSexo(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                <option value="">Selecione...</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Feminino</option>
+                                <option value="O">Outro</option>
+                              </select>
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                              <Input type="email" value={pessoaEmail} onChange={(e) => setPessoaEmail(e.target.value)} />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
+                              <Input value={pessoaCpf} onChange={(e) => setPessoaCpf(e.target.value)} placeholder="000.000.000-00" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                              <Input value={pessoaTelefone} onChange={(e) => setPessoaTelefone(e.target.value)} placeholder="(11) 99999-9999" />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                              <Input type="date" value={pessoaDataNasc} onChange={(e) => setPessoaDataNasc(e.target.value)} />
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                              <Input value={pessoaEndereco} onChange={(e) => setPessoaEndereco(e.target.value)} />
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <select
+                              {...(editingProfessor ? registerUpdate('pessoaId') : register('pessoaId'))}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${(editingProfessor ? errorsUpdate.pessoaId : errors.pessoaId) ? 'border-red-500' : ''}`}
+                            >
+                              <option value="">Selecione uma pessoa...</option>
+                              {pessoas.map((pessoa) => (
+                                <option key={pessoa.id} value={pessoa.id}>
+                                  {pessoa.nome} {pessoa.email ? `(${pessoa.email})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            {(editingProfessor ? errorsUpdate.pessoaId : errors.pessoaId) && (
+                              <p className="mt-1 text-sm text-red-600">{(editingProfessor ? errorsUpdate.pessoaId : errors.pessoaId)?.message}</p>
+                            )}
+                          </div>
                         )}
                       </div>
 
