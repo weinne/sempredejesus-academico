@@ -108,7 +108,7 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use(limiter);
+app.use('/api', limiter);
 
 // Body parsing middleware
 app.use(compression());

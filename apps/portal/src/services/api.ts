@@ -31,11 +31,13 @@ class ApiService {
   private api: AxiosInstance;
   private baseURL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) || (typeof window !== 'undefined' ? window.location.origin : ''); // Prefer env, fallback to same-origin
   private isOfflineMode = false;
+  private refreshCall: Promise<void> | null = null;
 
   constructor() {
     this.api = axios.create({
       baseURL: this.baseURL,
       timeout: 5000, // Reduced timeout for faster offline detection
+      withCredentials: true, // allow cookies for refresh token in production
       headers: {
         'Content-Type': 'application/json',
       },
@@ -73,19 +75,36 @@ class ApiService {
         }
 
         if (error.response?.status === 401) {
-          // If we have a refresh token, try to refresh; otherwise, just clear tokens
+          const originalRequest: any = error.config || {};
+          const url: string = originalRequest?.url || '';
+
+          // Do not attempt refresh loops for auth endpoints themselves
+          if (url.includes('/api/auth/refresh') || url.includes('/api/auth/login') || url.includes('/api/auth/logout')) {
+            this.clearTokens();
+            return Promise.reject(this.handleError(error));
+          }
+
+          // Prevent multiple refresh attempts for the same request
+          if (originalRequest._retry) {
+            this.clearTokens();
+            return Promise.reject(this.handleError(error));
+          }
+          originalRequest._retry = true;
+
           try {
-            const hasRefresh = !!this.getRefreshToken();
-            if (!hasRefresh) {
-              this.clearTokens();
-              return Promise.reject(this.handleError(error));
+            // Debounce concurrent refresh calls
+            if (!this.refreshCall) {
+              this.refreshCall = this.refreshToken().finally(() => {
+                this.refreshCall = null;
+              });
             }
 
-            await this.refreshToken();
-            // Retry the original request
-            const originalRequest = error.config;
+            await this.refreshCall;
+
+            // Retry the original request with updated token
             const token = this.getToken();
             if (token) {
+              originalRequest.headers = originalRequest.headers || {};
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
             return this.api.request(originalRequest);
@@ -258,15 +277,16 @@ class ApiService {
 
   async refreshToken(): Promise<void> {
     const refreshToken = this.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
+    // Attempt refresh whether token exists locally or only as cookie
+    const payload = refreshToken ? { refreshToken } : {};
+    const response = await this.api.post('/api/auth/refresh', payload);
+    const data = response?.data?.data || {};
+    if (data.accessToken) {
+      localStorage.setItem('access_token', data.accessToken);
     }
-
-    const response: AxiosResponse<RefreshTokenResponse> = await this.api.post('/api/auth/refresh', {
-      refresh_token: refreshToken,
-    });
-
-    localStorage.setItem('access_token', response.data.access_token);
+    if (data.refreshToken) {
+      localStorage.setItem('refresh_token', data.refreshToken);
+    }
   }
 
   async logout(): Promise<void> {
