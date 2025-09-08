@@ -45,6 +45,7 @@ export default function AppLayout() {
       key: 'administracao',
       title: 'Administração',
       items: [
+        { to: '/pessoas', icon: UsersIcon, label: 'Pessoas', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { to: '/users', icon: UsersIcon, label: 'Usuários', visible: hasRole(Role.ADMIN) },
         { to: '/config', icon: SettingsIcon, label: 'Configurações', visible: hasRole(Role.ADMIN) },
       ],
@@ -53,10 +54,10 @@ export default function AppLayout() {
       key: 'gestao',
       title: 'Gestão Acadêmica',
       items: [
-        { to: '/pessoas', icon: UsersIcon, label: 'Pessoas', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { to: '/alunos', icon: GraduationCap, label: 'Alunos', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { to: '/professores', icon: UserIcon, label: 'Professores', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { to: '/cursos', icon: BookOpen, label: 'Cursos', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { to: '/disciplinas', icon: BookOpen, label: 'Disciplinas', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { to: '/turmas', icon: Layers3, label: 'Turmas', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { to: '/relatorios', icon: BarChart3, label: 'Relatórios', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
       ],

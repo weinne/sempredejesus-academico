@@ -22,10 +22,11 @@ export default function DashboardPage() {
       key: 'gestao',
       title: 'Gestão Acadêmica',
       items: [
-        { title: 'Pessoas', description: 'Cadastrar e editar pessoas', href: '/pessoas', icon: Users, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        // Pessoas removido do dashboard; acessível via menu lateral (Administração)
         { title: 'Alunos', description: 'Visualizar e editar alunos', href: '/alunos', icon: GraduationCap, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { title: 'Professores', description: 'Visualizar e editar professores', href: '/professores', icon: User, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Cursos', description: 'Cadastrar e editar cursos', href: '/cursos', icon: BookOpen, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { title: 'Disciplinas', description: 'Cadastrar e editar disciplinas', href: '/disciplinas', icon: BookOpen, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Turmas', description: 'Organizar turmas e disciplinas', href: '/turmas', icon: Layers3, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { title: 'Relatórios', description: 'Visualizar relatórios gerenciais', href: '/relatorios', icon: BarChart3, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
       ],
