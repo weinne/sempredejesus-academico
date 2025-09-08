@@ -9,7 +9,7 @@ import { Professor, CreateProfessorWithUser, Pessoa, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
-import CrudToolbar from '@/components/crud/crud-toolbar';
+// import CrudToolbar from '@/components/crud/crud-toolbar';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import { 
@@ -27,7 +27,9 @@ import {
   Award,
   Briefcase,
   Eye,
-  EyeOff
+  EyeOff,
+  List,
+  LayoutGrid
 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -54,6 +56,7 @@ export default function ProfessoresPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [situacaoFiltro, setSituacaoFiltro] = useState<'' | 'ATIVO' | 'INATIVO'>('');
   const [showForm, setShowForm] = useState(false);
   const [editingProfessor, setEditingProfessor] = useState<Professor | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -190,13 +193,15 @@ export default function ProfessoresPage() {
   });
 
   // Filter professores by search term
-  const filteredProfessores = professores.filter((professor) =>
-    professor.matricula.includes(searchTerm) ||
-    (professor.pessoa?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (professor.pessoa?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    professor.situacao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (professor.formacaoAcad || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProfessores = professores
+    .filter((p) => !situacaoFiltro || p.situacao === situacaoFiltro)
+    .filter((professor) =>
+      professor.matricula.includes(searchTerm) ||
+      (professor.pessoa?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (professor.pessoa?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      professor.situacao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (professor.formacaoAcad || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   // Handle form submission
   const onSubmit = async (data: ProfessorFormData | UpdateProfessorFormData) => {
@@ -310,13 +315,41 @@ export default function ProfessoresPage() {
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0 space-y-6">
-          <CrudToolbar
-            search={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Busque por matrícula, nome, email, situação ou formação..."
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
+          <Card>
+            <CardHeader>
+              <CardTitle>Professores Cadastrados</CardTitle>
+              <CardDescription>Listagem e filtros de professores</CardDescription>
+            </CardHeader>
+            <CardContent className="flex items-end gap-4 flex-wrap">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-600">Situação</label>
+                <select className="border rounded px-2 py-2 w-48" value={situacaoFiltro} onChange={(e)=>setSituacaoFiltro((e.target.value||'') as any)}>
+                  <option value="">Todas</option>
+                  <option value="ATIVO">ATIVO</option>
+                  <option value="INATIVO">INATIVO</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-600">Buscar</label>
+                <Input
+                  placeholder="Matrícula, nome, email, situação ou formação"
+                  value={searchTerm}
+                  onChange={(e)=>setSearchTerm(e.target.value)}
+                  className="w-96"
+                />
+              </div>
+              <div className="ml-auto flex items-end gap-2">
+                <Button variant={viewMode === 'table' ? 'secondary' : 'ghost'} size="sm" onClick={()=>setViewMode('table')} title="Tabela">
+                  <List className="h-4 w-4" />
+                </Button>
+                <Button variant={viewMode === 'card' ? 'secondary' : 'ghost'} size="sm" onClick={()=>setViewMode('card')} title="Cartões">
+                  <LayoutGrid className="h-4 w-4" />
+                </Button>
+                <Button onClick={()=>{ /* buscador reactivo pelo estado */ }}>Buscar</Button>
+                <Button onClick={()=>{ setSituacaoFiltro(''); setSearchTerm(''); setPage(1); }}>Limpar filtros</Button>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

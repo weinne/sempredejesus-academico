@@ -9,6 +9,7 @@ import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { Link, useNavigate } from 'react-router-dom';
+import CrudHeader from '@/components/crud/crud-header';
 import { 
   ArrowLeft, 
   Plus, 
@@ -57,6 +58,8 @@ export default function AlunosPage() {
   const [showForm, setShowForm] = useState(false);
   const [showPessoaModal, setShowPessoaModal] = useState(false);
   const [page, setPage] = useState(1);
+  const [cursoFiltro, setCursoFiltro] = useState<number | ''>('');
+  const [situacaoFiltro, setSituacaoFiltro] = useState<'' | 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO'>('');
 
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
 
@@ -189,14 +192,17 @@ export default function AlunosPage() {
     ? alunos.filter((a) => (a as any).turmasDoProfessor?.some?.((tp: any) => tp.professorPessoaId === user?.pessoaId)) || []
     : alunos;
 
-  // Filter alunos by search term
-  const filteredAlunos = visibleAlunos.filter((aluno) =>
-    (aluno.ra || '').includes(searchTerm) ||
-    (aluno.pessoa?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (aluno.pessoa?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (aluno.situacao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (aluno.curso?.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter alunos by search term + selects
+  const filteredAlunos = visibleAlunos
+    .filter((aluno) => !cursoFiltro || aluno.cursoId === Number(cursoFiltro))
+    .filter((aluno) => !situacaoFiltro || aluno.situacao === situacaoFiltro)
+    .filter((aluno) =>
+      (aluno.ra || '').includes(searchTerm) ||
+      (aluno.pessoa?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (aluno.pessoa?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (aluno.situacao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (aluno.curso?.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
   // Handle form submission for creating
   const onSubmitCreate = (data: AlunoFormData) => {
@@ -247,47 +253,71 @@ export default function AlunosPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center space-x-4">
-              <Link to="/dashboard">
-                <Button variant="ghost" size="icon" aria-label="Voltar" title="Voltar">
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gerenciar Alunos</h1>
-              </div>
-            </div>
-            {canEdit && (
-              <Button onClick={() => navigate('/alunos/new')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Matrícula
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+      <CrudHeader
+        title="Gerenciar Alunos"
+        description="Cadastro e gestão de alunos"
+        backTo="/dashboard"
+        actions={canEdit ? (
+          <Button onClick={() => navigate('/alunos/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Matrícula
+          </Button>
+        ) : undefined}
+      />
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
-          {/* Search */}
+          {/* Filtros */}
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Search className="h-5 w-5 mr-2" />
-                Buscar Alunos
-              </CardTitle>
+              <CardTitle>Alunos Matriculados</CardTitle>
+              <CardDescription>Listagem e filtros de alunos</CardDescription>
             </CardHeader>
-            <CardContent>
-              <Input
-                placeholder="Busque por RA, nome, email, situação ou curso..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
+            <CardContent className="flex items-end gap-4 flex-wrap">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-600">Curso</label>
+                <select
+                  className="border rounded px-2 py-2 w-64"
+                  value={typeof cursoFiltro === 'number' ? String(cursoFiltro) : ''}
+                  onChange={(e) => setCursoFiltro(e.target.value ? Number(e.target.value) : '')}
+                >
+                  <option value="">Todos os cursos</option>
+                  {cursos.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-600">Situação</label>
+                <select
+                  className="border rounded px-2 py-2 w-48"
+                  value={situacaoFiltro}
+                  onChange={(e) => setSituacaoFiltro((e.target.value || '') as any)}
+                >
+                  <option value="">Todas</option>
+                  <option value="ATIVO">ATIVO</option>
+                  <option value="TRANCADO">TRANCADO</option>
+                  <option value="CONCLUIDO">CONCLUIDO</option>
+                  <option value="CANCELADO">CANCELADO</option>
+                </select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-600">Buscar</label>
+                <Input
+                  placeholder="RA, nome, email ou curso"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-72"
+                />
+              </div>
+              <div className="ml-auto flex items-end gap-2">
+                <Button onClick={() => { /* server already reacts via state; keep for symmetry */ }}>
+                  Buscar
+                </Button>
+                <Button onClick={() => { setCursoFiltro(''); setSituacaoFiltro(''); setSearchTerm(''); setPage(1); }}>
+                  Limpar filtros
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

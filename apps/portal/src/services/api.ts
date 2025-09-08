@@ -576,9 +576,12 @@ class ApiService {
   }
 
   // === Sprint 8: Avaliações ===
-  async getAvaliacoes(turmaId: number) {
-    const response = await this.api.get(`/api/avaliacoes`, { params: { turmaId } });
-    return response.data.data as import('@/types/api').Avaliacao[];
+  async getAvaliacoes(params?: { turmaId?: number; disciplinaId?: number; professorId?: string; page?: number; limit?: number; sortBy?: string; sortOrder?: 'asc'|'desc' }) {
+    const response = await this.api.get(`/api/avaliacoes`, { params });
+    const payload = response.data;
+    const data = Array.isArray(payload.data) ? payload.data : (payload.data?.data || payload.data || []);
+    const pagination = payload.pagination || payload.data?.pagination;
+    return { data: data as import('@/types/api').Avaliacao[], pagination };
   }
 
   async createAvaliacao(payload: import('@/types/api').CreateAvaliacao) {
@@ -591,9 +594,13 @@ class ApiService {
   }
 
   // === Sprint 8: Aulas & Frequência ===
-  async getAulas(turmaId: number) {
-    const response = await this.api.get(`/api/aulas`, { params: { turmaId } });
-    return response.data.data as import('@/types/api').Aula[];
+  async getAulas(params?: { turmaId?: number; disciplinaId?: number; professorId?: string; page?: number; limit?: number; sortBy?: string; sortOrder?: 'asc'|'desc' }) {
+    const response = await this.api.get(`/api/aulas`, { params });
+    // Support both array and { data, pagination }
+    const payload = response.data;
+    const data = Array.isArray(payload.data) ? payload.data : (payload.data?.data || payload.data || []);
+    const pagination = payload.pagination || payload.data?.pagination;
+    return { data: data as import('@/types/api').Aula[], pagination };
   }
 
   async createAula(payload: import('@/types/api').CreateAula) {

@@ -19,15 +19,47 @@ export default function AulasPage() {
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]);
 
   const [turmaId, setTurmaId] = useState<number | ''>('');
+  const [disciplinaId, setDisciplinaId] = useState<number | ''>('');
+  const [professorId, setProfessorId] = useState<string | ''>('');
+  const [search, setSearch] = useState('');
   const [nova, setNova] = useState<Partial<CreateAula>>({ data: '' });
   const [aulaId, setAulaId] = useState<number | ''>('');
   const [freqText, setFreqText] = useState('');
 
-  const { data: aulas = [], refetch } = useQuery({
-    queryKey: ['aulas', turmaId],
-    queryFn: () => apiService.getAulas(Number(turmaId)),
-    enabled: typeof turmaId === 'number' && turmaId > 0,
+  const clearFilters = () => {
+    setTurmaId('');
+    setDisciplinaId('');
+    setProfessorId('');
+    setSearch('');
+    refetch();
+  };
+
+  // Options for selects
+  const { data: turmasOptions = [] } = useQuery({
+    queryKey: ['turmas-options'],
+    queryFn: () => apiService.getTurmas({ limit: 1000 }).then(r => r.data),
   });
+  const { data: disciplinasOptions = [] } = useQuery({
+    queryKey: ['disciplinas-options'],
+    queryFn: () => apiService.getDisciplinas({ limit: 1000 }).then(r => r.data),
+  });
+  const { data: professoresOptions = [] } = useQuery({
+    queryKey: ['professores-options'],
+    queryFn: () => apiService.getProfessores({ limit: 1000 }).then(r => r.data),
+    enabled: hasRole([Role.ADMIN, Role.SECRETARIA]),
+  });
+
+  const { data: aulasResp, refetch } = useQuery({
+    queryKey: ['aulas', turmaId, disciplinaId, professorId, search],
+    queryFn: () => apiService.getAulas({
+      turmaId: typeof turmaId === 'number' ? turmaId : undefined,
+      disciplinaId: typeof disciplinaId === 'number' ? disciplinaId : undefined,
+      professorId: (hasRole(Role.ADMIN) || hasRole(Role.SECRETARIA)) ? (professorId || undefined) : undefined,
+      sortBy: 'data',
+      sortOrder: 'desc',
+    }).then(r => r.data),
+  });
+  const aulas = aulasResp || [];
 
   const criar = useMutation({
     mutationFn: (payload: CreateAula) => apiService.createAula(payload),
@@ -81,12 +113,66 @@ export default function AulasPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Selecionar Turma</CardTitle>
-            <CardDescription>Informe o ID da turma para listar/registrar aulas</CardDescription>
+            <CardTitle>Aulas Cadastradas</CardTitle>
+            <CardDescription>Listagem de aulas cadastradas</CardDescription>
           </CardHeader>
-          <CardContent className="flex items-center gap-3">
-            <Input type="number" placeholder="ID da Turma" value={turmaId} onChange={(e) => setTurmaId(e.target.value ? Number(e.target.value) : '')} className="w-40"/>
-            <Button onClick={() => refetch()} disabled={!(typeof turmaId === 'number' && turmaId>0)}><List className="h-4 w-4 mr-2"/>Buscar</Button>
+          <CardContent className="flex items-end gap-4 flex-wrap">
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-600">Turma</label>
+              <select
+                className="border rounded px-2 py-2 w-56"
+                aria-label="Turma"
+                value={typeof turmaId === 'number' ? String(turmaId) : ''}
+                onChange={(e) => setTurmaId(e.target.value ? Number(e.target.value) : '')}
+              >
+                <option value="">Todas as turmas</option>
+                {turmasOptions.map((t: any) => (
+                  <option key={t.id} value={t.id}>{t.id} - {(t.disciplina?.nome) || 'Turma'}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-600">Disciplina</label>
+              <select
+                className="border rounded px-2 py-2 w-56"
+                aria-label="Disciplina"
+                value={typeof disciplinaId === 'number' ? String(disciplinaId) : ''}
+                onChange={(e) => setDisciplinaId(e.target.value ? Number(e.target.value) : '')}
+              >
+                <option value="">Todas as disciplinas</option>
+                {disciplinasOptions.map((d: any) => (
+                  <option key={d.id} value={d.id}>{d.codigo ? `${d.codigo} - ${d.nome}` : d.nome}</option>
+                ))}
+              </select>
+            </div>
+
+            {(hasRole(Role.ADMIN) || hasRole(Role.SECRETARIA)) && (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm text-gray-600">Professor</label>
+                <select
+                  className="border rounded px-2 py-2 w-64"
+                  aria-label="Professor"
+                  value={professorId || ''}
+                  onChange={(e) => setProfessorId(e.target.value)}
+                >
+                  <option value="">Todos os professores</option>
+                  {professoresOptions.map((p: any) => (
+                    <option key={p.matricula} value={p.matricula}>{p.pessoa?.nome || p.matricula}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1">
+              <label className="text-sm text-gray-600">Buscar</label>
+              <Input placeholder="Tópico ou observação" value={search} onChange={(e)=>setSearch(e.target.value)} className="w-64" />
+            </div>
+
+            <div className="ml-auto flex items-end gap-2">
+              <Button onClick={() => refetch()}><List className="h-4 w-4 mr-2"/>Buscar</Button>
+              <Button onClick={clearFilters}>Limpar filtros</Button>
+            </div>
           </CardContent>
         </Card>
 
