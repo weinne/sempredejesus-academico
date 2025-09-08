@@ -605,6 +605,17 @@ class ApiService {
     await this.api.post(`/api/aulas/${aulaId}/frequencias`, { frequencias });
   }
 
+  // Aulas - single
+  async getAula(id: number) {
+    const response = await this.api.get(`/api/aulas/${id}`);
+    return response.data.data as import('@/types/api').Aula;
+  }
+
+  async updateAula(id: number, data: Partial<import('@/types/api').CreateAula>) {
+    const response = await this.api.patch(`/api/aulas/${id}`, data);
+    return response.data.data as import('@/types/api').Aula;
+  }
+
   // === Sprint 8: Calendário ===
   async getCalendario() {
     const response = await this.api.get(`/api/calendario`);

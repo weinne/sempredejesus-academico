@@ -4,71 +4,51 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/providers/auth-provider';
 import { Role } from '@/types/api';
 import { Link } from 'react-router-dom';
-import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User, Layers3, BarChart3, CalendarDays, ClipboardList, LogOut } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user, logout, hasRole } = useAuth();
-
-  const adminActions = [
-    { title: 'Gerenciar Usuários', description: 'Criar e administrar contas de acesso', href: '/users', icon: Users },
-    { title: 'Gerenciar Pessoas', description: 'Cadastrar e editar pessoas', href: '/pessoas', icon: Users },
-    { title: 'Gerenciar Alunos', description: 'Visualizar e editar alunos', href: '/alunos', icon: GraduationCap },
-    { title: 'Gerenciar Professores', description: 'Visualizar e editar professores', href: '/professores', icon: User },
-    { title: 'Gerenciar Cursos', description: 'Cadastrar e editar cursos', href: '/cursos', icon: BookOpen },
-    { title: 'Gerenciar Turmas', description: 'Organizar turmas e disciplinas', href: '/turmas', icon: Calendar },
-    { title: 'Aulas', description: 'Visualizar e gerenciar aulas', href: '/aulas', icon: BookOpen },
-    { title: 'Avaliações', description: 'Visualizar e gerenciar avaliações', href: '/avaliacoes', icon: FileText },
-    { title: 'Calendário', description: 'Consultar calendário acadêmico', href: '/calendario', icon: Calendar },
-    { title: 'Relatórios', description: 'Visualizar relatórios gerenciais', href: '/relatorios', icon: FileText },
-    { title: 'Configurações', description: 'Configurações do sistema', href: '/config', icon: Settings },
-  ];
-
-  const secretariaActions = [
-    { title: 'Gerenciar Pessoas', description: 'Cadastrar e editar pessoas', href: '/pessoas', icon: Users },
-    { title: 'Gerenciar Alunos', description: 'Visualizar e editar alunos', href: '/alunos', icon: GraduationCap },
-    { title: 'Gerenciar Professores', description: 'Visualizar professores', href: '/professores', icon: User },
-    { title: 'Gerenciar Cursos', description: 'Visualizar cursos', href: '/cursos', icon: BookOpen },
-    { title: 'Gerenciar Turmas', description: 'Organizar turmas', href: '/turmas', icon: Calendar },
-    { title: 'Aulas', description: 'Visualizar e gerenciar aulas', href: '/aulas', icon: BookOpen },
-    { title: 'Avaliações', description: 'Visualizar e gerenciar avaliações', href: '/avaliacoes', icon: FileText },
-    { title: 'Calendário', description: 'Consultar calendário acadêmico', href: '/calendario', icon: Calendar },
-    { title: 'Relatórios', description: 'Visualizar relatórios', href: '/relatorios', icon: FileText },
-  ];
-
-  const professorActions = [
-    { title: 'Minhas Turmas', description: 'Visualizar turmas que leciono', href: '/turmas', icon: Calendar },
-    { title: 'Meus Alunos', description: 'Visualizar alunos das minhas turmas', href: '/alunos', icon: GraduationCap },
-    { title: 'Aulas', description: 'Visualizar minhas aulas', href: '/aulas', icon: BookOpen },
-    { title: 'Avaliações', description: 'Lançar e revisar avaliações', href: '/avaliacoes', icon: FileText },
-    { title: 'Calendário', description: 'Consultar calendário acadêmico', href: '/calendario', icon: Calendar },
-    { title: 'Relatórios', description: 'Visualizar relatórios', href: '/relatorios', icon: FileText },
-    { title: 'Meu Portal', description: 'Informações pessoais', href: '/meu-portal', icon: User },
-  ];
-
-  const alunoActions = [
-    { title: 'Minhas Notas', description: 'Visualizar minhas notas', href: '/meu-portal', icon: FileText },
-    { title: 'Meu Curso', description: 'Informações do meu curso', href: '/cursos', icon: BookOpen },
-    { title: 'Aulas', description: 'Ver minhas aulas', href: '/aulas', icon: BookOpen },
-    { title: 'Avaliações', description: 'Ver avaliações e prazos', href: '/avaliacoes', icon: FileText },
-    { title: 'Calendário', description: 'Consultar calendário acadêmico', href: '/calendario', icon: Calendar },
-    { title: 'Relatórios', description: 'Visualizar relatórios', href: '/relatorios', icon: FileText },
-    { title: 'Meu Portal', description: 'Informações pessoais', href: '/meu-portal', icon: User },
-  ];
-
-  const getActionsForRole = () => {
-    switch (user?.role) {
-      case Role.ADMIN:
-        return adminActions;
-      case Role.SECRETARIA:
-        return secretariaActions;
-      case Role.PROFESSOR:
-        return professorActions;
-      case Role.ALUNO:
-        return alunoActions;
-      default:
-        return [];
-    }
-  };
+  
+  const sections = [
+    {
+      key: 'administracao',
+      title: 'Administração',
+      items: [
+        { title: 'Usuários', description: 'Gerenciar contas de acesso', href: '/users', icon: Users, show: hasRole(Role.ADMIN) },
+        { title: 'Configurações', description: 'Configurações do sistema', href: '/config', icon: Settings, show: hasRole(Role.ADMIN) },
+      ],
+    },
+    {
+      key: 'gestao',
+      title: 'Gestão Acadêmica',
+      items: [
+        { title: 'Pessoas', description: 'Cadastrar e editar pessoas', href: '/pessoas', icon: Users, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { title: 'Alunos', description: 'Visualizar e editar alunos', href: '/alunos', icon: GraduationCap, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { title: 'Professores', description: 'Visualizar e editar professores', href: '/professores', icon: User, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { title: 'Cursos', description: 'Cadastrar e editar cursos', href: '/cursos', icon: BookOpen, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { title: 'Turmas', description: 'Organizar turmas e disciplinas', href: '/turmas', icon: Layers3, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { title: 'Relatórios', description: 'Visualizar relatórios gerenciais', href: '/relatorios', icon: BarChart3, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+      ],
+    },
+    {
+      key: 'registros',
+      title: 'Registros',
+      items: [
+        { title: 'Aulas', description: 'Visualizar e gerenciar aulas', href: '/aulas', icon: CalendarDays, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { title: 'Avaliações', description: 'Visualizar e gerenciar avaliações', href: '/avaliacoes', icon: FileText, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { title: 'Presenças', description: 'Gerenciar registros de presença', href: '/presencas', icon: ClipboardList, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+      ],
+    },
+    {
+      key: 'pessoal',
+      title: 'Pessoal',
+      items: [
+        { title: 'Meu Portal', description: 'Informações pessoais', href: '/meu-portal', icon: User, show: true },
+        { title: 'Alterar Senha', description: 'Atualizar sua senha de acesso', href: '/meu-portal#alterar-senha', icon: Settings, show: true },
+        { title: 'Sair', description: 'Encerrar sessão atual', href: '#logout', icon: LogOut, show: true, onClick: () => logout() },
+      ],
+    },
+  ] as const;
 
   const getRoleDisplayName = (role: Role): string => {
     switch (role) {
@@ -84,8 +64,6 @@ export default function DashboardPage() {
         return role;
     }
   };
-
-  const actions = getActionsForRole();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -130,24 +108,50 @@ export default function DashboardPage() {
             </CardHeader>
           </Card>
 
-          {/* Actions Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {actions.map((action, index) => {
-              const Icon = action.icon;
+          {/* Sections */}
+          <div className="space-y-8">
+            {sections.map((section) => {
+              const visibleItems = section.items.filter((i) => i.show);
+              if (visibleItems.length === 0) return null;
               return (
-                <Card key={index} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <Link to={action.href} className="block">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center space-x-2">
-                        <Icon className="h-5 w-5 text-blue-600" />
-                        <CardTitle className="text-lg">{action.title}</CardTitle>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <CardDescription>{action.description}</CardDescription>
-                    </CardContent>
-                  </Link>
-                </Card>
+                <div key={section.key}>
+                  <h2 className="text-xl font-semibold mb-3">{section.title}</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {visibleItems.map((item, idx) => {
+                      const Icon = item.icon;
+                      const content = (
+                        <>
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center space-x-2">
+                              <Icon className="h-5 w-5 text-blue-600" />
+                              <CardTitle className="text-lg">{item.title}</CardTitle>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <CardDescription>{item.description}</CardDescription>
+                          </CardContent>
+                        </>
+                      );
+                      return (
+                        <Card key={idx} className="hover:shadow-md transition-shadow">
+                          {item.onClick || item.href === '#logout' ? (
+                            <button
+                              type="button"
+                              onClick={item.onClick}
+                              className="w-full text-left"
+                            >
+                              {content}
+                            </button>
+                          ) : (
+                            <Link to={item.href} className="block">
+                              {content}
+                            </Link>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>

@@ -4,6 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from 'react-router-dom';
+import CrudHeader from '@/components/crud/crud-header';
+import CrudToolbar from '@/components/crud/crud-toolbar';
+import { DataList } from '@/components/crud/data-list';
 import { apiService } from '@/services/api';
 import { Aula, CreateAula, LancarFrequenciaInput, Role } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
@@ -73,17 +76,7 @@ export default function AulasPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-4 py-4">
-            <Link to="/dashboard"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-2"/>Voltar</Button></Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Aulas & Frequência</h1>
-              <p className="text-sm text-gray-600">Crie aulas e registre frequências</p>
-            </div>
-          </div>
-        </div>
-      </header>
+      <CrudHeader title="Aulas & Frequência" description="Crie aulas e registre frequências" backTo="/dashboard" />
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
         <Card>
@@ -141,26 +134,25 @@ export default function AulasPage() {
               <CardDescription>{aulas.length} itens</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="text-left border-b">
-                      <th className="py-2 pr-4">Data</th>
-                      <th className="py-2 pr-4">Tópico</th>
-                      <th className="py-2 pr-4">Observação</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {aulas.map(a => (
-                      <tr key={a.id} className="border-b">
-                        <td className="py-2 pr-4">{a.data}</td>
-                        <td className="py-2 pr-4">{a.topico || '-'}</td>
-                        <td className="py-2 pr-4">{a.observacao || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <DataList
+                items={aulas}
+                viewMode={'table'}
+                isLoading={false}
+                columns={[
+                  { key: 'data', header: 'Data' },
+                  { key: 'topico', header: 'Tópico', render: (a: any) => a?.topico || '-' },
+                  { key: 'observacao', header: 'Observação', render: (a: any) => a?.observacao || '-' },
+                ]}
+                cardRender={(a: any) => (
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="font-medium">{a.data}</div>
+                      <div className="text-sm text-gray-600">{a.topico || '-'}</div>
+                      <div className="text-sm text-gray-600">{a.observacao || '-'}</div>
+                    </CardContent>
+                  </Card>
+                )}
+              />
             </CardContent>
           </Card>
         )}

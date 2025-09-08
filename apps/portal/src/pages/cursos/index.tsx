@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,11 @@ import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Curso, CreateCurso, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import CrudHeader from '@/components/crud/crud-header';
+import CrudToolbar from '@/components/crud/crud-toolbar';
+import { DataList } from '@/components/crud/data-list';
+import { Pagination } from '@/components/crud/pagination';
 import { 
   ArrowLeft, 
   Plus, 
@@ -35,6 +39,7 @@ type CursoFormData = z.infer<typeof cursoSchema>;
 
 export default function CursosPage() {
   const { hasRole } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
@@ -202,131 +207,37 @@ export default function CursosPage() {
     );
   }
 
+  const [viewMode, setViewMode] = useState<'table' | 'card'>(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'card' : 'table'));
+  useEffect(() => {
+    const onResize = () => setViewMode(window.innerWidth < 768 ? 'card' : 'table');
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center space-x-4">
-              <Link to="/dashboard">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Gerenciar Cursos</h1>
-                <p className="text-sm text-gray-600">Administração dos cursos oferecidos pelo seminário</p>
-              </div>
-            </div>
-            {canEdit && (
-              <Button onClick={handleNew}>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Curso
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+      <CrudHeader
+        title="Gerenciar Cursos"
+        description="Administração dos cursos oferecidos pelo seminário"
+        backTo="/dashboard"
+        actions={canEdit ? (
+          <Button onClick={() => navigate('/cursos/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Curso
+          </Button>
+        ) : undefined}
+      />
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Search */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Search className="h-5 w-5 mr-2" />
-                Buscar Cursos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                placeholder="Busque por nome ou grau do curso..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-md"
-              />
-            </CardContent>
-          </Card>
+        <div className="px-4 py-6 sm:px-0 space-y-6">
+          <CrudToolbar
+            search={searchTerm}
+            onSearchChange={setSearchTerm}
+            searchPlaceholder="Busque por nome ou grau do curso..."
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+          />
 
-          {/* Form */}
-          {showForm && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>
-                  {editingCurso ? 'Editar Curso' : 'Novo Curso'}
-                </CardTitle>
-                <CardDescription>
-                  {editingCurso 
-                    ? 'Atualize os dados do curso'
-                    : 'Complete o formulário para criar um novo curso'
-                  }
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Nome do Curso *
-                      </label>
-                      <Input
-                        {...register('nome')}
-                        placeholder="Ex: Bacharelado em Teologia"
-                        className={errors.nome ? 'border-red-500' : ''}
-                      />
-                      {errors.nome && (
-                        <p className="mt-1 text-sm text-red-600">{errors.nome.message}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Grau Acadêmico *
-                      </label>
-                      <select
-                        {...register('grau')}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.grau ? 'border-red-500' : ''}`}
-                      >
-                        <option value="">Selecione o grau...</option>
-                        <option value="BACHARELADO">Bacharelado</option>
-                        <option value="LICENCIATURA">Licenciatura</option>
-                        <option value="ESPECIALIZACAO">Especialização</option>
-                        <option value="MESTRADO">Mestrado</option>
-                        <option value="DOUTORADO">Doutorado</option>
-                      </select>
-                      {errors.grau && (
-                        <p className="mt-1 text-sm text-red-600">{errors.grau.message}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-2">
-                    <Button
-                      type="submit"
-                      disabled={createMutation.isPending || updateMutation.isPending}
-                    >
-                      {editingCurso ? 'Atualizar' : 'Criar'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowForm(false);
-                        setEditingCurso(null);
-                        reset();
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Cursos List */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -338,130 +249,91 @@ export default function CursosPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                </div>
-              ) : filteredCursos.length === 0 ? (
-                <div className="text-center py-8">
-                  <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">
-                    {searchTerm ? 'Nenhum curso encontrado' : 'Nenhum curso cadastrado'}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredCursos.map((curso) => (
-                    <Card key={curso.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        {/* Header do Card */}
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-full">
-                              <BookOpen className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-lg text-gray-900 leading-tight">
-                                {curso.nome}
-                              </h3>
-                            </div>
+              <DataList
+                items={filteredCursos}
+                viewMode={viewMode}
+                isLoading={isLoading}
+                columns={[
+                  { key: 'nome', header: 'Nome' },
+                  { key: 'grau', header: 'Grau', render: (c: any) => (
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getGrauColor(c.grau)}`}>{c.grau}</span>
+                  ) },
+                  { key: 'actions', header: 'Ações', render: (c: any) => (
+                    <div className="flex items-center gap-1">
+                      <Link to={`/cursos/view/${c.id}`} title="Ver">
+                        <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
+                      </Link>
+                      {canEdit && (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => navigate(`/cursos/edit/${c.id}`)} title="Editar">
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)} disabled={deleteMutation.isPending} title="Remover">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ) },
+                ]}
+                cardRender={(curso: any) => (
+                  <Card className="hover:shadow-md transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-blue-100 rounded-full">
+                            <BookOpen className="h-5 w-5 text-blue-600" />
                           </div>
-                          {canEdit && (
-                            <div className="flex space-x-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(curso)}
-                                title="Editar"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDelete(curso.id)}
-                                disabled={deleteMutation.isPending}
-                                title="Remover"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Informações do Curso */}
-                        <div className="space-y-3">
-                          {/* Grau */}
-                          <div className="flex items-center justify-between">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getGrauColor(curso.grau)}`}>
-                              {curso.grau}
-                            </span>
-                          </div>
-
-                          {/* Estatísticas */}
-                          {curso.totalDisciplinas !== undefined && (
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div className="flex items-center space-x-2 text-gray-600">
-                                <BookOpen className="h-4 w-4" />
-                                <span>{curso.totalDisciplinas} disciplinas</span>
-                              </div>
-                              
-                              {curso.disciplinasAtivas !== undefined && (
-                                <div className="flex items-center space-x-2 text-gray-600">
-                                  <Award className="h-4 w-4" />
-                                  <span>{curso.disciplinasAtivas} ativas</span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {curso.cargaHorariaTotal !== undefined && curso.cargaHorariaTotal > 0 && (
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <Clock className="h-4 w-4" />
-                              <span>{curso.cargaHorariaTotal}h de carga horária total</span>
-                            </div>
-                          )}
-
-                          {/* Link para ver detalhes */}
-                          <div className="pt-2 border-t border-gray-100">
-                            <Link to={`/cursos/${curso.id}`}>
-                              <Button variant="outline" size="sm" className="w-full">
-                                <Eye className="h-4 w-4 mr-2" />
-                                Ver Detalhes
-                              </Button>
-                            </Link>
+                          <div>
+                            <h3 className="font-semibold text-lg text-gray-900 leading-tight">{curso.nome}</h3>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+                        {canEdit && (
+                          <div className="flex space-x-1">
+                            <Button variant="ghost" size="sm" onClick={() => navigate(`/cursos/edit/${curso.id}`)} title="Editar">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(curso.id)} disabled={deleteMutation.isPending} title="Remover">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getGrauColor(curso.grau)}`}>{curso.grau}</span>
+                        </div>
+                        {curso.cargaHorariaTotal !== undefined && curso.cargaHorariaTotal > 0 && (
+                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                            <Clock className="h-4 w-4" />
+                            <span>{curso.cargaHorariaTotal}h de carga horária total</span>
+                          </div>
+                        )}
+                        <div className="pt-2 border-t border-gray-100">
+                          <Link to={`/cursos/view/${curso.id}`}>
+                            <Button variant="outline" size="sm" className="w-full">
+                              <Eye className="h-4 w-4 mr-2" />
+                              Ver Detalhes
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                emptyState={
+                  <div className="text-center py-8">
+                    <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-500">{searchTerm ? 'Nenhum curso encontrado' : 'Nenhum curso cadastrado'}</p>
+                  </div>
+                }
+              />
 
-              {/* Pagination */}
-              {pagination && pagination.totalPages > 1 && (
-                <div className="flex justify-center items-center space-x-2 mt-6">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(page - 1)}
-                    disabled={page <= 1}
-                  >
-                    Anterior
-                  </Button>
-                  <span className="text-sm text-gray-600">
-                    Página {page} de {pagination.totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(page + 1)}
-                    disabled={page >= pagination.totalPages}
-                  >
-                    Próxima
-                  </Button>
-                </div>
-              )}
+              <Pagination
+                page={page}
+                totalPages={pagination?.totalPages || 0}
+                onChange={setPage}
+              />
             </CardContent>
           </Card>
         </div>
