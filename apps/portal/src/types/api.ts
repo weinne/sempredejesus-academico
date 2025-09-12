@@ -98,7 +98,7 @@ export interface Aluno {
 
 export interface CreateAluno {
   ra?: string;
-  pessoaId: number;
+  pessoaId?: number; // optional when providing inline pessoa
   cursoId: number;
   anoIngresso: number;
   igreja?: string;
@@ -107,6 +107,17 @@ export interface CreateAluno {
 }
 
 export interface CreateAlunoWithUser extends CreateAluno {
+  // Inline pessoa creation (alternative to pessoaId)
+  pessoa?: {
+    nome: string;
+    sexo?: 'M' | 'F' | 'O';
+    cpf?: string;
+    email?: string;
+    telefone?: string;
+    endereco?: string;
+    data_nascimento?: string;
+  };
+
   createUser?: boolean;
   username?: string;
   password?: string;

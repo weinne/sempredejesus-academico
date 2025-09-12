@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { CreatePessoaSchema } from './pessoa';
 
 export const AlunoSchema = z.object({
   ra: z.string().length(8, 'RA deve ter 8 caracteres'),
@@ -20,9 +21,22 @@ export const CreateAlunoSchema = AlunoSchema.omit({
 });
 
 export const CreateAlunoWithUserSchema = CreateAlunoSchema.extend({
+  // Allow either linking an existing pessoa by ID or creating an inline pessoa
+  pessoaId: z.number().int().positive().optional(),
+  pessoa: CreatePessoaSchema.optional(),
+
   createUser: z.boolean().default(false),
   username: z.string().min(3).max(50).optional(),
   password: z.string().min(6).max(100).optional(),
+}).superRefine((data, ctx) => {
+  const hasPessoaId = typeof data.pessoaId === 'number';
+  const hasPessoaObj = !!data.pessoa;
+  if (!hasPessoaId && !hasPessoaObj) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Informe pessoaId ou pessoa', path: ['pessoa'] });
+  }
+  if (hasPessoaId && hasPessoaObj) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Forneça apenas pessoaId ou pessoa, não ambos', path: ['pessoa'] });
+  }
 });
 
 export const UpdateAlunoSchema = CreateAlunoSchema.partial().omit({ ra: true });

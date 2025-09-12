@@ -660,7 +660,31 @@ class ApiService {
   }
 
   async createAluno(aluno: CreateAlunoWithUser): Promise<{ aluno: Aluno; user?: any }> {
-    const response = await this.api.post('/api/alunos', aluno);
+    // Map inline pessoa fields (frontend shape) to backend expected shape if provided
+    const payload: any = { ...aluno };
+    if (!payload.pessoaId && aluno.pessoa) {
+      const p = aluno.pessoa;
+      payload.pessoa = {
+        nomeCompleto: p.nome,
+        sexo: p.sexo,
+        email: p.email,
+        cpf: p.cpf,
+        dataNasc: p.data_nascimento,
+        telefone: p.telefone,
+        endereco: p.endereco
+          ? {
+              logradouro: p.endereco,
+              numero: '',
+              complemento: '',
+              bairro: '',
+              cidade: 'São Paulo',
+              estado: 'SP',
+              cep: ''
+            }
+          : undefined,
+      };
+    }
+    const response = await this.api.post('/api/alunos', payload);
     return response.data.data;
   }
 

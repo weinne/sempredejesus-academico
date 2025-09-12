@@ -183,10 +183,10 @@ const generateUniqueRA = async (anoIngresso: number): Promise<string> => {
   return ra;
 };
 
-// Custom method to create aluno with automatic user creation
+// Custom method to create aluno with automatic pessoa (inline) and user creation
 const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = CreateAlunoWithUserSchema.parse(req.body);
-  const { createUser, username, password, ...alunoData } = validatedData;
+  const { createUser, username, password, ...alunoData } = validatedData as any;
 
   // Check if RA already exists
   if (alunoData.ra) {
@@ -200,7 +200,7 @@ const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => 
   const ra = alunoData.ra || await generateUniqueRA(alunoData.anoIngresso);
 
   // Convert coeficienteAcad from number to string for database
-  const alunoDataForDB = {
+  const alunoDataForDBBase: any = {
     ...alunoData,
     ra,
     coeficienteAcad: alunoData.coeficienteAcad?.toString(),
@@ -208,10 +208,39 @@ const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => 
 
   // Start transaction
   const result = await db.transaction(async (tx) => {
+    // If pessoa inline was provided, create it first and use its ID
+    let finalPessoaId: number | undefined = alunoDataForDBBase.pessoaId;
+    if (!finalPessoaId && (alunoDataForDBBase as any).pessoa) {
+      const pessoaPayload = (alunoDataForDBBase as any).pessoa;
+      const [novaPessoa] = await tx
+        .insert(pessoas)
+        .values({
+          nomeCompleto: pessoaPayload.nomeCompleto,
+          sexo: pessoaPayload.sexo,
+          email: pessoaPayload.email,
+          cpf: pessoaPayload.cpf,
+          dataNasc: pessoaPayload.dataNasc,
+          telefone: pessoaPayload.telefone,
+          endereco: pessoaPayload.endereco,
+        })
+        .returning();
+      finalPessoaId = novaPessoa.id;
+    }
+
+    if (!finalPessoaId) {
+      throw createError('pessoaId é obrigatório (ou forneça pessoa inline)', 400);
+    }
+
+    const alunoInsertValues = {
+      ...alunoDataForDBBase,
+      pessoaId: finalPessoaId,
+    } as any;
+    delete (alunoInsertValues as any).pessoa; // remove inline pessoa if present
+
     // Create aluno
     const [novoAluno] = await tx
       .insert(alunos)
-      .values(alunoDataForDB)
+      .values(alunoInsertValues)
       .returning();
 
     // Create user if requested
@@ -222,7 +251,7 @@ const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => 
       [novoUser] = await tx
         .insert(users)
         .values({
-          pessoaId: alunoDataForDB.pessoaId,
+          pessoaId: finalPessoaId,
           username,
           passwordHash,
           role: 'ALUNO',

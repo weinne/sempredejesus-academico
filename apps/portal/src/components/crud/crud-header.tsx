@@ -30,7 +30,7 @@ export function CrudHeader({ title, description, backTo, actions }: CrudHeaderPr
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
               {description ? (
-                <Info className="h-4 w-4 text-muted-foreground" title={description} />
+                <Info className="h-4 w-4 text-muted-foreground" />
               ) : null}
             </div>
           </div>

@@ -31,9 +31,20 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-const alunoSchema = z.object({
+const pessoaInlineSchema = z.object({
+  nome: z.string().min(1, 'Nome é obrigatório'),
+  sexo: z.enum(['M', 'F', 'O']).optional(),
+  email: z.string().email('Email inválido').optional(),
+  cpf: z.string().optional(),
+  telefone: z.string().optional(),
+  endereco: z.string().optional(),
+  data_nascimento: z.string().optional(),
+});
+
+const alunoBaseSchema = z.object({
   ra: z.string().max(8).optional(),
-  pessoaId: z.number().min(1, 'Selecione uma pessoa'),
+  pessoaId: z.number().optional(),
+  pessoa: pessoaInlineSchema.optional(),
   cursoId: z.number().min(1, 'Selecione um curso'),
   anoIngresso: z.number().min(1900).max(2100),
   igreja: z.string().max(120).optional(),
@@ -44,7 +55,18 @@ const alunoSchema = z.object({
   password: z.string().min(6).max(100).optional(),
 });
 
-const updateAlunoSchema = alunoSchema.partial().omit({ ra: true, createUser: true, username: true, password: true });
+const alunoSchema = alunoBaseSchema.superRefine((data, ctx) => {
+  const hasPessoaId = typeof data.pessoaId === 'number' && data.pessoaId > 0;
+  const hasPessoa = !!data.pessoa && !!data.pessoa.nome;
+  if (!hasPessoaId && !hasPessoa) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Selecione uma pessoa ou preencha os dados de Pessoa', path: ['pessoa'] });
+  }
+  if (hasPessoaId && hasPessoa) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use pessoa existente OU cadastre inline, não ambos', path: ['pessoa'] });
+  }
+});
+
+const updateAlunoSchema = alunoBaseSchema.partial().omit({ ra: true, createUser: true, username: true, password: true });
 
 type AlunoFormData = z.infer<typeof alunoSchema>;
 type UpdateAlunoFormData = z.infer<typeof updateAlunoSchema>;

@@ -13,9 +13,21 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+const pessoaInlineSchema = z.object({
+  nome: z.string().min(1, 'Nome é obrigatório'),
+  sexo: z.enum(['M', 'F', 'O']).optional(),
+  email: z.string().email('Email inválido').optional(),
+  cpf: z.string().optional(),
+  telefone: z.string().optional(),
+  endereco: z.string().optional(),
+  data_nascimento: z.string().optional(),
+});
+
 const alunoSchema = z.object({
   ra: z.string().max(8).optional(),
-  pessoaId: z.number().min(1, 'Selecione uma pessoa'),
+  // Either select existing pessoa or fill inline pessoa
+  pessoaId: z.number().optional(),
+  pessoa: pessoaInlineSchema.optional(),
   cursoId: z.number().min(1, 'Selecione um curso'),
   anoIngresso: z.number().min(1900).max(2100),
   igreja: z.string().max(120).optional(),
@@ -24,6 +36,15 @@ const alunoSchema = z.object({
   createUser: z.boolean().default(false),
   username: z.string().min(3).max(50).optional(),
   password: z.string().min(6).max(100).optional(),
+}).superRefine((data, ctx) => {
+  const hasPessoaId = typeof data.pessoaId === 'number' && data.pessoaId > 0;
+  const hasPessoa = !!data.pessoa && !!data.pessoa.nome;
+  if (!hasPessoaId && !hasPessoa) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Selecione uma pessoa ou preencha os dados de Pessoa', path: ['pessoa'] });
+  }
+  if (hasPessoaId && hasPessoa) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use pessoa existente OU cadastre inline, não ambos', path: ['pessoa'] });
+  }
 });
 
 type AlunoFormData = z.infer<typeof alunoSchema>;
@@ -34,11 +55,12 @@ export default function AlunoNewPage() {
   const queryClient = useQueryClient();
   const [showPessoaModal, setShowPessoaModal] = useState(false);
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<AlunoFormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<AlunoFormData>({
     resolver: zodResolver(alunoSchema),
     defaultValues: { situacao: 'ATIVO', anoIngresso: new Date().getFullYear(), createUser: false },
   });
   const createUser = watch('createUser');
+  const selectedPessoaId = watch('pessoaId');
 
   const { data: pessoas = [] } = useQuery({ queryKey: ['pessoas'], queryFn: apiService.getPessoas });
   const { data: cursosResponse } = useQuery({ queryKey: ['cursos'], queryFn: () => apiService.getCursos({ limit: 100 }) });
@@ -89,17 +111,18 @@ export default function AlunoNewPage() {
                       <Input {...register('ra')} placeholder="Ex: 20241001" className={errors.ra ? 'border-red-500' : ''} />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Pessoa *</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Pessoa</label>
                       <div className="flex space-x-2">
                         <select {...register('pessoaId', { valueAsNumber: true })} className={`flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.pessoaId ? 'border-red-500' : ''}`}>
-                          <option value="">Selecione uma pessoa...</option>
+                          <option value="">Selecione uma pessoa existente...</option>
                           {pessoas.map((pessoa) => (
                             <option key={pessoa.id} value={Number(pessoa.id)}>{pessoa.nome} {pessoa.email ? `(${pessoa.email})` : ''}</option>
                           ))}
                         </select>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowPessoaModal(true)} className="px-3" title="Cadastrar nova pessoa">+</Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => { setValue('pessoaId', undefined as any); setShowPessoaModal(true); }} className="px-3" title="Cadastrar nova pessoa">+
+                        </Button>
                       </div>
-                      {errors.pessoaId && (<p className="mt-1 text-sm text-red-600">{errors.pessoaId.message}</p>)}
+                      {!selectedPessoaId && <p className="mt-1 text-sm text-gray-500">Você pode escolher uma pessoa existente ou cadastrar os dados abaixo.</p>}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
@@ -140,6 +163,48 @@ export default function AlunoNewPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Pessoa Inline */}
+                {!selectedPessoaId && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-4">Dados de Pessoa (Inline)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+                        <Input {...register('pessoa.nome')} placeholder="Nome completo" className={errors?.pessoa?.nome ? 'border-red-500' : ''} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
+                        <select {...register('pessoa.sexo')} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                          <option value="">Selecione...</option>
+                          <option value="M">Masculino</option>
+                          <option value="F">Feminino</option>
+                          <option value="O">Outro</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <Input type="email" {...register('pessoa.email')} placeholder="email@exemplo.com" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
+                        <Input {...register('pessoa.cpf')} placeholder="Somente números" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                        <Input {...register('pessoa.telefone')} placeholder="(11) 99999-9999" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                        <Input type="date" {...register('pessoa.data_nascimento')} />
+                      </div>
+                      <div className="md:col-span-2 lg:col-span-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                        <Input {...register('pessoa.endereco')} placeholder="Rua, número, bairro, cidade" />
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Acesso ao Sistema</h3>
                   <div className="space-y-4">
@@ -173,7 +238,10 @@ export default function AlunoNewPage() {
       <PessoaFormModal
         isOpen={showPessoaModal}
         onClose={() => setShowPessoaModal(false)}
-        onSubmit={(data) => createPessoaMutation.mutate(data)}
+        onSubmit={(data) => {
+          // If using modal, create pessoa and select it automatically
+          createPessoaMutation.mutate(data);
+        }}
         isLoading={createPessoaMutation.isPending}
       />
     </div>

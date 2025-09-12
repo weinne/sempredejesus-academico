@@ -7,7 +7,7 @@ import { apiService } from '@/services/api';
 import { User, Role, Pessoa } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import { Edit, Trash2, User as UserIcon, Mail, Key, Eye, UserPlus, Plus } from 'lucide-react';
+import { Edit, Trash2, User as UserIcon, Mail, Key, Eye, UserPlus, Plus, Shield, ArrowLeft } from 'lucide-react';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import CrudHeader from '@/components/crud/crud-header';
 import CrudToolbar from '@/components/crud/crud-toolbar';

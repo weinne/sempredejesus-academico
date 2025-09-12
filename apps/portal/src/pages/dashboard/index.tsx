@@ -135,7 +135,7 @@ export default function DashboardPage() {
                       );
                       return (
                         <Card key={idx} className="hover:shadow-md transition-shadow">
-                          {item.onClick || item.href === '#logout' ? (
+                          {'onClick' in item && item.onClick ? (
                             <button
                               type="button"
                               onClick={item.onClick}
