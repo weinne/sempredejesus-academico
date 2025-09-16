@@ -253,6 +253,15 @@ export interface LancarFrequenciaInput {
   justificativa?: string;
 }
 
+export interface EstudanteAula {
+  inscricaoId: number;
+  alunoId: string;
+  ra: string;
+  nomeCompleto: string;
+  presente: boolean;
+  justificativa?: string;
+}
+
 export interface CalendarioItem {
   id: number;
   semestreId: number;

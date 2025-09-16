@@ -612,6 +612,11 @@ class ApiService {
     await this.api.post(`/api/aulas/${aulaId}/frequencias`, { frequencias });
   }
 
+  async getEstudantesAula(aulaId: number) {
+    const response = await this.api.get(`/api/aulas/${aulaId}/estudantes`);
+    return response.data.data as import('@/types/api').EstudanteAula[];
+  }
+
   // Aulas - single
   async getAula(id: number) {
     const response = await this.api.get(`/api/aulas/${id}`);

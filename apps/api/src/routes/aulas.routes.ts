@@ -7,7 +7,7 @@
 import { Router, Request, Response } from 'express';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../db';
-import { aulas, frequencias as frequenciasTbl, turmas, turmasInscritos } from '../db/schema';
+import { aulas, frequencias as frequenciasTbl, turmas, turmasInscritos, alunos, pessoas } from '../db/schema';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { requireAuth, requireProfessor } from '../middleware/auth.middleware';
 import { CreateAulaSchema, IdParamSchema } from '@seminario/shared-dtos';
@@ -183,6 +183,75 @@ router.post(
     }
 
     res.status(201).json({ success: true, message: 'Frequências registradas e % atualizada' });
+  })
+);
+
+// GET /aulas/:id/estudantes
+/**
+ * @swagger
+ * /api/aulas/{id}/estudantes:
+ *   get:
+ *     tags: [Aulas]
+ *     summary: Lista estudantes inscritos na turma da aula
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema: { type: integer }
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Lista de estudantes com frequências atuais da aula
+ */
+router.get(
+  '/:id/estudantes',
+  asyncHandler(async (req: Request, res: Response) => {
+    const params = IdParamSchema.parse(req.params);
+
+    // Verifica aula e obtém turma
+    const aula = await db.select().from(aulas).where(eq(aulas.id, params.id)).limit(1);
+    if (aula.length === 0) throw createError('Aula não encontrada', 404);
+    const turmaId = aula[0].turmaId;
+
+    // Busca estudantes inscritos na turma
+    const estudantes = await db
+      .select({
+        inscricaoId: turmasInscritos.id,
+        alunoId: turmasInscritos.alunoId,
+        ra: alunos.ra,
+        nomeCompleto: pessoas.nomeCompleto,
+      })
+      .from(turmasInscritos)
+      .leftJoin(alunos, eq(turmasInscritos.alunoId, alunos.ra))
+      .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
+      .where(eq(turmasInscritos.turmaId, turmaId));
+
+    // Busca frequências existentes para esta aula
+    const frequenciasExistentes = await db
+      .select({
+        inscricaoId: frequenciasTbl.inscricaoId,
+        presente: frequenciasTbl.presente,
+        justificativa: frequenciasTbl.justificativa,
+      })
+      .from(frequenciasTbl)
+      .where(eq(frequenciasTbl.aulaId, params.id));
+
+    // Mapeia frequências por inscricaoId
+    const frequenciasMap = frequenciasExistentes.reduce((acc, freq) => {
+      acc[freq.inscricaoId] = freq;
+      return acc;
+    }, {} as Record<number, any>);
+
+    // Combina estudantes com suas frequências
+    const data = estudantes.map((estudante) => ({
+      inscricaoId: estudante.inscricaoId,
+      alunoId: estudante.alunoId,
+      ra: estudante.ra,
+      nomeCompleto: estudante.nomeCompleto,
+      presente: frequenciasMap[estudante.inscricaoId]?.presente ?? true, // Default: presente
+      justificativa: frequenciasMap[estudante.inscricaoId]?.justificativa || null,
+    }));
+
+    res.json({ success: true, data });
   })
 );
 
