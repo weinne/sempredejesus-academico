@@ -7,10 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
-import { Aula, EstudanteAula, LancarFrequenciaInput, Role } from '@/types/api';
+import { Aula, EstudanteAula, LancarFrequenciaInput, Role, AlertasFrequencia } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Calendar, Users, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Save, Calendar, Users, CheckCircle, XCircle, AlertTriangle, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function PresencasPage() {
@@ -45,6 +45,13 @@ export default function PresencasPage() {
     queryKey: ['aula-estudantes', aulaId],
     queryFn: () => apiService.getEstudantesAula(aulaId as number),
     enabled: typeof aulaId === 'number',
+  });
+
+  // Attendance alerts for selected turma
+  const { data: alertasFrequencia } = useQuery({
+    queryKey: ['alertas-frequencia', turmaId],
+    queryFn: () => apiService.getAlertasFrequencia(turmaId as number),
+    enabled: typeof turmaId === 'number',
   });
 
   const [presencas, setPresencas] = useState<Record<number, boolean>>({});
@@ -186,6 +193,61 @@ export default function PresencasPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Attendance Alerts */}
+        {alertasFrequencia && alertasFrequencia.alertas.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                Alertas de Frequência
+              </CardTitle>
+              <CardDescription>
+                Alunos que precisam de atenção quanto à frequência
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {alertasFrequencia.alertas.map((alerta) => (
+                  <div 
+                    key={alerta.inscricaoId}
+                    className={cn(
+                      "p-4 rounded-lg border",
+                      alerta.nivel === 'critical' 
+                        ? "bg-red-50 border-red-200" 
+                        : "bg-amber-50 border-amber-200"
+                    )}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={alerta.nivel === 'critical' ? 'destructive' : 'default'}
+                        >
+                          {alerta.nivel === 'critical' ? 'CRÍTICO' : 'ATENÇÃO'}
+                        </Badge>
+                        <span className="font-medium">{alerta.nomeCompleto}</span>
+                        <span className="text-sm text-gray-600">RA: {alerta.ra}</span>
+                      </div>
+                      <div className="text-sm font-mono">
+                        {alerta.percentualFaltas.toFixed(1)}% faltas
+                      </div>
+                    </div>
+                    <p className={cn(
+                      "text-sm",
+                      alerta.nivel === 'critical' ? "text-red-700" : "text-amber-700"
+                    )}>
+                      {alerta.mensagem}
+                    </p>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {alerta.ausencias} faltas de {alerta.totalAulas} aulas • 
+                      Frequência: {alerta.percentualFrequencia.toFixed(1)}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Lista de Estudantes */}
         {typeof aulaId === 'number' && (

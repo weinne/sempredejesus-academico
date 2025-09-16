@@ -617,6 +617,22 @@ class ApiService {
     return response.data.data as import('@/types/api').EstudanteAula[];
   }
 
+  // Enhanced evaluations endpoints
+  async getEstudantesAvaliacao(avaliacaoId: number) {
+    const response = await this.api.get(`/api/avaliacoes/${avaliacaoId}/estudantes`);
+    return response.data.data as import('@/types/api').EstudanteAvaliacao[];
+  }
+
+  async validarPesosAvaliacao(turmaId: number) {
+    const response = await this.api.get(`/api/avaliacoes/turma/${turmaId}/pesos`);
+    return response.data.data as import('@/types/api').ValidacaoPesos;
+  }
+
+  async getAlertasFrequencia(turmaId: number) {
+    const response = await this.api.get(`/api/aulas/turma/${turmaId}/alertas-frequencia`);
+    return response.data.data as import('@/types/api').AlertasFrequencia;
+  }
+
   // Aulas - single
   async getAula(id: number) {
     const response = await this.api.get(`/api/aulas/${id}`);

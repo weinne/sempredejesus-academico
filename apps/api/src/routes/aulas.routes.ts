@@ -12,6 +12,8 @@ import { asyncHandler, createError } from '../middleware/error.middleware';
 import { requireAuth, requireProfessor } from '../middleware/auth.middleware';
 import { CreateAulaSchema, IdParamSchema } from '@seminario/shared-dtos';
 import { z } from 'zod';
+import { AuditService } from '../services/audit.service';
+import { AttendanceService } from '../services/attendance.service';
 
 const router = Router();
 
@@ -144,8 +146,19 @@ router.post(
     if (aula.length === 0) throw createError('Aula não encontrada', 404);
     const turmaId = aula[0].turmaId;
 
-    // Limpa registros anteriores para os inscritos informados (idempotente)
+    // Busca frequências existentes para auditoria
     const inscricaoIds = body.frequencias.map((f) => f.inscricaoId);
+    const existingFrequencies = await db
+      .select()
+      .from(frequenciasTbl)
+      .where(and(eq(frequenciasTbl.aulaId, params.id), inArray(frequenciasTbl.inscricaoId, inscricaoIds)));
+
+    const existingFreqMap = existingFrequencies.reduce((acc, freq) => {
+      acc[freq.inscricaoId] = freq.presente;
+      return acc;
+    }, {} as Record<number, boolean>);
+
+    // Limpa registros anteriores para os inscritos informados (idempotente)
     await db
       .delete(frequenciasTbl)
       .where(and(eq(frequenciasTbl.aulaId, params.id), inArray(frequenciasTbl.inscricaoId, inscricaoIds)));
@@ -160,7 +173,28 @@ router.post(
       }))
     );
 
-    // Recalcula % de frequência por inscrição (presentes / total de aulas da turma * 100)
+    // Log audit for attendance changes
+    const userId = (req as any).user?.id || 1; // Assume user is available from auth middleware
+    for (const freq of body.frequencias) {
+      const inscricao = await db
+        .select({ alunoId: turmasInscritos.alunoId })
+        .from(turmasInscritos)
+        .where(eq(turmasInscritos.id, freq.inscricaoId))
+        .limit(1);
+      
+      if (inscricao.length > 0) {
+        await AuditService.logAttendanceChange({
+          userId,
+          alunoId: inscricao[0].alunoId,
+          aulaId: params.id,
+          oldPresence: existingFreqMap[freq.inscricaoId],
+          newPresence: freq.presente,
+          turmaId,
+        });
+      }
+    }
+
+    // Recalcula % de frequência por inscrição usando AttendanceService
     const totalAulas = await db.select({ c: aulas.id }).from(aulas).where(eq(aulas.turmaId, turmaId));
     const total = totalAulas.length || 0;
 
@@ -173,11 +207,12 @@ router.post(
           .leftJoin(aulas, eq(frequenciasTbl.aulaId, aulas.id))
           .where(and(eq(aulas.turmaId, turmaId), eq(frequenciasTbl.inscricaoId, idIns), eq(frequenciasTbl.presente, true)));
 
-        const perc = Math.round((presentes.length / total) * 10000) / 100; // 2 casas
+        const ausencias = total - presentes.length;
+        const attendancePercentage = AttendanceService.calculateAttendancePercentage(total, ausencias);
 
         await db
           .update(turmasInscritos)
-          .set({ frequencia: String(perc) })
+          .set({ frequencia: String(attendancePercentage) })
           .where(eq(turmasInscritos.id, idIns));
       }
     }
@@ -252,6 +287,84 @@ router.get(
     }));
 
     res.json({ success: true, data });
+  })
+);
+
+// GET /aulas/turma/:turmaId/alertas-frequencia
+/**
+ * @swagger
+ * /api/aulas/turma/{turmaId}/alertas-frequencia:
+ *   get:
+ *     tags: [Aulas]
+ *     summary: Lista alertas de frequência para uma turma
+ *     parameters:
+ *       - in: path
+ *         name: turmaId
+ *         schema: { type: integer }
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Lista de alertas de frequência
+ */
+router.get(
+  '/turma/:turmaId/alertas-frequencia',
+  asyncHandler(async (req: Request, res: Response) => {
+    const turmaId = Number(req.params.turmaId);
+    if (!turmaId || Number.isNaN(turmaId)) {
+      throw createError('turmaId inválido', 400);
+    }
+
+    // Busca total de aulas da turma
+    const totalAulas = await db.select({ c: aulas.id }).from(aulas).where(eq(aulas.turmaId, turmaId));
+    const total = totalAulas.length || 0;
+
+    // Busca estudantes inscritos na turma
+    const estudantes = await db
+      .select({
+        inscricaoId: turmasInscritos.id,
+        alunoId: turmasInscritos.alunoId,
+        ra: alunos.ra,
+        nomeCompleto: pessoas.nomeCompleto,
+        frequencia: turmasInscritos.frequencia,
+      })
+      .from(turmasInscritos)
+      .leftJoin(alunos, eq(turmasInscritos.alunoId, alunos.ra))
+      .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
+      .where(eq(turmasInscritos.turmaId, turmaId));
+
+    // Calcula alertas para cada estudante
+    const alertas = [];
+    for (const estudante of estudantes) {
+      const attendancePercentage = Number(estudante.frequencia || 100);
+      const absencePercentage = 100 - attendancePercentage;
+      const absences = Math.round((absencePercentage / 100) * total);
+
+      const attendanceStatus = AttendanceService.getAttendanceStatus(total, absences);
+
+      if (attendanceStatus.needsAlert) {
+        alertas.push({
+          inscricaoId: estudante.inscricaoId,
+          alunoId: estudante.alunoId,
+          ra: estudante.ra,
+          nomeCompleto: estudante.nomeCompleto,
+          totalAulas: total,
+          ausencias: absences,
+          percentualFaltas: attendanceStatus.absencePercentage,
+          percentualFrequencia: attendanceStatus.attendancePercentage,
+          nivel: attendanceStatus.alertLevel,
+          mensagem: attendanceStatus.alertMessage,
+        });
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      data: {
+        turmaId,
+        totalAulas: total,
+        alertas
+      }
+    });
   })
 );
 
