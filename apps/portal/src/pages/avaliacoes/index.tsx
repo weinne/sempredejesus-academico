@@ -435,7 +435,6 @@ export default function AvaliacoesPage() {
                               </div>
                               <div className="col-span-2">
                                 <Input
-                                  size="sm"
                                   placeholder="0,0"
                                   value={notasEditadas[estudante.alunoId]?.nota || ''}
                                   onChange={(e) => updateGrade(estudante.alunoId, 'nota', e.target.value)}
@@ -451,7 +450,6 @@ export default function AvaliacoesPage() {
                               </div>
                               <div className="col-span-3">
                                 <Input
-                                  size="sm"
                                   placeholder="Observações..."
                                   value={notasEditadas[estudante.alunoId]?.obs || ''}
                                   onChange={(e) => updateGrade(estudante.alunoId, 'obs', e.target.value)}
