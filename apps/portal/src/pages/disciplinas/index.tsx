@@ -164,11 +164,14 @@ export default function DisciplinasPage() {
   });
 
   // Filter disciplinas by search term
-  const filteredDisciplinas = disciplinas.filter((disciplina) =>
-    disciplina.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (disciplina.codigo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (disciplina.ementa || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredDisciplinas = disciplinas.filter((disciplina) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      (disciplina.nome || '').toLowerCase().includes(searchLower) ||
+      (disciplina.codigo || '').toLowerCase().includes(searchLower) ||
+      (disciplina.ementa || '').toLowerCase().includes(searchLower)
+    );
+  });
 
   // Handle form submission
   const onSubmit = (data: DisciplinaFormData) => {
