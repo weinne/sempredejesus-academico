@@ -20,7 +20,7 @@ const disciplinaSchema = z.object({
   cargaHoraria: z.number().min(1),
   ementa: z.string().optional(),
   bibliografia: z.string().optional(),
-  ativo: z.boolean().default(true),
+  ativo: z.union([z.boolean(), z.string()]).transform(val => val === 'true' || val === true),
 });
 
 type DisciplinaFormData = z.infer<typeof disciplinaSchema>;
@@ -135,7 +135,7 @@ export default function DisciplinaEditPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select {...register('ativo', { valueAsBoolean: true })} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    <select {...register('ativo')} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                       <option value="true">Ativa</option>
                       <option value="false">Inativa</option>
                     </select>
