@@ -253,6 +253,51 @@ export interface LancarFrequenciaInput {
   justificativa?: string;
 }
 
+export interface EstudanteAula {
+  inscricaoId: number;
+  alunoId: string;
+  ra: string;
+  nomeCompleto: string;
+  presente: boolean;
+  justificativa?: string;
+}
+
+export interface EstudanteAvaliacao {
+  inscricaoId: number;
+  alunoId: string;
+  ra: string;
+  nomeCompleto: string;
+  media: number | null;
+  nota: number | null;
+  obs?: string;
+}
+
+export interface ValidacaoPesos {
+  totalWeight: number;
+  isValid: boolean;
+  difference: number;
+  message: string;
+}
+
+export interface AlertaFrequencia {
+  inscricaoId: number;
+  alunoId: string;
+  ra: string;
+  nomeCompleto: string;
+  totalAulas: number;
+  ausencias: number;
+  percentualFaltas: number;
+  percentualFrequencia: number;
+  nivel: 'warning' | 'critical';
+  mensagem: string;
+}
+
+export interface AlertasFrequencia {
+  turmaId: number;
+  totalAulas: number;
+  alertas: AlertaFrequencia[];
+}
+
 export interface CalendarioItem {
   id: number;
   semestreId: number;
