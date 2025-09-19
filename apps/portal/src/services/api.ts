@@ -180,6 +180,40 @@ class ApiService {
       });
     }
 
+    if (url === '/api/disciplinas' && method === 'get') {
+      return Promise.resolve({
+        data: [
+          {
+            id: 1,
+            cursoId: 1,
+            codigo: 'TSI001',
+            nome: 'Teologia Sistemática I',
+            creditos: 4,
+            cargaHoraria: 60,
+            ementa: 'Introdução à Teologia Sistemática',
+            bibliografia: 'Bibliografia básica de Teologia',
+            ativo: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          {
+            id: 2,
+            cursoId: 1,
+            codigo: 'TSI002',
+            nome: 'Teologia Sistemática II',
+            creditos: 4,
+            cargaHoraria: 60,
+            ementa: 'Aprofundamento em Teologia Sistemática',
+            bibliografia: 'Bibliografia avançada de Teologia',
+            ativo: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+        ],
+        pagination: { page: 1, limit: 20, total: 2, totalPages: 1 }
+      });
+    }
+
     if (url?.includes('/api/pessoas') && method === 'post') {
       const newPessoa = {
         id: Date.now().toString(),
@@ -200,6 +234,29 @@ class ApiService {
     }
 
     if (url?.includes('/api/pessoas') && method === 'delete') {
+      return Promise.resolve({ data: null });
+    }
+
+    if (url?.includes('/api/disciplinas') && method === 'post') {
+      const newDisciplina = {
+        id: Date.now(),
+        ...config.data,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      return Promise.resolve({ data: newDisciplina });
+    }
+
+    if (url?.includes('/api/disciplinas') && method === 'patch') {
+      const updatedDisciplina = {
+        id: parseInt(url.split('/').pop() || '0'),
+        ...config.data,
+        updated_at: new Date().toISOString(),
+      };
+      return Promise.resolve({ data: updatedDisciplina });
+    }
+
+    if (url?.includes('/api/disciplinas') && method === 'delete') {
       return Promise.resolve({ data: null });
     }
 

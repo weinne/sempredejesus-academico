@@ -39,14 +39,27 @@ export class EnhancedCrudFactory {
 
     let query: any;
     
-    // Build select query - select all fields to get joined data
-    query = db.select().from(this.options.table);
-    
-    // Add joins if specified
+    // Build select query with explicit field selection when using joins
     if (this.options.joinTables) {
+      // Create explicit select for main table fields
+      const mainTableFields: any = {};
+      const tableColumns = Object.keys(this.options.table);
+      
+      // Add all fields from main table
+      for (const column of tableColumns) {
+        if (this.options.table[column]) {
+          mainTableFields[column] = this.options.table[column];
+        }
+      }
+      
+      query = db.select(mainTableFields).from(this.options.table);
+      
+      // Add joins
       for (const join of this.options.joinTables) {
         query = query.leftJoin(join.table, join.on);
       }
+    } else {
+      query = db.select().from(this.options.table);
     }
 
     // Add search if specified

@@ -243,10 +243,16 @@ export default function DisciplinasPage() {
         description="Administração das disciplinas e planos de ensino"
         backTo="/dashboard"
         actions={canEdit ? (
-          <Button onClick={() => navigate('/disciplinas/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Disciplina
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleNew}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Disciplina
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/disciplinas/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Disciplina (Página)
+            </Button>
+          </div>
         ) : undefined}
       />
 
@@ -363,6 +369,88 @@ export default function DisciplinasPage() {
               />
             </CardContent>
           </Card>
+
+          {/* Formulário Inline */}
+          {showForm && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>
+                  {editingDisciplina ? 'Editar Disciplina' : 'Nova Disciplina'}
+                </CardTitle>
+                <CardDescription>
+                  {editingDisciplina ? 'Atualize as informações da disciplina' : 'Preencha as informações da nova disciplina'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
+                      <select {...register('cursoId', { valueAsNumber: true })} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.cursoId ? 'border-red-500' : ''}`}>
+                        <option value="">Selecione um curso...</option>
+                        {cursos.map((curso: any) => (
+                          <option key={curso.id} value={curso.id}>{curso.nome} ({curso.grau})</option>
+                        ))}
+                      </select>
+                      {errors.cursoId && (<p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Código *</label>
+                      <Input {...register('codigo')} placeholder="Ex: TSI001" />
+                      {errors.codigo && (<p className="mt-1 text-sm text-red-600">{errors.codigo.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+                      <Input {...register('nome')} placeholder="Nome da disciplina" />
+                      {errors.nome && (<p className="mt-1 text-sm text-red-600">{errors.nome.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Créditos *</label>
+                      <Input {...register('creditos', { valueAsNumber: true })} type="number" min="1" max="32767" />
+                      {errors.creditos && (<p className="mt-1 text-sm text-red-600">{errors.creditos.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Carga Horária *</label>
+                      <Input {...register('cargaHoraria', { valueAsNumber: true })} type="number" min="1" />
+                      {errors.cargaHoraria && (<p className="mt-1 text-sm text-red-600">{errors.cargaHoraria.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <select {...register('ativo', { valueAsBoolean: true })} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="true">Ativa</option>
+                        <option value="false">Inativa</option>
+                      </select>
+                      {errors.ativo && (<p className="mt-1 text-sm text-red-600">{errors.ativo.message}</p>)}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ementa</label>
+                      <Textarea {...register('ementa')} placeholder="Descrição da disciplina..." rows={4} />
+                      {errors.ementa && (<p className="mt-1 text-sm text-red-600">{errors.ementa.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Bibliografia</label>
+                      <Textarea {...register('bibliografia')} placeholder="Referências bibliográficas..." rows={4} />
+                      {errors.bibliografia && (<p className="mt-1 text-sm text-red-600">{errors.bibliografia.message}</p>)}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                      {editingDisciplina ? 'Atualizar' : 'Criar'} Disciplina
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => {
+                      setShowForm(false);
+                      setEditingDisciplina(null);
+                      reset();
+                    }}>
+                      Cancelar
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
     </div>
