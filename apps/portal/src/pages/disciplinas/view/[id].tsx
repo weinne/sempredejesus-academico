@@ -63,6 +63,18 @@ export default function DisciplinaViewPage() {
                   <div className="text-sm text-muted-foreground">Carga Horária</div>
                   <div className="font-medium">{disciplina.cargaHoraria}h</div>
                 </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Curso</div>
+                  <div className="font-medium">{disciplina.curso?.nome || '—'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Período</div>
+                  <div className="font-medium">
+                    {disciplina.periodo
+                      ? disciplina.periodo.nome || `Período ${disciplina.periodo.numero}`
+                      : '—'}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

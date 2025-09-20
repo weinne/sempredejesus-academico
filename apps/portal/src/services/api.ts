@@ -19,6 +19,9 @@ import {
   CreateProfessorWithUser,
   Curso,
   CreateCurso,
+  Periodo,
+  CreatePeriodo,
+  UpdatePeriodo,
   Disciplina,
   Turma,
   CreateTurma,
@@ -186,6 +189,7 @@ class ApiService {
           {
             id: 1,
             cursoId: 1,
+            periodoId: 1,
             codigo: 'TSI001',
             nome: 'Teologia Sistemática I',
             creditos: 4,
@@ -199,6 +203,7 @@ class ApiService {
           {
             id: 2,
             cursoId: 1,
+            periodoId: 1,
             codigo: 'TSI002',
             nome: 'Teologia Sistemática II',
             creditos: 4,
@@ -211,6 +216,22 @@ class ApiService {
           }
         ],
         pagination: { page: 1, limit: 20, total: 2, totalPages: 1 }
+      });
+    }
+
+    if (url === '/api/periodos' && method === 'get') {
+      return Promise.resolve({
+        data: [
+          {
+            id: 1,
+            cursoId: 1,
+            numero: 1,
+            nome: 'Período 1',
+            descricao: null,
+            totalDisciplinas: 2,
+          },
+        ],
+        pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
       });
     }
 
@@ -629,7 +650,17 @@ class ApiService {
 
   async getAluno(ra: string): Promise<Aluno> {
     const response = await this.api.get(`/api/alunos/${ra}`);
-    return response.data.data;
+    const aluno = response.data.data || response.data;
+    return {
+      ...aluno,
+      periodoId: typeof aluno.periodoId === 'number' ? aluno.periodoId : Number(aluno.periodoId ?? 0),
+      periodo: aluno.periodo
+        ? {
+            ...aluno.periodo,
+            numero: Number(aluno.periodo.numero ?? aluno.periodoId ?? 0),
+          }
+        : undefined,
+    } as Aluno;
   }
 
   // === Sprint 8: Avaliações ===
@@ -850,7 +881,17 @@ class ApiService {
 
   async getCurso(id: number): Promise<Curso> {
     const response = await this.api.get(`/api/cursos/${id}`);
-    return response.data.data;
+    const curso = response.data.data as Curso & { periodos?: any[] };
+    if (curso?.periodos) {
+      curso.periodos = curso.periodos.map((periodo: any) => ({
+        ...periodo,
+        totalDisciplinas:
+          typeof periodo.totalDisciplinas === 'number'
+            ? periodo.totalDisciplinas
+            : Number(periodo.totalDisciplinas ?? 0),
+      }));
+    }
+    return curso;
   }
 
   async createCurso(curso: CreateCurso): Promise<Curso> {
@@ -865,6 +906,71 @@ class ApiService {
 
   async deleteCurso(id: number): Promise<void> {
     await this.api.delete(`/api/cursos/${id}`);
+  }
+
+  // Periodos CRUD
+  async getPeriodos(params?: {
+    cursoId?: number;
+    page?: number;
+    limit?: number;
+    search?: string;
+  }): Promise<{ data: Periodo[]; pagination?: any }> {
+    const queryParams = new URLSearchParams();
+    if (params?.cursoId) queryParams.append('cursoId', params.cursoId.toString());
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+
+    const queryString = queryParams.toString();
+    const response = await this.api.get(`/api/periodos${queryString ? `?${queryString}` : ''}`);
+    const payload = response.data;
+    const rawData = Array.isArray(payload.data) ? payload.data : payload.data?.data || [];
+    const data = (rawData as any[]).map((periodo) => ({
+      ...periodo,
+      totalDisciplinas:
+        typeof periodo.totalDisciplinas === 'number'
+          ? periodo.totalDisciplinas
+          : Number(periodo.totalDisciplinas ?? 0),
+      totalAlunos:
+        typeof periodo.totalAlunos === 'number'
+          ? periodo.totalAlunos
+          : Number(periodo.totalAlunos ?? 0),
+    })) as Periodo[];
+
+    return {
+      data,
+      pagination: payload.pagination || payload.data?.pagination,
+    };
+  }
+
+  async getPeriodo(id: number): Promise<Periodo> {
+    const response = await this.api.get(`/api/periodos/${id}`);
+    const periodo = response.data.data || response.data;
+    return {
+      ...periodo,
+      totalDisciplinas:
+        typeof periodo.totalDisciplinas === 'number'
+          ? periodo.totalDisciplinas
+          : Number(periodo.totalDisciplinas ?? 0),
+      totalAlunos:
+        typeof periodo.totalAlunos === 'number'
+          ? periodo.totalAlunos
+          : Number(periodo.totalAlunos ?? 0),
+    } as Periodo;
+  }
+
+  async createPeriodo(payload: CreatePeriodo): Promise<Periodo> {
+    const response = await this.api.post('/api/periodos', payload);
+    return response.data.data as Periodo;
+  }
+
+  async updatePeriodo(id: number, payload: UpdatePeriodo): Promise<Periodo> {
+    const response = await this.api.patch(`/api/periodos/${id}`, payload);
+    return response.data.data as Periodo;
+  }
+
+  async deletePeriodo(id: number): Promise<void> {
+    await this.api.delete(`/api/periodos/${id}`);
   }
 
   // Health check
@@ -998,7 +1104,23 @@ class ApiService {
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
       const response = await this.api.get(`/api/disciplinas?${queryParams.toString()}`);
-      return response.data;
+      const payload = response.data;
+      const rawData = Array.isArray(payload.data) ? payload.data : payload.data?.data || [];
+      const data = (rawData as any[]).map((disciplina) => ({
+        ...disciplina,
+        periodoId: typeof disciplina.periodoId === 'number' ? disciplina.periodoId : Number(disciplina.periodoId ?? 0),
+        periodo: disciplina.periodo
+          ? {
+              ...disciplina.periodo,
+              numero: Number(disciplina.periodo.numero ?? disciplina.periodoId ?? 0),
+            }
+          : undefined,
+      })) as Disciplina[];
+
+      return {
+        data,
+        pagination: payload.pagination || payload.data?.pagination,
+      };
     } catch (error: any) {
       console.warn('API offline - showing empty disciplinas list');
       return {
@@ -1010,17 +1132,47 @@ class ApiService {
 
   async getDisciplina(id: number): Promise<Disciplina> {
     const response = await this.api.get(`/api/disciplinas/${id}`);
-    return response.data.data;
+    const disciplina = response.data.data || response.data;
+    return {
+      ...disciplina,
+      periodoId: typeof disciplina.periodoId === 'number' ? disciplina.periodoId : Number(disciplina.periodoId ?? 0),
+      periodo: disciplina.periodo
+        ? {
+            ...disciplina.periodo,
+            numero: Number(disciplina.periodo.numero ?? disciplina.periodoId ?? 0),
+          }
+        : undefined,
+    } as Disciplina;
   }
 
   async createDisciplina(disciplina: Omit<Disciplina, 'id'>): Promise<Disciplina> {
     const response = await this.api.post('/api/disciplinas', disciplina);
-    return response.data.data;
+    const created = response.data.data || response.data;
+    return {
+      ...created,
+      periodoId: typeof created.periodoId === 'number' ? created.periodoId : Number(created.periodoId ?? 0),
+      periodo: created.periodo
+        ? {
+            ...created.periodo,
+            numero: Number(created.periodo.numero ?? created.periodoId ?? 0),
+          }
+        : undefined,
+    } as Disciplina;
   }
 
   async updateDisciplina(id: number, disciplina: Partial<Omit<Disciplina, 'id'>>): Promise<Disciplina> {
     const response = await this.api.patch(`/api/disciplinas/${id}`, disciplina);
-    return response.data.data;
+    const updated = response.data.data || response.data;
+    return {
+      ...updated,
+      periodoId: typeof updated.periodoId === 'number' ? updated.periodoId : Number(updated.periodoId ?? 0),
+      periodo: updated.periodo
+        ? {
+            ...updated.periodo,
+            numero: Number(updated.periodo.numero ?? updated.periodoId ?? 0),
+          }
+        : undefined,
+    } as Disciplina;
   }
 
   async deleteDisciplina(id: number): Promise<void> {

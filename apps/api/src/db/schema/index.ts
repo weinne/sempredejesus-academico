@@ -4,6 +4,7 @@ export * from './alunos';
 export * from './professores';
 export * from './cursos';
 export * from './disciplinas';
+export * from './periodos';
 export * from './semestres';
 export * from './turmas';
 export * from './aulas';

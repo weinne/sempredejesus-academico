@@ -7,6 +7,7 @@ export * from './pessoa';
 export * from './aluno';
 export * from './professor';
 export * from './curso';
+export * from './periodo';
 export * from './disciplina';
 export * from './semestre';
 export * from './turma';

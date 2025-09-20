@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
-import { Aluno, CreateAlunoWithUser, Pessoa, Curso } from '@/types/api';
+import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Periodo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { z } from 'zod';
@@ -29,6 +29,7 @@ const alunoSchema = z.object({
   pessoaId: z.number().optional(),
   pessoa: pessoaInlineSchema.optional(),
   cursoId: z.number().min(1, 'Selecione um curso'),
+  periodoId: z.number().min(1, 'Selecione um período'),
   anoIngresso: z.number().min(1900).max(2100),
   igreja: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']),
@@ -61,10 +62,22 @@ export default function AlunoNewPage() {
   });
   const createUser = watch('createUser');
   const selectedPessoaId = watch('pessoaId');
+  const selectedCursoId = watch('cursoId');
+
+  useEffect(() => {
+    setValue('periodoId', undefined as unknown as number, { shouldValidate: false, shouldDirty: false });
+  }, [selectedCursoId, setValue]);
 
   const { data: pessoas = [] } = useQuery({ queryKey: ['pessoas'], queryFn: apiService.getPessoas });
   const { data: cursosResponse } = useQuery({ queryKey: ['cursos'], queryFn: () => apiService.getCursos({ limit: 100 }) });
   const cursos = cursosResponse?.data || [];
+
+  const { data: periodosResponse } = useQuery({
+    queryKey: ['periodos', selectedCursoId],
+    queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
+    enabled: !!selectedCursoId,
+  });
+  const periodos = periodosResponse?.data || [];
 
   const createMutation = useMutation({
     mutationFn: (aluno: CreateAlunoWithUser) => apiService.createAluno(aluno),
@@ -133,6 +146,22 @@ export default function AlunoNewPage() {
                         ))}
                       </select>
                       {errors.cursoId && (<p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Período *</label>
+                      <select
+                        {...register('periodoId', { valueAsNumber: true })}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.periodoId ? 'border-red-500' : ''}`}
+                        disabled={!selectedCursoId}
+                      >
+                        <option value="">{selectedCursoId ? 'Selecione um período...' : 'Selecione um curso primeiro'}</option>
+                        {periodos.map((periodo: Periodo) => (
+                          <option key={periodo.id} value={periodo.id}>
+                            {periodo.nome || `Período ${periodo.numero}`}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.periodoId && (<p className="mt-1 text-sm text-red-600">{errors.periodoId.message}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Ano de Ingresso *</label>

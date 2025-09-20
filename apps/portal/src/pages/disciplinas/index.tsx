@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,19 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
-import { Disciplina, Curso, Role } from '@/types/api';
+import { Disciplina, Curso, Role, Periodo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
 import CrudToolbar from '@/components/crud/crud-toolbar';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
-import { 
-  ArrowLeft, 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
+import {
+  ArrowLeft,
+  Plus,
+  Search,
+  Edit,
+  Trash2,
   BookOpen,
   Clock,
   Award,
@@ -26,7 +26,8 @@ import {
   Hash,
   Eye,
   CheckCircle,
-  XCircle
+  XCircle,
+  Layers3
 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -34,6 +35,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 const disciplinaSchema = z.object({
   cursoId: z.number().min(1, 'Selecione um curso'),
+  periodoId: z.number().min(1, 'Selecione um período'),
   codigo: z.string().min(1, 'Código é obrigatório').max(10),
   nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(120),
   creditos: z.number().min(1).max(32767),
@@ -62,6 +64,8 @@ export default function DisciplinasPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<DisciplinaFormData>({
     resolver: zodResolver(disciplinaSchema),
@@ -69,6 +73,23 @@ export default function DisciplinasPage() {
       ativo: true,
     }
   });
+
+  const selectedCursoId = watch('cursoId');
+  const previousCursoIdRef = React.useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (previousCursoIdRef.current === selectedCursoId) {
+      return;
+    }
+    if (!selectedCursoId) {
+      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
+    } else if (editingDisciplina && selectedCursoId === editingDisciplina.cursoId) {
+      setValue('periodoId', editingDisciplina.periodoId, { shouldDirty: false, shouldValidate: false });
+    } else {
+      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
+    }
+    previousCursoIdRef.current = selectedCursoId;
+  }, [editingDisciplina, selectedCursoId, setValue]);
 
   // Fetch cursos for the dropdown
   const {
@@ -79,6 +100,13 @@ export default function DisciplinasPage() {
   });
 
   const cursos = cursosResponse?.data || [];
+
+  const { data: periodosResponse } = useQuery({
+    queryKey: ['periodos', selectedCursoId],
+    queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
+    enabled: !!selectedCursoId,
+  });
+  const periodos = periodosResponse?.data || [];
 
   // Fetch disciplinas
   const {
@@ -169,7 +197,9 @@ export default function DisciplinasPage() {
     return (
       (disciplina.nome || '').toLowerCase().includes(searchLower) ||
       (disciplina.codigo || '').toLowerCase().includes(searchLower) ||
-      (disciplina.ementa || '').toLowerCase().includes(searchLower)
+      (disciplina.ementa || '').toLowerCase().includes(searchLower) ||
+      (disciplina.periodo?.nome || '').toLowerCase().includes(searchLower) ||
+      String(disciplina.periodo?.numero || '').includes(searchTerm)
     );
   });
 
@@ -188,6 +218,7 @@ export default function DisciplinasPage() {
     setShowForm(true);
     reset({
       cursoId: disciplina.cursoId,
+      periodoId: disciplina.periodoId,
       codigo: disciplina.codigo || '',
       nome: disciplina.nome,
       creditos: disciplina.creditos,
@@ -211,6 +242,7 @@ export default function DisciplinasPage() {
     setShowForm(true);
     reset({
       ativo: true,
+      periodoId: undefined as unknown as number,
     });
   };
 
@@ -286,6 +318,12 @@ export default function DisciplinasPage() {
                   { key: 'codigo', header: 'Código' },
                   { key: 'creditos', header: 'Créditos' },
                   { key: 'cargaHoraria', header: 'Horas' },
+                  {
+                    key: 'periodo',
+                    header: 'Período',
+                    render: (d: any) =>
+                      d.periodo ? (d.periodo.nome || `Período ${d.periodo.numero}`) : '—',
+                  },
                   { key: 'ativo', header: 'Status', render: (d: any) => (
                     <span className={`text-sm font-medium ${d.ativo ? 'text-green-600' : 'text-red-600'}`}>{d.ativo ? 'Ativa' : 'Inativa'}</span>
                   ) },
@@ -341,6 +379,12 @@ export default function DisciplinasPage() {
                             <span>{disciplina.cargaHoraria}h</span>
                           </div>
                         </div>
+                        {disciplina.periodo && (
+                          <div className="flex items-center space-x-2">
+                            <Layers3 className="h-4 w-4" />
+                            <span>{disciplina.periodo.nome || `Período ${disciplina.periodo.numero}`}</span>
+                          </div>
+                        )}
                         {disciplina.ementa && (
                           <div className="flex items-start space-x-2">
                             <FileText className="h-4 w-4 mt-0.5" />
@@ -383,17 +427,33 @@ export default function DisciplinasPage() {
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
-                      <select {...register('cursoId', { valueAsNumber: true })} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.cursoId ? 'border-red-500' : ''}`}>
-                        <option value="">Selecione um curso...</option>
-                        {cursos.map((curso: any) => (
-                          <option key={curso.id} value={curso.id}>{curso.nome} ({curso.grau})</option>
-                        ))}
-                      </select>
-                      {errors.cursoId && (<p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>)}
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
+                    <select {...register('cursoId', { valueAsNumber: true })} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.cursoId ? 'border-red-500' : ''}`}>
+                      <option value="">Selecione um curso...</option>
+                      {cursos.map((curso: Curso) => (
+                        <option key={curso.id} value={curso.id}>{curso.nome} ({curso.grau})</option>
+                      ))}
+                    </select>
+                    {errors.cursoId && (<p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>)}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Período *</label>
+                    <select
+                      {...register('periodoId', { valueAsNumber: true })}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.periodoId ? 'border-red-500' : ''}`}
+                      disabled={!selectedCursoId}
+                    >
+                      <option value="">{selectedCursoId ? 'Selecione um período...' : 'Selecione um curso primeiro'}</option>
+                      {periodos.map((periodo: Periodo) => (
+                        <option key={periodo.id} value={periodo.id}>
+                          {periodo.nome || `Período ${periodo.numero}`}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.periodoId && (<p className="mt-1 text-sm text-red-600">{errors.periodoId.message}</p>)}
+                  </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Código *</label>
                       <Input {...register('codigo')} placeholder="Ex: TSI001" />

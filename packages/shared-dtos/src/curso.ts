@@ -21,6 +21,17 @@ export const CursoComDisciplinasSchema = CursoSchema.extend({
     cargaHoraria: z.number(),
     ativo: z.boolean(),
   })),
+  periodos: z
+    .array(
+      z.object({
+        id: z.number(),
+        numero: z.number(),
+        nome: z.string().nullable(),
+        descricao: z.string().nullable().optional(),
+        totalDisciplinas: z.number().optional(),
+      })
+    )
+    .optional(),
 });
 
 export type Curso = z.infer<typeof CursoSchema>;

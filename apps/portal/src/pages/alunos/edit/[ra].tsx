@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
-import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Role } from '@/types/api';
+import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Role, Periodo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { 
@@ -25,6 +25,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 const updateAlunoSchema = z.object({
   pessoaId: z.number().min(1, 'Selecione uma pessoa'),
   cursoId: z.number().min(1, 'Selecione um curso'),
+  periodoId: z.number().min(1, 'Selecione um período'),
   anoIngresso: z.number().min(1900).max(2100),
   igreja: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']),
@@ -77,18 +78,42 @@ export default function EditAlunoPage() {
     queryFn: () => apiService.getCursos({ limit: 100 }),
   });
 
-  const cursos = cursosResponse?.data || [];
-
   // Form setup
   const {
     register,
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors, isDirty },
   } = useForm<UpdateAlunoFormData>({
     resolver: zodResolver(updateAlunoSchema),
   });
+
+  const selectedCursoId = watch('cursoId');
+  const previousCursoIdRef = React.useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (previousCursoIdRef.current === selectedCursoId) {
+      return;
+    }
+    if (!selectedCursoId) {
+      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
+    } else if (aluno && selectedCursoId === aluno.cursoId) {
+      setValue('periodoId', aluno.periodoId, { shouldDirty: false, shouldValidate: false });
+    } else {
+      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
+    }
+    previousCursoIdRef.current = selectedCursoId;
+  }, [aluno, selectedCursoId, setValue]);
+
+  const cursos = cursosResponse?.data || [];
+  const { data: periodosResponse } = useQuery({
+    queryKey: ['periodos', selectedCursoId],
+    queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
+    enabled: !!selectedCursoId,
+  });
+  const periodos = periodosResponse?.data || [];
 
   // Initialize form with aluno data
   React.useEffect(() => {
@@ -96,6 +121,7 @@ export default function EditAlunoPage() {
       reset({
         pessoaId: aluno.pessoaId,
         cursoId: aluno.cursoId,
+        periodoId: aluno.periodoId,
         anoIngresso: aluno.anoIngresso,
         igreja: aluno.igreja || '',
         situacao: aluno.situacao,
@@ -328,6 +354,27 @@ export default function EditAlunoPage() {
                       </select>
                       {errors.cursoId && (
                         <p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Período *
+                      </label>
+                      <select
+                        {...register('periodoId', { valueAsNumber: true })}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.periodoId ? 'border-red-500' : ''}`}
+                        disabled={!selectedCursoId}
+                      >
+                        <option value="">{selectedCursoId ? 'Selecione um período...' : 'Selecione um curso primeiro'}</option>
+                        {periodos.map((periodo: Periodo) => (
+                          <option key={periodo.id} value={periodo.id}>
+                            {periodo.nome || `Período ${periodo.numero}`}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.periodoId && (
+                        <p className="mt-1 text-sm text-red-600">{errors.periodoId.message}</p>
                       )}
                     </div>
 

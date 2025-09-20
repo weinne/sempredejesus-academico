@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,12 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { Curso, Periodo } from '@/types/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 const disciplinaSchema = z.object({
   cursoId: z.number().min(1, 'Selecione um curso'),
+  periodoId: z.number().min(1, 'Selecione um período'),
   codigo: z.string().min(1, 'Código é obrigatório').max(10),
   nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(120),
   creditos: z.number().min(1).max(32767),
@@ -46,6 +48,8 @@ export default function DisciplinaEditPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<DisciplinaFormData>({
     resolver: zodResolver(disciplinaSchema),
@@ -54,11 +58,33 @@ export default function DisciplinaEditPage() {
     }
   });
 
+  const selectedCursoId = watch('cursoId');
+
+  useEffect(() => {
+    if (!selectedCursoId) {
+      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
+      return;
+    }
+    if (disciplina && selectedCursoId === disciplina.cursoId) {
+      setValue('periodoId', disciplina.periodoId, { shouldDirty: false, shouldValidate: false });
+    } else {
+      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
+    }
+  }, [disciplina, selectedCursoId, setValue]);
+
+  const { data: periodosResponse } = useQuery({
+    queryKey: ['periodos', selectedCursoId],
+    queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
+    enabled: !!selectedCursoId,
+  });
+  const periodos = periodosResponse?.data || [];
+
   // Reset form when disciplina data is loaded
   React.useEffect(() => {
     if (disciplina) {
       reset({
         cursoId: disciplina.cursoId,
+        periodoId: disciplina.periodoId,
         codigo: disciplina.codigo || '',
         nome: disciplina.nome,
         creditos: disciplina.creditos,
@@ -107,11 +133,27 @@ export default function DisciplinaEditPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
                     <select {...register('cursoId', { valueAsNumber: true })} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.cursoId ? 'border-red-500' : ''}`}>
                       <option value="">Selecione um curso...</option>
-                      {cursos.map((curso: any) => (
+                      {cursos.map((curso: Curso) => (
                         <option key={curso.id} value={curso.id}>{curso.nome} ({curso.grau})</option>
                       ))}
                     </select>
                     {errors.cursoId && (<p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>)}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Período *</label>
+                    <select
+                      {...register('periodoId', { valueAsNumber: true })}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.periodoId ? 'border-red-500' : ''}`}
+                      disabled={!selectedCursoId}
+                    >
+                      <option value="">{selectedCursoId ? 'Selecione um período...' : 'Selecione um curso primeiro'}</option>
+                      {periodos.map((periodo: Periodo) => (
+                        <option key={periodo.id} value={periodo.id}>
+                          {periodo.nome || `Período ${periodo.numero}`}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.periodoId && (<p className="mt-1 text-sm text-red-600">{errors.periodoId.message}</p>)}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Código *</label>

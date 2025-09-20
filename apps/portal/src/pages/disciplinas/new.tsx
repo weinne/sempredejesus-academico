@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,12 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
+import { Curso, Periodo } from '@/types/api';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 const schema = z.object({
   cursoId: z.number().min(1, 'Selecione um curso'),
+  periodoId: z.number().min(1, 'Selecione um período'),
   codigo: z.string().min(1).max(10),
   nome: z.string().min(2).max(120),
   creditos: z.number().min(1).max(32767),
@@ -33,10 +35,22 @@ export default function DisciplinaNewPage() {
   const { data: cursosResponse } = useQuery({ queryKey: ['cursos'], queryFn: () => apiService.getCursos({ limit: 100 }) });
   const cursos = cursosResponse?.data || [];
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { ativo: true },
   });
+  const selectedCursoId = watch('cursoId');
+
+  useEffect(() => {
+    setValue('periodoId', undefined as unknown as number, { shouldValidate: false, shouldDirty: false });
+  }, [selectedCursoId, setValue]);
+
+  const { data: periodosResponse } = useQuery({
+    queryKey: ['periodos', selectedCursoId],
+    queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
+    enabled: !!selectedCursoId,
+  });
+  const periodos = periodosResponse?.data || [];
 
   const createMutation = useMutation({
     mutationFn: (payload: any) => apiService.createDisciplina(payload),
@@ -67,11 +81,27 @@ export default function DisciplinaNewPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
                       <select {...register('cursoId', { valueAsNumber: true })} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.cursoId ? 'border-red-500' : ''}`}>
                         <option value="">Selecione um curso...</option>
-                        {cursos.map((curso: any) => (
+                        {cursos.map((curso: Curso) => (
                           <option key={curso.id} value={curso.id}>{curso.nome} ({curso.grau})</option>
                         ))}
                       </select>
                       {errors.cursoId && (<p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Período *</label>
+                      <select
+                        {...register('periodoId', { valueAsNumber: true })}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.periodoId ? 'border-red-500' : ''}`}
+                        disabled={!selectedCursoId}
+                      >
+                        <option value="">{selectedCursoId ? 'Selecione um período...' : 'Selecione um curso primeiro'}</option>
+                        {periodos.map((periodo: Periodo) => (
+                          <option key={periodo.id} value={periodo.id}>
+                            {periodo.nome || `Período ${periodo.numero}`}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.periodoId && (<p className="mt-1 text-sm text-red-600">{errors.periodoId.message}</p>)}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Código *</label>

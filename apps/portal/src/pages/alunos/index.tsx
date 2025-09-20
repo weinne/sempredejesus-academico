@@ -1,116 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
-import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Role } from '@/types/api';
+import { Aluno, Curso, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
-import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
-import { 
-  ArrowLeft, 
-  Plus, 
-  Search, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Edit,
+  Trash2,
   GraduationCap,
   Mail,
   Phone,
   Calendar,
   MapPin,
-  User,
   BookOpen,
   Award,
   Eye,
-  EyeOff
+  Layers3
 } from 'lucide-react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-
-const pessoaInlineSchema = z.object({
-  nome: z.string().min(1, 'Nome é obrigatório'),
-  sexo: z.enum(['M', 'F', 'O']).optional(),
-  email: z.string().email('Email inválido').optional(),
-  cpf: z.string().optional(),
-  telefone: z.string().optional(),
-  endereco: z.string().optional(),
-  data_nascimento: z.string().optional(),
-});
-
-const alunoBaseSchema = z.object({
-  ra: z.string().max(8).optional(),
-  pessoaId: z.number().optional(),
-  pessoa: pessoaInlineSchema.optional(),
-  cursoId: z.number().min(1, 'Selecione um curso'),
-  anoIngresso: z.number().min(1900).max(2100),
-  igreja: z.string().max(120).optional(),
-  situacao: z.enum(['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']),
-  coeficienteAcad: z.number().min(0).max(10).optional(),
-  createUser: z.boolean().default(false),
-  username: z.string().min(3).max(50).optional(),
-  password: z.string().min(6).max(100).optional(),
-});
-
-const alunoSchema = alunoBaseSchema.superRefine((data, ctx) => {
-  const hasPessoaId = typeof data.pessoaId === 'number' && data.pessoaId > 0;
-  const hasPessoa = !!data.pessoa && !!data.pessoa.nome;
-  if (!hasPessoaId && !hasPessoa) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Selecione uma pessoa ou preencha os dados de Pessoa', path: ['pessoa'] });
-  }
-  if (hasPessoaId && hasPessoa) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use pessoa existente OU cadastre inline, não ambos', path: ['pessoa'] });
-  }
-});
-
-const updateAlunoSchema = alunoBaseSchema.partial().omit({ ra: true, createUser: true, username: true, password: true });
-
-type AlunoFormData = z.infer<typeof alunoSchema>;
-type UpdateAlunoFormData = z.infer<typeof updateAlunoSchema>;
-
 export default function AlunosPage() {
   const { hasRole, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [showPessoaModal, setShowPessoaModal] = useState(false);
   const [page, setPage] = useState(1);
   const [cursoFiltro, setCursoFiltro] = useState<number | ''>('');
   const [situacaoFiltro, setSituacaoFiltro] = useState<'' | 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO'>('');
 
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
-
-  // Form setup
-  const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    setValue,
-    formState: { errors },
-  } = useForm<AlunoFormData>({
-    resolver: zodResolver(alunoSchema),
-    defaultValues: {
-      situacao: 'ATIVO',
-      anoIngresso: new Date().getFullYear(),
-      createUser: false,
-    }
-  });
-
-  const createUser = watch('createUser');
-
-  // Fetch pessoas for the dropdown
-  const {
-    data: pessoas = [],
-  } = useQuery({
-    queryKey: ['pessoas'],
-    queryFn: apiService.getPessoas,
-  });
 
   // Fetch cursos for the dropdown
   const {
@@ -142,29 +65,6 @@ export default function AlunosPage() {
   const alunos = alunosResponse?.data || [];
   const pagination = alunosResponse?.pagination;
 
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: (aluno: CreateAlunoWithUser) => apiService.createAluno(aluno),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['alunos'] });
-      toast({
-        title: 'Aluno criado',
-        description: result.user 
-          ? `Aluno e usuário criados com sucesso! Username: ${result.user.username}`
-          : 'Aluno criado com sucesso!',
-      });
-      setShowForm(false);
-      reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Erro ao criar aluno',
-        description: error.message || 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    },
-  });
-
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: (ra: string) => apiService.deleteAluno(ra),
@@ -184,29 +84,6 @@ export default function AlunosPage() {
     },
   });
 
-  // Create pessoa mutation
-  const createPessoaMutation = useMutation({
-    mutationFn: (pessoa: Omit<Pessoa, 'id' | 'created_at' | 'updated_at'>) => apiService.createPessoa(pessoa),
-    onSuccess: (newPessoa) => {
-      queryClient.invalidateQueries({ queryKey: ['pessoas'] });
-      toast({
-        title: 'Pessoa criada',
-        description: 'Pessoa criada com sucesso!',
-      });
-      setShowPessoaModal(false);
-      
-      // Auto-select the new pessoa
-      setValue('pessoaId', Number(newPessoa.id));
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Erro ao criar pessoa',
-        description: error.message || 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    },
-  });
-
   const isProfessor = hasRole(Role.PROFESSOR);
 
   // Restrict visibility for professor to only alunos of his turmas (if API embeds this relation via turmaInscritos/alunoId, fallback to simple filter by cursos not available)
@@ -218,34 +95,24 @@ export default function AlunosPage() {
   const filteredAlunos = visibleAlunos
     .filter((aluno) => !cursoFiltro || aluno.cursoId === Number(cursoFiltro))
     .filter((aluno) => !situacaoFiltro || aluno.situacao === situacaoFiltro)
-    .filter((aluno) =>
-      (aluno.ra || '').includes(searchTerm) ||
-      (aluno.pessoa?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (aluno.pessoa?.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (aluno.situacao || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (aluno.curso?.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-  // Handle form submission for creating
-  const onSubmitCreate = (data: AlunoFormData) => {
-    createMutation.mutate(data);
-  };
+    .filter((aluno) => {
+      const term = searchTerm.toLowerCase();
+      return (
+        (aluno.ra || '').includes(searchTerm) ||
+        (aluno.pessoa?.nome || '').toLowerCase().includes(term) ||
+        (aluno.pessoa?.email || '').toLowerCase().includes(term) ||
+        (aluno.situacao || '').toLowerCase().includes(term) ||
+        (aluno.curso?.nome || '').toLowerCase().includes(term) ||
+        (aluno.periodo?.nome || '').toLowerCase().includes(term) ||
+        String(aluno.periodo?.numero || '').includes(searchTerm)
+      );
+    });
 
   // Handle delete
   const handleDelete = (ra: string) => {
     if (window.confirm('Tem certeza que deseja remover este aluno?')) {
       deleteMutation.mutate(ra);
     }
-  };
-
-  // Handle new aluno
-  const handleNew = () => {
-    setShowForm(true);
-    reset({
-      situacao: 'ATIVO',
-      anoIngresso: new Date().getFullYear(),
-      createUser: false,
-    });
   };
 
   const getSituacaoColor = (situacao: string) => {
@@ -343,8 +210,6 @@ export default function AlunosPage() {
             </CardContent>
           </Card>
 
-          {/* Form removido: agora em /alunos/new */}
-
           {/* Alunos List */}
           <Card>
             <CardHeader>
@@ -439,6 +304,16 @@ export default function AlunosPage() {
                             </span>
                           </div>
 
+                          {/* Período */}
+                          {aluno.periodo && (
+                            <div className="flex items-center space-x-2 text-sm text-gray-600">
+                              <Layers3 className="h-4 w-4" />
+                              <span className="truncate">
+                                {aluno.periodo.nome || `Período ${aluno.periodo.numero}`}
+                              </span>
+                            </div>
+                          )}
+
                           {/* Contato */}
                           {aluno.pessoa?.email && (
                             <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -503,13 +378,6 @@ export default function AlunosPage() {
         </div>
       </main>
 
-      {/* Modal para cadastrar nova pessoa */}
-      <PessoaFormModal
-        isOpen={showPessoaModal}
-        onClose={() => setShowPessoaModal(false)}
-        onSubmit={(data) => createPessoaMutation.mutate(data)}
-        isLoading={createPessoaMutation.isPending}
-      />
     </div>
   );
 }

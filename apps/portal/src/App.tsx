@@ -34,6 +34,10 @@ import DisciplinasPage from '@/pages/disciplinas';
 import DisciplinaNewPage from '@/pages/disciplinas/new';
 import DisciplinaEditPage from '@/pages/disciplinas/edit/[id]';
 import DisciplinaViewPage from '@/pages/disciplinas/view/[id]';
+import PeriodosPage from '@/pages/periodos';
+import PeriodoNewPage from '@/pages/periodos/new';
+import PeriodoEditPage from '@/pages/periodos/edit/[id]';
+import PeriodoViewPage from '@/pages/periodos/view/[id]';
 import CalendarioPage from '@/pages/calendario';
 import UsersPage from '@/pages/users';
 import UserNewPage from '@/pages/users/new';
@@ -78,6 +82,10 @@ function App() {
             <Route path="/cursos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoNewPage /></ProtectedRoute>} />
             <Route path="/cursos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoEditPage /></ProtectedRoute>} />
             <Route path="/cursos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoViewPage /></ProtectedRoute>} />
+            <Route path="/periodos" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodosPage /></ProtectedRoute>} />
+            <Route path="/periodos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoNewPage /></ProtectedRoute>} />
+            <Route path="/periodos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoEditPage /></ProtectedRoute>} />
+            <Route path="/periodos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoViewPage /></ProtectedRoute>} />
             <Route path="/turmas" element={<TurmasPage />} />
             <Route path="/turmas/:id" element={<TurmaDetailPage />} />
             <Route path="/turmas/view/:id" element={<TurmaDetailPage />} />

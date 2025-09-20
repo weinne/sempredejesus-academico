@@ -1,13 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
-import { alunos, pessoas, cursos, users } from '../db/schema';
-import { CreateAlunoSchema, UpdateAlunoSchema, CreateAlunoWithUserSchema, StringIdParamSchema, CreateUserSchema } from '@seminario/shared-dtos';
+import { alunos, pessoas, cursos, users, periodos } from '../db/schema';
+import { UpdateAlunoSchema, CreateAlunoWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
 import { eq, and, like, asc, desc, sql, or } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-import { logger } from '@seminario/shared-config';
 import bcrypt from 'bcrypt';
 
 /**
@@ -147,8 +146,6 @@ const router = Router();
 const alunosCrud = new EnhancedCrudFactory({
   table: alunos,
   primaryKey: 'ra', // Chave primária correta para alunos
-  createSchema: CreateAlunoSchema,
-  updateSchema: UpdateAlunoSchema,
   joinTables: [
     {
       table: pessoas,
@@ -157,11 +154,26 @@ const alunosCrud = new EnhancedCrudFactory({
     {
       table: cursos,
       on: eq(alunos.cursoId, cursos.id),
-    }
+    },
+    {
+      table: periodos,
+      on: eq(alunos.periodoId, periodos.id),
+    },
   ],
   searchFields: ['ra'], // Busca por RA
   orderBy: [{ field: 'ra', direction: 'asc' }],
 });
+
+const assertPeriodoBelongsToCurso = async (cursoId: number, periodoId: number) => {
+  const periodo = await db.select().from(periodos).where(eq(periodos.id, periodoId)).limit(1);
+  if (periodo.length === 0) {
+    throw createError('Período informado não existe', 404);
+  }
+
+  if (periodo[0].cursoId !== cursoId) {
+    throw createError('O período selecionado não pertence ao curso informado', 400);
+  }
+};
 
 // Helper function to generate unique RA
 const generateUniqueRA = async (anoIngresso: number): Promise<string> => {
@@ -198,6 +210,8 @@ const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => 
 
   // Generate RA if not provided
   const ra = alunoData.ra || await generateUniqueRA(alunoData.anoIngresso);
+
+  await assertPeriodoBelongsToCurso(alunoData.cursoId, alunoData.periodoId);
 
   // Convert coeficienteAcad from number to string for database
   const alunoDataForDBBase: any = {
@@ -282,6 +296,7 @@ const getAlunoComplete = asyncHandler(async (req: Request, res: Response) => {
     .from(alunos)
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
+    .leftJoin(periodos, eq(alunos.periodoId, periodos.id))
     .where(eq(alunos.ra, ra))
     .limit(1);
 
@@ -316,7 +331,14 @@ const getAlunoComplete = asyncHandler(async (req: Request, res: Response) => {
       id: row.cursos.id,
       nome: row.cursos.nome,
       grau: row.cursos.grau,
-    } : null
+    } : null,
+    periodo: row.periodos
+      ? {
+          id: row.periodos.id,
+          numero: row.periodos.numero,
+          nome: row.periodos.nome,
+        }
+      : null,
   };
 
   res.json({
@@ -346,7 +368,8 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     .select()
     .from(alunos)
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
-    .leftJoin(cursos, eq(alunos.cursoId, cursos.id));
+    .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
+    .leftJoin(periodos, eq(alunos.periodoId, periodos.id));
 
   // Add search if specified
   if (search) {
@@ -355,7 +378,8 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
         like(alunos.ra, `%${search}%`),
         like(pessoas.nomeCompleto, `%${search}%`),
         like(pessoas.email, `%${search}%`),
-        like(cursos.nome, `%${search}%`)
+        like(cursos.nome, `%${search}%`),
+        like(periodos.nome, `%${search}%`)
       )
     );
   }
@@ -392,19 +416,27 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
       telefone: row.pessoas.telefone,
       endereco: row.pessoas.endereco,
     } : null,
-    curso: row.cursos ? {
-      id: row.cursos.id,
-      nome: row.cursos.nome,
-      grau: row.cursos.grau,
-    } : null
-  }));
+      curso: row.cursos ? {
+        id: row.cursos.id,
+        nome: row.cursos.nome,
+        grau: row.cursos.grau,
+      } : null,
+      periodo: row.periodos
+        ? {
+            id: row.periodos.id,
+            numero: row.periodos.numero,
+            nome: row.periodos.nome,
+          }
+        : null,
+    }));
 
   // Get total count for pagination
   let countQuery = db
     .select({ count: sql`count(*)` })
     .from(alunos)
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
-    .leftJoin(cursos, eq(alunos.cursoId, cursos.id));
+    .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
+    .leftJoin(periodos, eq(alunos.periodoId, periodos.id));
 
   if (search) {
     countQuery = countQuery.where(
@@ -412,7 +444,8 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
         like(alunos.ra, `%${search}%`),
         like(pessoas.nomeCompleto, `%${search}%`),
         like(pessoas.email, `%${search}%`),
-        like(cursos.nome, `%${search}%`)
+        like(cursos.nome, `%${search}%`),
+        like(periodos.nome, `%${search}%`)
       )
     );
   }
@@ -441,7 +474,45 @@ router.get('/:id', validateParams(StringIdParamSchema), getAlunoComplete);
 router.post('/', requireSecretaria, createAlunoWithUser);
 
 // PATCH /alunos/:id - Update aluno (requires ADMIN or SECRETARIA)
-router.patch('/:id', validateParams(StringIdParamSchema), requireSecretaria, alunosCrud.update);
+const updateAlunoHandler = asyncHandler(async (req: Request, res: Response) => {
+  const ra = req.params.id;
+  const payload = UpdateAlunoSchema.parse(req.body);
+
+  const existing = await db.select().from(alunos).where(eq(alunos.ra, ra)).limit(1);
+  if (existing.length === 0) {
+    throw createError('Aluno not found', 404);
+  }
+
+  const dataToUpdate = Object.fromEntries(
+    Object.entries(payload).filter(([_, value]) => value !== undefined)
+  );
+
+  const cursoId = (dataToUpdate.cursoId as number | undefined) ?? existing[0].cursoId;
+  const periodoId = (dataToUpdate.periodoId as number | undefined) ?? existing[0].periodoId;
+
+  await assertPeriodoBelongsToCurso(cursoId, periodoId);
+
+  if (Object.keys(dataToUpdate).length === 0) {
+    throw createError('No valid fields to update', 400);
+  }
+
+  const [updated] = await db
+    .update(alunos)
+    .set({
+      ...dataToUpdate,
+      updatedAt: new Date(),
+    })
+    .where(eq(alunos.ra, ra))
+    .returning();
+
+  res.json({
+    success: true,
+    message: 'Aluno atualizado com sucesso',
+    data: updated,
+  });
+});
+
+router.patch('/:id', validateParams(StringIdParamSchema), requireSecretaria, updateAlunoHandler);
 
 // DELETE /alunos/:id - Delete aluno (requires ADMIN or SECRETARIA)
 router.delete('/:id', validateParams(StringIdParamSchema), requireSecretaria, alunosCrud.delete);

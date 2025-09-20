@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Role } from '@/types/api';
-import { 
-  ArrowLeft, 
-  User, 
-  GraduationCap, 
-  Mail, 
-  Phone, 
-  Calendar, 
+import {
+  ArrowLeft,
+  User,
+  GraduationCap,
+  Mail,
+  Phone,
+  Calendar,
   MapPin,
   BookOpen,
   Award,
@@ -20,7 +20,8 @@ import {
   CreditCard,
   TrendingUp,
   Edit,
-  MoreHorizontal
+  MoreHorizontal,
+  Layers3
 } from 'lucide-react';
 
 export default function AlunoDetailPage() {
@@ -232,6 +233,18 @@ export default function AlunoDetailPage() {
                       )}
                     </div>
                   </div>
+
+                  {aluno.periodo && (
+                    <div className="flex items-center space-x-3">
+                      <Layers3 className="h-5 w-5 text-gray-400" />
+                      <div>
+                        <p className="text-sm text-gray-500">Período</p>
+                        <p className="font-medium">
+                          {aluno.periodo.nome || `Período ${aluno.periodo.numero}`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex items-center space-x-3">
                     <Calendar className="h-5 w-5 text-gray-400" />

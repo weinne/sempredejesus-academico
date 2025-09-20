@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
-import { cursos, disciplinas } from '../db/schema';
+import { cursos, disciplinas, periodos } from '../db/schema';
 import { CreateCursoSchema, UpdateCursoSchema, IdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 
@@ -184,15 +184,37 @@ const getCursoWithDisciplinas = asyncHandler(async (req: Request, res: Response)
       ementa: disciplinas.ementa,
       bibliografia: disciplinas.bibliografia,
       ativo: disciplinas.ativo,
+      periodoId: disciplinas.periodoId,
     })
     .from(disciplinas)
     .where(eq(disciplinas.cursoId, id))
     .orderBy(disciplinas.nome);
 
+  const periodosResult = await db
+    .select({
+      id: periodos.id,
+      numero: periodos.numero,
+      nome: periodos.nome,
+      descricao: periodos.descricao,
+      totalDisciplinas: sql<number>`COUNT(${disciplinas.id})`,
+    })
+    .from(periodos)
+    .leftJoin(disciplinas, eq(disciplinas.periodoId, periodos.id))
+    .where(eq(periodos.cursoId, id))
+    .groupBy(periodos.id, periodos.numero, periodos.nome, periodos.descricao)
+    .orderBy(periodos.numero);
+
   const curso = cursoResult[0];
   const result = {
     ...curso,
-    disciplinas: disciplinasResult,
+    disciplinas: disciplinasResult.map((disciplina) => ({
+      ...disciplina,
+    })),
+    periodos: periodosResult.map((periodo) => ({
+      ...periodo,
+      totalDisciplinas: Number(periodo.totalDisciplinas ?? 0),
+    })),
+    totalPeriodos: periodosResult.length,
     totalDisciplinas: disciplinasResult.length,
     disciplinasAtivas: disciplinasResult.filter(d => d.ativo).length,
     cargaHorariaTotal: disciplinasResult.reduce((total, d) => total + d.cargaHoraria, 0),

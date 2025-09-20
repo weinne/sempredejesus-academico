@@ -86,6 +86,7 @@ export interface Aluno {
   ra: string;
   pessoaId: number;
   cursoId: number;
+  periodoId: number;
   anoIngresso: number;
   igreja?: string;
   situacao: 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO';
@@ -94,12 +95,14 @@ export interface Aluno {
   updatedAt: string;
   pessoa?: Pessoa;
   curso?: Curso;
+  periodo?: Periodo;
 }
 
 export interface CreateAluno {
   ra?: string;
   pessoaId?: number; // optional when providing inline pessoa
   cursoId: number;
+  periodoId: number;
   anoIngresso: number;
   igreja?: string;
   situacao: 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO';
@@ -151,6 +154,8 @@ export interface Curso {
   nome: string;
   grau: string;
   disciplinas?: Disciplina[];
+  periodos?: Periodo[];
+  totalPeriodos?: number;
   totalDisciplinas?: number;
   disciplinasAtivas?: number;
   cargaHorariaTotal?: number;
@@ -161,9 +166,30 @@ export interface CreateCurso {
   grau: string;
 }
 
+export interface Periodo {
+  id: number;
+  cursoId: number;
+  numero: number;
+  nome?: string | null;
+  descricao?: string | null;
+  totalDisciplinas?: number;
+  totalAlunos?: number;
+  curso?: Curso;
+}
+
+export interface CreatePeriodo {
+  cursoId: number;
+  numero: number;
+  nome?: string;
+  descricao?: string;
+}
+
+export interface UpdatePeriodo extends Partial<CreatePeriodo> {}
+
 export interface Disciplina {
   id: number;
   cursoId: number;
+  periodoId: number;
   codigo: string;
   nome: string;
   creditos: number;
@@ -171,6 +197,8 @@ export interface Disciplina {
   ementa?: string;
   bibliografia?: string;
   ativo: boolean;
+  periodo?: Periodo;
+  curso?: Curso;
 }
 
 export interface Semestre {
