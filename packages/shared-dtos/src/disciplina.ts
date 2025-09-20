@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const DisciplinaSchema = z.object({
   id: z.number().int().positive(),
   cursoId: z.number().int().positive(),
-  periodoId: z.number().int().positive(),
+  periodoId: z.number().int().positive().nullable(),
   codigo: z.string().max(10),
   nome: z.string().max(120),
   creditos: z.number().int().min(1).max(32767),

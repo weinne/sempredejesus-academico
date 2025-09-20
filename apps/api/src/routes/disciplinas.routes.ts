@@ -165,7 +165,11 @@ const disciplinasCrud = new EnhancedCrudFactory({
   orderBy: [{ field: 'nome', direction: 'asc' }],
 });
 
-const assertPeriodoBelongsToCurso = async (cursoId: number, periodoId: number) => {
+const assertPeriodoBelongsToCurso = async (cursoId: number, periodoId: number | null) => {
+  if (periodoId === null) {
+    return; // Skip validation if periodoId is null
+  }
+
   const periodo = await db.select().from(periodos).where(eq(periodos.id, periodoId)).limit(1);
   if (periodo.length === 0) {
     throw createError('Período informado não existe', 404);
