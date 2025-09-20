@@ -5,7 +5,7 @@ import { CreatePeriodoSchema, UpdatePeriodoSchema, IdParamSchema } from '@semina
 import { periodos, cursos, disciplinas, alunos } from '../db/schema';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-import { and, eq, like, neq, or, sql } from 'drizzle-orm';
+import { and, eq, like, not, or, sql } from 'drizzle-orm';
 
 const router = Router();
 
@@ -197,7 +197,7 @@ const ensureCursoExists = async (cursoId: number) => {
 
 const ensureUniquePeriodo = async (cursoId: number, numero: number, ignoreId?: number) => {
   const condition = ignoreId
-    ? and(eq(periodos.cursoId, cursoId), eq(periodos.numero, numero), neq(periodos.id, ignoreId))
+    ? and(eq(periodos.cursoId, cursoId), eq(periodos.numero, numero), not(eq(periodos.id, ignoreId)))
     : and(eq(periodos.cursoId, cursoId), eq(periodos.numero, numero));
 
   const existing = await db.select({ id: periodos.id }).from(periodos).where(condition).limit(1);

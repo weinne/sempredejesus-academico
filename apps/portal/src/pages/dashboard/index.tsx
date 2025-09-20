@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/providers/auth-provider';
 import { Role } from '@/types/api';
 import { Link } from 'react-router-dom';
-import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User, Layers3, BarChart3, CalendarDays, ClipboardList, LogOut } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User, Layers3, BarChart3, CalendarDays, ClipboardList, LogOut, ListOrdered } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user, logout, hasRole } = useAuth();
@@ -26,6 +26,7 @@ export default function DashboardPage() {
         { title: 'Alunos', description: 'Visualizar e editar alunos', href: '/alunos', icon: GraduationCap, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { title: 'Professores', description: 'Visualizar e editar professores', href: '/professores', icon: User, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Cursos', description: 'Cadastrar e editar cursos', href: '/cursos', icon: BookOpen, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { title: 'Períodos', description: 'Gerenciar períodos acadêmicos', href: '/periodos', icon: ListOrdered, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Disciplinas', description: 'Cadastrar e editar disciplinas', href: '/disciplinas', icon: BookOpen, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Turmas', description: 'Organizar turmas e disciplinas', href: '/turmas', icon: Layers3, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { title: 'Relatórios', description: 'Visualizar relatórios gerenciais', href: '/relatorios', icon: BarChart3, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },

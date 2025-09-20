@@ -9,11 +9,11 @@ export class JWTService {
 
   constructor() {
     this.jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
-    this.jwtRefreshSecret = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
-    this.accessTokenExpiry = process.env.JWT_EXPIRY || '1h';
-    this.refreshTokenExpiry = process.env.JWT_REFRESH_EXPIRY || '7d';
+    this.jwtRefreshSecret = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-secret';
+    this.accessTokenExpiry = process.env.JWT_EXPIRES_IN || '1h';
+    this.refreshTokenExpiry = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
-    if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
+    if (!process.env.JWT_SECRET || !process.env.REFRESH_TOKEN_SECRET) {
       console.warn('JWT secrets not configured in environment variables');
     }
   }
