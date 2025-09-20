@@ -2,18 +2,26 @@ import { Router, Request, Response } from 'express';
 import { requireAuth, requireSecretaria } from '../middleware/auth.middleware';
 import { validateBody, validateParams } from '../middleware/validation.middleware';
 import { CreatePeriodoSchema, UpdatePeriodoSchema, IdParamSchema } from '@seminario/shared-dtos';
-import { periodos, cursos, disciplinas, alunos } from '../db/schema';
+import { periodos, cursos, disciplinas, alunos, turnos } from '../db/schema';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { and, eq, like, not, or, sql } from 'drizzle-orm';
 
 const router = Router();
 
-const buildWhereCondition = (cursoId?: number, search?: string) => {
+const buildWhereCondition = (cursoId?: number, turnoId?: number, curriculoId?: number, search?: string) => {
   const conditions = [] as any[];
 
   if (cursoId) {
     conditions.push(eq(periodos.cursoId, cursoId));
+  }
+
+  if (turnoId) {
+    conditions.push(eq(periodos.turnoId, turnoId));
+  }
+
+  if (curriculoId) {
+    conditions.push(eq(periodos.curriculoId, curriculoId));
   }
 
   if (search && search.trim().length > 0) {
@@ -39,36 +47,45 @@ const buildWhereCondition = (cursoId?: number, search?: string) => {
 };
 
 const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
-  const {
-    page = '1',
-    limit = '50',
-    cursoId,
-    search = '',
-  } = req.query;
+  const { page = '1', limit = '50', cursoId, turnoId, curriculoId, search = '' } = req.query as any;
 
   const pageNum = Math.max(parseInt(page as string, 10) || 1, 1);
   const limitNum = Math.min(Math.max(parseInt(limit as string, 10) || 50, 1), 100);
   const offset = (pageNum - 1) * limitNum;
   const cursoIdNumber = cursoId ? parseInt(cursoId as string, 10) : undefined;
 
-  const whereCondition = buildWhereCondition(cursoIdNumber, search as string);
+  const whereCondition = buildWhereCondition(
+    cursoIdNumber,
+    turnoId ? Number(turnoId) : undefined,
+    curriculoId ? Number(curriculoId) : undefined,
+    search as string
+  );
 
   let query = db
     .select({
       id: periodos.id,
       cursoId: periodos.cursoId,
+      turnoId: periodos.turnoId,
+      curriculoId: periodos.curriculoId,
       numero: periodos.numero,
       nome: periodos.nome,
       descricao: periodos.descricao,
+      dataInicio: periodos.dataInicio,
+      dataFim: periodos.dataFim,
       totalDisciplinas: sql<number>`COUNT(${disciplinas.id})`,
       curso: {
         id: cursos.id,
         nome: cursos.nome,
         grau: cursos.grau,
       },
+      turno: {
+        id: turnos.id,
+        nome: turnos.nome,
+      },
     })
     .from(periodos)
     .leftJoin(cursos, eq(periodos.cursoId, cursos.id))
+    .leftJoin(turnos, eq(periodos.turnoId, turnos.id))
     .leftJoin(disciplinas, eq(disciplinas.periodoId, periodos.id));
 
   if (whereCondition) {
@@ -79,12 +96,16 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
     .groupBy(
       periodos.id,
       periodos.cursoId,
+      periodos.turnoId,
+      periodos.curriculoId,
       periodos.numero,
       periodos.nome,
       periodos.descricao,
       cursos.id,
       cursos.nome,
-      cursos.grau
+      cursos.grau,
+      turnos.id,
+      turnos.nome
     )
     .orderBy(periodos.numero)
     .limit(limitNum)
@@ -102,17 +123,22 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
   const data = rows.map((row) => ({
     id: row.id,
     cursoId: row.cursoId,
+    turnoId: row.turnoId,
+    curriculoId: row.curriculoId,
     numero: row.numero,
     nome: row.nome,
-    descricao: row.descricao,
+      descricao: row.descricao,
+      dataInicio: row.dataInicio as any,
+      dataFim: row.dataFim as any,
     totalDisciplinas: Number(row.totalDisciplinas ?? 0),
-    curso: row.curso?.id
+      curso: row.curso?.id
       ? {
           id: row.curso.id,
           nome: row.curso.nome,
           grau: row.curso.grau,
         }
       : null,
+      turno: row.turno?.id ? { id: row.turno.id, nome: row.turno.nome } : null,
   }));
 
   res.json({
@@ -134,19 +160,27 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
     .select({
       id: periodos.id,
       cursoId: periodos.cursoId,
+      turnoId: periodos.turnoId,
       numero: periodos.numero,
       nome: periodos.nome,
       descricao: periodos.descricao,
+      dataInicio: periodos.dataInicio,
+      dataFim: periodos.dataFim,
       curso: {
         id: cursos.id,
         nome: cursos.nome,
         grau: cursos.grau,
+      },
+      turno: {
+        id: turnos.id,
+        nome: turnos.nome,
       },
       totalDisciplinas: sql<number>`COUNT(DISTINCT ${disciplinas.id})`,
       totalAlunos: sql<number>`COUNT(DISTINCT ${alunos.ra})`,
     })
     .from(periodos)
     .leftJoin(cursos, eq(periodos.cursoId, cursos.id))
+    .leftJoin(turnos, eq(periodos.turnoId, turnos.id))
     .leftJoin(disciplinas, eq(disciplinas.periodoId, periodos.id))
     .leftJoin(alunos, eq(alunos.periodoId, periodos.id))
     .where(eq(periodos.id, id))
@@ -158,7 +192,9 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
       periodos.descricao,
       cursos.id,
       cursos.nome,
-      cursos.grau
+      cursos.grau,
+      turnos.id,
+      turnos.nome
     );
 
   if (rows.length === 0) {
@@ -175,6 +211,8 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
       numero: row.numero,
       nome: row.nome,
       descricao: row.descricao,
+      dataInicio: row.dataInicio as any,
+      dataFim: row.dataFim as any,
       totalDisciplinas: Number(row.totalDisciplinas ?? 0),
       totalAlunos: Number(row.totalAlunos ?? 0),
       curso: row.curso?.id
@@ -184,6 +222,7 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
             grau: row.curso.grau,
           }
         : null,
+      turno: row.turno?.id ? { id: row.turno.id, nome: row.turno.nome } : null,
     },
   });
 });

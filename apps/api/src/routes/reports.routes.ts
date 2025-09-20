@@ -11,7 +11,6 @@ import {
   turmas,
   turmasInscritos,
   disciplinas,
-  semestres,
   alunos,
   pessoas,
   avaliacoes,
@@ -58,16 +57,13 @@ router.get(
         status: turmasInscritos.status,
         disciplinaId: turmas.disciplinaId,
         disciplinaNome: disciplinas.nome,
-        semestreId: turmas.semestreId,
-        ano: semestres.ano,
-        periodo: semestres.periodo,
+        // semestre removido; mantemos apenas dados de disciplina e turma
       })
       .from(turmasInscritos)
       .leftJoin(turmas, eq(turmasInscritos.turmaId, turmas.id))
       .leftJoin(disciplinas, eq(turmas.disciplinaId, disciplinas.id))
-      .leftJoin(semestres, eq(turmas.semestreId, semestres.id))
       .where(eq(turmasInscritos.alunoId, alunoId))
-      .orderBy(desc(semestres.ano), desc(semestres.periodo));
+      .orderBy(desc(turmas.id));
 
     // Para cada turma, traz notas detalhadas
     const resultado = [] as any[];
@@ -167,7 +163,7 @@ router.get(
   })
 );
 
-// GET /reports/desempenho?disciplinaId=1&semestreId=1
+// GET /reports/desempenho?disciplinaId=1
 /**
  * @swagger
  * /api/reports/desempenho:
@@ -191,16 +187,15 @@ router.get(
   '/desempenho',
   asyncHandler(async (req: Request, res: Response) => {
     const disciplinaId = Number(req.query.disciplinaId);
-    const semestreId = Number(req.query.semestreId);
-    if (!disciplinaId || !semestreId) {
-      throw createError('disciplinaId e semestreId são obrigatórios', 400);
+    if (!disciplinaId) {
+      throw createError('disciplinaId é obrigatório', 400);
     }
 
     // Turmas da disciplina no semestre
     const ts = await db
       .select({ id: turmas.id })
       .from(turmas)
-      .where(and(eq(turmas.disciplinaId, disciplinaId), eq(turmas.semestreId, semestreId)));
+      .where(eq(turmas.disciplinaId, disciplinaId));
 
     const turmaIds = ts.map((t) => t.id);
     if (turmaIds.length === 0) return res.json({ success: true, data: { turmas: 0, alunos: 0, mediaGeral: null } });

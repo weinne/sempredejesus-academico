@@ -27,10 +27,10 @@ import { validateParams } from '../middleware/validation.middleware';
  *           type: string
  *           description: Matrícula do professor responsável
  *           example: "PROF001"
- *         semestre:
+ *         periodoCurricular:
  *           type: string
- *           description: Semestre letivo
- *           example: "2024.1"
+ *           description: Período curricular derivado da disciplina (somente exibição)
+ *           example: "Período 1"
  *         vagas:
  *           type: integer
  *           description: Número de vagas disponíveis
@@ -56,10 +56,10 @@ import { validateParams } from '../middleware/validation.middleware';
  *           type: string
  *           description: Matrícula do professor
  *           example: "PROF001"
- *         semestre:
+ *         periodoCurricular:
  *           type: string
- *           description: Semestre letivo
- *           example: "2024.1"
+ *           description: Período curricular (somente exibição)
+ *           example: "Período 1"
  *         vagas:
  *           type: integer
  *           description: Número de vagas

@@ -38,12 +38,11 @@ export default function CalendarioPage() {
   const handleCreate = () => {
     if (!canEdit) return;
     const payload: CreateCalendarioItem = {
-      semestreId: Number(novo.semestreId || 0),
       evento: String(novo.evento || ''),
       inicio: String(novo.inicio || ''),
       termino: String(novo.termino || ''),
       obs: (novo as any).obs || undefined,
-    };
+    } as any;
     criar.mutate(payload);
   };
 
@@ -69,7 +68,6 @@ export default function CalendarioPage() {
               <CardDescription>Adicionar item ao calendário</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3">
-              <Input type="number" placeholder="Semestre ID" value={(novo.semestreId as any) || ''} onChange={e=>setNovo(v=>({...v, semestreId: e.target.value ? Number(e.target.value) : '' as any}))} />
               <Input placeholder="Evento" value={novo.evento || ''} onChange={e=>setNovo(v=>({...v, evento: e.target.value}))} />
               <Input type="date" placeholder="Início" value={novo.inicio as any || ''} onChange={e=>setNovo(v=>({...v, inicio: e.target.value}))} />
               <Input type="date" placeholder="Término" value={novo.termino as any || ''} onChange={e=>setNovo(v=>({...v, termino: e.target.value}))} />
@@ -89,7 +87,6 @@ export default function CalendarioPage() {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left border-b">
-                    <th className="py-2 pr-4">Semestre</th>
                     <th className="py-2 pr-4">Evento</th>
                     <th className="py-2 pr-4">Início</th>
                     <th className="py-2 pr-4">Término</th>
@@ -100,7 +97,6 @@ export default function CalendarioPage() {
                 <tbody>
                   {eventos.map(ev => (
                     <tr key={ev.id} className="border-b">
-                      <td className="py-2 pr-4">{ev.semestreId}</td>
                       <td className="py-2 pr-4">{ev.evento}</td>
                       <td className="py-2 pr-4">{ev.inicio}</td>
                       <td className="py-2 pr-4">{ev.termino}</td>

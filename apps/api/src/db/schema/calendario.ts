@@ -1,13 +1,13 @@
 import { pgTable, serial, integer, varchar, date, text } from 'drizzle-orm/pg-core';
-import { semestres } from './semestres';
+import { periodos } from './periodos';
 
 export const calendario = pgTable('calendario', {
   id: serial('id').primaryKey(),
-  semestreId: integer('semestre_id').notNull().references(() => semestres.id),
   evento: varchar('evento', { length: 100 }).notNull(),
   inicio: date('inicio').notNull(),
   termino: date('termino').notNull(),
   obs: text('obs'),
+  periodoId: integer('periodo_id').references(() => periodos.id),
 });
 
 export type Calendario = typeof calendario.$inferSelect;

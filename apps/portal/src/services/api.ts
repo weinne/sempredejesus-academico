@@ -763,8 +763,8 @@ class ApiService {
     return response.data.data as any[];
   }
 
-  async reportDesempenho(disciplinaId: number, semestreId: number) {
-    const response = await this.api.get(`/api/reports/desempenho`, { params: { disciplinaId, semestreId } });
+  async reportDesempenho(disciplinaId: number) {
+    const response = await this.api.get(`/api/reports/desempenho`, { params: { disciplinaId } });
     return response.data.data as { turmas: number; alunos: number; mediaGeral: number | null };
   }
 
@@ -908,15 +908,79 @@ class ApiService {
     await this.api.delete(`/api/cursos/${id}`);
   }
 
+  // Turnos CRUD
+  async getTurnos(): Promise<import('@/types/api').Turno[]> {
+    const response = await this.api.get(`/api/turnos`);
+    return response.data.data as import('@/types/api').Turno[];
+  }
+
+  async createTurno(payload: { nome: string }): Promise<import('@/types/api').Turno> {
+    const response = await this.api.post(`/api/turnos`, payload);
+    return response.data.data as import('@/types/api').Turno;
+  }
+
+  async updateTurno(id: number, payload: Partial<{ nome: string }>): Promise<import('@/types/api').Turno> {
+    const response = await this.api.patch(`/api/turnos/${id}`, payload);
+    return response.data.data as import('@/types/api').Turno;
+  }
+
+  async deleteTurno(id: number): Promise<void> {
+    await this.api.delete(`/api/turnos/${id}`);
+  }
+
+  // Curriculos CRUD
+  async getCurriculos(): Promise<import('@/types/api').Curriculo[]> {
+    const response = await this.api.get(`/api/curriculos`);
+    return response.data.data as import('@/types/api').Curriculo[];
+  }
+
+  async createCurriculo(payload: Partial<import('@/types/api').Curriculo>): Promise<import('@/types/api').Curriculo> {
+    const response = await this.api.post(`/api/curriculos`, payload);
+    return response.data.data as import('@/types/api').Curriculo;
+    }
+
+  async updateCurriculo(id: number, payload: Partial<import('@/types/api').Curriculo>): Promise<import('@/types/api').Curriculo> {
+    const response = await this.api.patch(`/api/curriculos/${id}`, payload);
+    return response.data.data as import('@/types/api').Curriculo;
+  }
+
+  async deleteCurriculo(id: number): Promise<void> {
+    await this.api.delete(`/api/curriculos/${id}`);
+  }
+
+  // Coortes CRUD
+  async getCoortes(): Promise<import('@/types/api').Coorte[]> {
+    const response = await this.api.get(`/api/coortes`);
+    return response.data.data as import('@/types/api').Coorte[];
+  }
+
+  async createCoorte(payload: Partial<import('@/types/api').Coorte>): Promise<import('@/types/api').Coorte> {
+    const response = await this.api.post(`/api/coortes`, payload);
+    return response.data.data as import('@/types/api').Coorte;
+  }
+
+  async updateCoorte(id: number, payload: Partial<import('@/types/api').Coorte>): Promise<import('@/types/api').Coorte> {
+    const response = await this.api.patch(`/api/coortes/${id}`, payload);
+    return response.data.data as import('@/types/api').Coorte;
+  }
+
+  async deleteCoorte(id: number): Promise<void> {
+    await this.api.delete(`/api/coortes/${id}`);
+  }
+
   // Periodos CRUD
   async getPeriodos(params?: {
     cursoId?: number;
+    turnoId?: number;
+    curriculoId?: number;
     page?: number;
     limit?: number;
     search?: string;
   }): Promise<{ data: Periodo[]; pagination?: any }> {
     const queryParams = new URLSearchParams();
     if (params?.cursoId) queryParams.append('cursoId', params.cursoId.toString());
+    if (params?.turnoId) queryParams.append('turnoId', params.turnoId.toString());
+    if (params?.curriculoId) queryParams.append('curriculoId', params.curriculoId.toString());
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
@@ -1225,16 +1289,7 @@ class ApiService {
     await this.api.delete(`/api/turmas/${id}`);
   }
 
-  // Semestres CRUD
-  async getSemestres(): Promise<Semestre[]> {
-    try {
-      const response = await this.api.get('/api/semestres');
-      return response.data.data;
-    } catch (error: any) {
-      console.warn('API offline - showing empty semestres list');
-      return [];
-    }
-  }
+  // Semestres removidos
 }
 
 export const apiService = new ApiService();

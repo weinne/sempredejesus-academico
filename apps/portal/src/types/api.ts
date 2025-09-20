@@ -161,6 +161,31 @@ export interface Curso {
   cargaHorariaTotal?: number;
 }
 
+export interface Turno {
+  id: number;
+  nome: string; // Diurno, Vespertino, Noturno
+}
+
+export interface Curriculo {
+  id: number;
+  cursoId: number;
+  turnoId: number;
+  versao: string;
+  vigenteDe?: string;
+  vigenteAte?: string;
+  ativo: boolean;
+}
+
+export interface Coorte {
+  id: number;
+  cursoId: number;
+  turnoId: number;
+  curriculoId: number;
+  anoIngresso: number;
+  rotulo: string;
+  ativo: boolean;
+}
+
 export interface CreateCurso {
   nome: string;
   grau: string;
@@ -169,9 +194,13 @@ export interface CreateCurso {
 export interface Periodo {
   id: number;
   cursoId: number;
+  turnoId: number;
+  curriculoId: number;
   numero: number;
   nome?: string | null;
   descricao?: string | null;
+  dataInicio?: string;
+  dataFim?: string;
   totalDisciplinas?: number;
   totalAlunos?: number;
   curso?: Curso;
@@ -179,9 +208,13 @@ export interface Periodo {
 
 export interface CreatePeriodo {
   cursoId: number;
+  turnoId: number;
+  curriculoId: number;
   numero: number;
   nome?: string;
   descricao?: string;
+  dataInicio?: string;
+  dataFim?: string;
 }
 
 export interface UpdatePeriodo extends Partial<CreatePeriodo> {}
@@ -201,26 +234,18 @@ export interface Disciplina {
   curso?: Curso;
 }
 
-export interface Semestre {
-  id: number;
-  ano: number;
-  periodo: number;
-  dataInicio: string;
-  dataFim: string;
-  ativo: boolean;
-}
+// Semestre removido do modelo de frontend
 
 export interface Turma {
   id: number;
   disciplinaId: number;
   professorId: string;
-  semestreId: number;
+  coorteId?: number;
   sala?: string;
   horario?: string;
   secao?: string;
   disciplina?: Disciplina;
   professor?: Professor;
-  semestre?: Semestre;
   inscritos?: TurmaInscrito[];
   totalInscritos?: number;
 }
@@ -228,7 +253,7 @@ export interface Turma {
 export interface CreateTurma {
   disciplinaId: number;
   professorId: string;
-  semestreId: number;
+  coorteId?: number;
   sala?: string;
   horario?: string;
   secao?: string;
@@ -328,11 +353,11 @@ export interface AlertasFrequencia {
 
 export interface CalendarioItem {
   id: number;
-  semestreId: number;
   evento: string;
   inicio: string; // YYYY-MM-DD
   termino: string; // YYYY-MM-DD
   obs?: string;
+  periodoId?: number;
 }
 
 export interface CreateCalendarioItem extends Omit<CalendarioItem, 'id'> {}

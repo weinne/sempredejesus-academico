@@ -6,6 +6,7 @@ export const AlunoSchema = z.object({
   pessoaId: z.number().int().positive(),
   cursoId: z.number().int().positive(),
   periodoId: z.number().int().positive().nullable(),
+  turnoId: z.number().int().positive().nullable(),
   anoIngresso: z.number().int().min(1900).max(2100),
   igreja: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']),

@@ -24,8 +24,9 @@ export default function TurmaEditPage() {
   const { data: disciplinasResponse } = useQuery({ queryKey: ['disciplinas'], queryFn: () => apiService.getDisciplinas({ limit: 100 }) });
   const disciplinas = disciplinasResponse?.data || [];
   const { data: professoresResponse } = useQuery({ queryKey: ['professores'], queryFn: () => apiService.getProfessores({ limit: 100 }) });
+  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
   const professores = professoresResponse?.data || [];
-  const { data: semestres = [] } = useQuery({ queryKey: ['semestres'], queryFn: apiService.getSemestres });
+  // Semestres removidos
 
   const updateMutation = useMutation({
     mutationFn: (payload: Partial<CreateTurma>) => apiService.updateTurma(Number(id), payload),
@@ -47,7 +48,7 @@ export default function TurmaEditPage() {
     );
   }
 
-  const getSemestreLabel = (s: any) => `${s.ano}.${s.periodo}`;
+  // Semestre removido
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -68,7 +69,7 @@ export default function TurmaEditPage() {
                   updateMutation.mutate({
                     disciplinaId: Number(fd.get('disciplinaId')),
                     professorId: String(fd.get('professorId') || ''),
-                    semestreId: Number(fd.get('semestreId')),
+                    coorteId: fd.get('coorteId') ? Number(fd.get('coorteId')) : undefined,
                     sala: String(fd.get('sala') || ''),
                     horario: String(fd.get('horario') || ''),
                     secao: String(fd.get('secao') || ''),
@@ -95,13 +96,18 @@ export default function TurmaEditPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Semestre *</label>
-                  <select name="semestreId" defaultValue={turma.semestreId} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Selecione um semestre...</option>
-                    {semestres.map((s: any) => (
-                      <option key={s.id} value={s.id}>{getSemestreLabel(s)} {s.ativo ? '(Ativo)' : ''}</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Período (da disciplina)</label>
+                  <div className="text-sm text-gray-600">{turma?.disciplina?.periodo?.nome || turma?.disciplina?.periodo?.numero || 'N/A'}</div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Turma (coorte) — opcional</label>
+                  <select name="coorteId" defaultValue={turma.coorteId || ''} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Sem coorte específica (oferta geral)</option>
+                    {coortes.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.rotulo}</option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">Ao direcionar para uma coorte, a oferta pode ser apresentada como “{turma.disciplina?.nome || 'Disciplina'} — {`{coorte}` }”.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Sala</label>
@@ -115,9 +121,21 @@ export default function TurmaEditPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Seção</label>
                   <Input name="secao" defaultValue={turma.secao || ''} placeholder="Ex: A, B, C" />
                 </div>
-                <div className="md:col-span-3 flex gap-2">
-                  <Button type="submit" disabled={updateMutation.isPending}>Atualizar</Button>
-                  <Button type="button" variant="outline" onClick={() => navigate('/turmas')}>Cancelar</Button>
+                <div className="md:col-span-3">
+                  <div className="text-sm text-gray-600 mb-3">
+                    Sugestão de nome: {(() => {
+                      const disciplinaId = (document.querySelector('select[name="disciplinaId"]') as HTMLSelectElement)?.value || String(turma.disciplinaId);
+                      const coorteId = (document.querySelector('select[name="coorteId"]') as HTMLSelectElement)?.value || String(turma.coorteId || '');
+                      const d = disciplinas.find((x:any)=> String(x.id) === String(disciplinaId));
+                      const c = coortes.find((x:any)=> String(x.id) === String(coorteId));
+                      if (!d) return 'Selecione disciplina';
+                      return c ? `${d.nome} — ${c.rotulo}` : d.nome;
+                    })()}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={updateMutation.isPending}>Atualizar</Button>
+                    <Button type="button" variant="outline" onClick={() => navigate('/turmas')}>Cancelar</Button>
+                  </div>
                 </div>
               </form>
             </CardContent>

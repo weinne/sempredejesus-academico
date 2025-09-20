@@ -75,9 +75,7 @@ export default function TurmaDetailPage() {
     );
   }
 
-  const getSemestreLabel = (semestre: any) => {
-    return `${semestre?.ano || 'N/A'}.${semestre?.periodo || 'N/A'}`;
-  };
+  // Semestre removido; exibiremos período da disciplina
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -142,8 +140,8 @@ export default function TurmaDetailPage() {
                   <div className="flex items-center space-x-3">
                     <Calendar className="h-5 w-5 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">Semestre</p>
-                      <p className="font-medium">{getSemestreLabel(turma.semestre)}</p>
+                      <p className="text-sm text-gray-500">Período (disciplina)</p>
+                      <p className="font-medium">{turma.disciplina?.periodo?.nome || turma.disciplina?.periodo?.numero || 'N/A'}</p>
                     </div>
                   </div>
 

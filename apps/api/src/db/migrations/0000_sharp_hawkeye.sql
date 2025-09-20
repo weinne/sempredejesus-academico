@@ -69,12 +69,11 @@ CREATE TABLE IF NOT EXISTS "avaliacoes_alunos" (
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "calendario" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"semestre_id" integer NOT NULL,
-	"evento" varchar(100) NOT NULL,
-	"inicio" date NOT NULL,
-	"termino" date NOT NULL,
-	"obs" text
+    "id" serial PRIMARY KEY NOT NULL,
+    "evento" varchar(100) NOT NULL,
+    "inicio" date NOT NULL,
+    "termino" date NOT NULL,
+    "obs" text
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "configuracoes" (
@@ -150,22 +149,15 @@ CREATE TABLE IF NOT EXISTS "professores" (
 	"situacao" "situacao_professor" DEFAULT 'ATIVO' NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "semestres" (
-	"id" integer PRIMARY KEY NOT NULL,
-	"ano" integer NOT NULL,
-	"periodo" smallint NOT NULL,
-	"inicio" date NOT NULL,
-	"termino" date NOT NULL
-);
+-- semestres removidos
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "turmas" (
-	"id" serial PRIMARY KEY NOT NULL,
-	"disciplina_id" integer NOT NULL,
-	"professor_id" char(8) NOT NULL,
-	"semestre_id" integer NOT NULL,
-	"sala" varchar(20),
-	"horario" varchar(50),
-	"secao" varchar(6)
+    "id" serial PRIMARY KEY NOT NULL,
+    "disciplina_id" integer NOT NULL,
+    "professor_id" char(8) NOT NULL,
+    "sala" varchar(20),
+    "horario" varchar(50),
+    "secao" varchar(6)
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "turmas_inscritos" (
@@ -213,11 +205,7 @@ EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "calendario" ADD CONSTRAINT "calendario_semestre_id_semestres_id_fk" FOREIGN KEY ("semestre_id") REFERENCES "semestres"("id") ON DELETE no action ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
+-- FK de semestre removida de calendario
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "disciplinas" ADD CONSTRAINT "disciplinas_curso_id_cursos_id_fk" FOREIGN KEY ("curso_id") REFERENCES "cursos"("id") ON DELETE no action ON UPDATE no action;

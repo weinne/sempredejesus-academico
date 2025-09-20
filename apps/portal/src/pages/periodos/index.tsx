@@ -8,7 +8,7 @@ import CrudToolbar from '@/components/crud/crud-toolbar';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import { apiService } from '@/services/api';
-import { Curso, Periodo, Role } from '@/types/api';
+import { Curso, Periodo, Role, Turno, Curriculo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/providers/auth-provider';
 import {
@@ -31,6 +31,8 @@ export default function PeriodosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [cursoFiltro, setCursoFiltro] = useState<number | ''>('');
   const [page, setPage] = useState(1);
+  const [turnoFiltro, setTurnoFiltro] = useState<number | ''>('');
+  const [curriculoFiltro, setCurriculoFiltro] = useState<number | ''>('');
   const [viewMode, setViewMode] = useState<'table' | 'card'>(() =>
     typeof window !== 'undefined' && window.innerWidth < 768 ? 'card' : 'table'
   );
@@ -54,20 +56,23 @@ export default function PeriodosPage() {
     queryFn: () => apiService.getCursos({ limit: 200 }),
   });
   const cursos = cursosResponse?.data || [];
+  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
+  const { data: curriculos = [] } = useQuery({ queryKey: ['curriculos'], queryFn: apiService.getCurriculos });
 
   const {
     data: periodosResponse,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['periodos', page, searchTerm, cursoFiltro],
-    queryFn: () =>
-      apiService.getPeriodos({
-        page,
-        limit: 20,
-        search: searchTerm,
-        cursoId: cursoFiltro ? Number(cursoFiltro) : undefined,
-      }),
+    queryKey: ['periodos', page, searchTerm, cursoFiltro, turnoFiltro, curriculoFiltro],
+    queryFn: () => apiService.getPeriodos({
+      page,
+      limit: 20,
+      search: searchTerm,
+      cursoId: cursoFiltro ? Number(cursoFiltro) : undefined,
+      ...(turnoFiltro ? { turnoId: Number(turnoFiltro) } as any : {}),
+      ...(curriculoFiltro ? { curriculoId: Number(curriculoFiltro) } as any : {}),
+    }),
     retry: false,
   });
 
@@ -140,22 +145,52 @@ export default function PeriodosPage() {
             viewMode={viewMode}
             onViewModeChange={setViewMode}
             filtersSlot={
-              <select
-                value={cursoFiltro ? String(cursoFiltro) : ''}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  setCursoFiltro(value ? Number(value) : '');
-                  setPage(1);
-                }}
-                className="px-3 py-2 border rounded-md"
-              >
-                <option value="">Todos os cursos</option>
-                {cursos.map((curso: Curso) => (
-                  <option key={curso.id} value={curso.id}>
-                    {curso.nome}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2 items-center">
+                <select
+                  value={cursoFiltro ? String(cursoFiltro) : ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setCursoFiltro(value ? Number(value) : '');
+                    setPage(1);
+                  }}
+                  className="px-3 py-2 border rounded-md"
+                >
+                  <option value="">Todos os cursos</option>
+                  {cursos.map((curso: Curso) => (
+                    <option key={curso.id} value={curso.id}>
+                      {curso.nome}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={turnoFiltro ? String(turnoFiltro) : ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setTurnoFiltro(value ? Number(value) : '');
+                    setPage(1);
+                  }}
+                  className="px-3 py-2 border rounded-md"
+                >
+                  <option value="">Todos os turnos</option>
+                  {turnos.map((t: Turno) => (
+                    <option key={t.id} value={t.id}>{t.nome}</option>
+                  ))}
+                </select>
+                <select
+                  value={curriculoFiltro ? String(curriculoFiltro) : ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setCurriculoFiltro(value ? Number(value) : '');
+                    setPage(1);
+                  }}
+                  className="px-3 py-2 border rounded-md"
+                >
+                  <option value="">Todos os currículos</option>
+                  {curriculos.map((c: Curriculo) => (
+                    <option key={c.id} value={c.id}>{c.versao}</option>
+                  ))}
+                </select>
+              </div>
             }
           />
 
@@ -179,6 +214,22 @@ export default function PeriodosPage() {
                     key: 'numero',
                     header: 'Período',
                     render: (p: Periodo) => p.nome || `Período ${p.numero}`,
+                  },
+                  {
+                    key: 'turno',
+                    header: 'Turno',
+                    render: (p: any) => {
+                      const t = (turnos as any[]).find((x)=> x.id === (p.turnoId || p.turno?.id));
+                      return t?.nome || p.turno?.nome || '—';
+                    },
+                  },
+                  {
+                    key: 'curriculo',
+                    header: 'Currículo',
+                    render: (p: any) => {
+                      const c = (curriculos as any[]).find((x)=> x.id === (p.curriculoId || p.curriculo?.id));
+                      return c?.versao || '—';
+                    },
                   },
                   {
                     key: 'curso',

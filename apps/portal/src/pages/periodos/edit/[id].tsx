@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
-import { Curso, CreatePeriodo } from '@/types/api';
+import { Curso, CreatePeriodo, Turno, Curriculo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -15,9 +15,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 const schema = z.object({
   cursoId: z.number().min(1, 'Selecione um curso'),
+  turnoId: z.number().min(1, 'Selecione um turno'),
+  curriculoId: z.number().min(1, 'Selecione um currículo'),
   numero: z.number().min(1, 'Informe o número do período').max(255),
   nome: z.string().max(80).optional(),
   descricao: z.string().max(500).optional(),
+  dataInicio: z.string().optional(),
+  dataFim: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -40,6 +44,8 @@ export default function PeriodoEditPage() {
     queryFn: () => apiService.getCursos({ limit: 200 }),
   });
   const cursos = cursosResponse?.data || [];
+  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
+  const { data: curriculos = [] } = useQuery({ queryKey: ['curriculos'], queryFn: apiService.getCurriculos });
 
   const {
     data: periodo,
@@ -54,9 +60,13 @@ export default function PeriodoEditPage() {
     if (periodo) {
       reset({
         cursoId: periodo.cursoId,
+        turnoId: (periodo as any).turnoId || undefined,
+        curriculoId: (periodo as any).curriculoId || undefined,
         numero: periodo.numero,
         nome: periodo.nome ?? '',
         descricao: periodo.descricao ?? '',
+        dataInicio: (periodo as any).dataInicio || '',
+        dataFim: (periodo as any).dataFim || '',
       });
     }
   }, [periodo, reset]);
@@ -144,6 +154,49 @@ export default function PeriodoEditPage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Turno *</label>
+                    <select
+                      {...register('turnoId', { valueAsNumber: true })}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                        (errors as any).turnoId ? 'border-red-500' : ''
+                      }`}
+                      defaultValue={(periodo as any).turnoId || ''}
+                    >
+                      <option value="">Selecione um turno...</option>
+                      {turnos.map((t: Turno) => (
+                        <option key={t.id} value={t.id}>{t.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Currículo *</label>
+                    <select
+                      {...register('curriculoId', { valueAsNumber: true })}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                        (errors as any).curriculoId ? 'border-red-500' : ''
+                      }`}
+                      defaultValue={(periodo as any).curriculoId || ''}
+                    >
+                      <option value="">Selecione um currículo...</option>
+                      {curriculos.map((c: Curriculo) => (
+                        <option key={c.id} value={c.id}>{c.versao} ({c.ativo ? 'Ativo' : 'Inativo'})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de início (opcional)</label>
+                    <Input type="date" {...register('dataInicio')} defaultValue={(periodo as any).dataInicio || ''} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de término (opcional)</label>
+                    <Input type="date" {...register('dataFim')} defaultValue={(periodo as any).dataFim || ''} />
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nome do período (opcional)</label>

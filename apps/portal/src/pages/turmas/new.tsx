@@ -17,8 +17,9 @@ export default function TurmaNewPage() {
   const { data: disciplinasResponse } = useQuery({ queryKey: ['disciplinas'], queryFn: () => apiService.getDisciplinas({ limit: 100 }) });
   const disciplinas = disciplinasResponse?.data || [];
   const { data: professoresResponse } = useQuery({ queryKey: ['professores'], queryFn: () => apiService.getProfessores({ limit: 100 }) });
+  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
   const professores = professoresResponse?.data || [];
-  const { data: semestres = [] } = useQuery({ queryKey: ['semestres'], queryFn: apiService.getSemestres });
+  // Semestres removidos
 
   const createMutation = useMutation({
     mutationFn: (payload: CreateTurma) => apiService.createTurma(payload),
@@ -30,7 +31,7 @@ export default function TurmaNewPage() {
     onError: (error: any) => toast({ title: 'Erro ao criar turma', description: error.message || 'Erro desconhecido', variant: 'destructive' }),
   });
 
-  const getSemestreLabel = (s: any) => `${s.ano}.${s.periodo}`;
+  // Semestre removido
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -51,7 +52,7 @@ export default function TurmaNewPage() {
                   createMutation.mutate({
                     disciplinaId: Number(fd.get('disciplinaId')),
                     professorId: String(fd.get('professorId') || ''),
-                    semestreId: Number(fd.get('semestreId')),
+                    coorteId: fd.get('coorteId') ? Number(fd.get('coorteId')) : undefined,
                     sala: String(fd.get('sala') || ''),
                     horario: String(fd.get('horario') || ''),
                     secao: String(fd.get('secao') || ''),
@@ -78,13 +79,22 @@ export default function TurmaNewPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Semestre *</label>
-                  <select name="semestreId" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="">Selecione um semestre...</option>
-                    {semestres.map((s: any) => (
-                      <option key={s.id} value={s.id}>{getSemestreLabel(s)} {s.ativo ? '(Ativo)' : ''}</option>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Período (da disciplina)</label>
+                  <div className="text-sm text-gray-600">{(() => {
+                    const selectedId = (document.querySelector('select[name="disciplinaId"]') as HTMLSelectElement)?.value;
+                    const d = disciplinas.find((x:any)=> String(x.id) === String(selectedId));
+                    return d?.periodo?.nome || d?.periodo?.numero || 'Selecione a disciplina';
+                  })()}</div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Turma (coorte) — opcional</label>
+                  <select name="coorteId" className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Sem coorte específica (oferta geral)</option>
+                    {coortes.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.rotulo}</option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">A turma (oferta) pode ser direcionada a uma coorte. Ex.: “Disciplina X — {`{coorte}` }”.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Sala</label>
@@ -98,9 +108,21 @@ export default function TurmaNewPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Seção</label>
                   <Input name="secao" placeholder="Ex: A, B, C" />
                 </div>
-                <div className="md:col-span-3 flex gap-2">
-                  <Button type="submit" disabled={createMutation.isPending}>Criar</Button>
-                  <Button type="button" variant="outline" onClick={() => navigate('/turmas')}>Cancelar</Button>
+                <div className="md:col-span-3">
+                  <div className="text-sm text-gray-600 mb-3">
+                    Sugestão de nome: {(() => {
+                      const disciplinaId = (document.querySelector('select[name="disciplinaId"]') as HTMLSelectElement)?.value;
+                      const coorteId = (document.querySelector('select[name="coorteId"]') as HTMLSelectElement)?.value;
+                      const d = disciplinas.find((x:any)=> String(x.id) === String(disciplinaId));
+                      const c = coortes.find((x:any)=> String(x.id) === String(coorteId));
+                      if (!d) return 'Selecione disciplina';
+                      return c ? `${d.nome} — ${c.rotulo}` : d.nome;
+                    })()}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="submit" disabled={createMutation.isPending}>Criar</Button>
+                    <Button type="button" variant="outline" onClick={() => navigate('/turmas')}>Cancelar</Button>
+                  </div>
                 </div>
               </form>
             </CardContent>

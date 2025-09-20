@@ -10,7 +10,6 @@ export default function RelatoriosPage() {
   const [alunoId, setAlunoId] = useState('');
   const [turmaId, setTurmaId] = useState<number | ''>('');
   const [disciplinaId, setDisciplinaId] = useState<number | ''>('');
-  const [semestreId, setSemestreId] = useState<number | ''>('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
@@ -30,8 +29,8 @@ export default function RelatoriosPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">RelatÃ³rios</h1>
-              <p className="text-sm text-gray-600">RelatÃ³rios acadÃªmicos e gerenciais</p>
+              <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
+              <p className="text-sm text-gray-600">Relatórios acadêmicos e gerenciais</p>
             </div>
           </div>
         </div>
@@ -40,7 +39,7 @@ export default function RelatoriosPage() {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>HistÃ³rico AcadÃªmico</CardTitle>
+            <CardTitle>Histórico Acadêmico</CardTitle>
             <CardDescription>Informe o RA do aluno</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -56,8 +55,8 @@ export default function RelatoriosPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>FrequÃªncia por Turma</CardTitle>
-            <CardDescription>Selecione a turma e (opcionalmente) um perÃ­odo</CardDescription>
+            <CardTitle>Frequência por Turma</CardTitle>
+            <CardDescription>Selecione a turma e (opcionalmente) um período</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -73,7 +72,7 @@ export default function RelatoriosPage() {
                     <tr className="text-left border-b">
                       <th className="py-2 pr-4">RA</th>
                       <th className="py-2 pr-4">Nome</th>
-                      <th className="py-2 pr-4">PresenÃ§as</th>
+                      <th className="py-2 pr-4">Presenças</th>
                       <th className="py-2 pr-4">Total</th>
                       <th className="py-2 pr-4">%</th></tr>
                   </thead>
@@ -97,16 +96,15 @@ export default function RelatoriosPage() {
         <Card>
           <CardHeader>
             <CardTitle>Desempenho por Disciplina</CardTitle>
-            <CardDescription>Selecione a disciplina e o semestre</CardDescription>
+            <CardDescription>Selecione a disciplina</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Input type="number" placeholder="Disciplina ID" value={disciplinaId} onChange={e=>setDisciplinaId(e.target.value?Number(e.target.value):'')} />
-              <Input type="number" placeholder="Semestre ID" value={semestreId} onChange={e=>setSemestreId(e.target.value?Number(e.target.value):'')} />
-              <Button onClick={async ()=> setDesempenho(await apiService.reportDesempenho(Number(disciplinaId), Number(semestreId)))}><Search className="h-4 w-4 mr-2"/>Gerar</Button>
+              <Button onClick={async ()=> setDesempenho(await apiService.reportDesempenho(Number(disciplinaId)))}><Search className="h-4 w-4 mr-2"/>Gerar</Button>
             </div>
             {desempenho && (
-              <div className="text-sm text-gray-700">Turmas: {desempenho.turmas} | Alunos: {desempenho.alunos} | MÃ©dia geral: {desempenho.mediaGeral ?? '-'}</div>
+              <div className="text-sm text-gray-700">Turmas: {desempenho.turmas} | Alunos: {desempenho.alunos} | Média geral: {desempenho.mediaGeral ?? '-'}</div>
             )}
           </CardContent>
         </Card>

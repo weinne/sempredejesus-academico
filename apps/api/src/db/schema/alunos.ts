@@ -2,6 +2,7 @@ import { pgTable, char, integer, varchar, decimal, timestamp, pgEnum } from 'dri
 import { pessoas } from './pessoas';
 import { cursos } from './cursos';
 import { periodos } from './periodos';
+import { turnos } from './turnos';
 
 export const situacaoAlunoEnum = pgEnum('situacao_aluno', ['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']);
 
@@ -10,6 +11,7 @@ export const alunos = pgTable('alunos', {
   pessoaId: integer('pessoa_id').notNull().references(() => pessoas.id),
   cursoId: integer('curso_id').notNull().references(() => cursos.id),
   periodoId: integer('periodo_id').references(() => periodos.id),
+  turnoId: integer('turno_id').references(() => turnos.id),
   anoIngresso: integer('ano_ingresso').notNull(),
   igreja: varchar('igreja', { length: 120 }),
   situacao: situacaoAlunoEnum('situacao').notNull().default('ATIVO'),

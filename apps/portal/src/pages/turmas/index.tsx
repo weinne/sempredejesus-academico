@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
-import { Turma, CreateTurma, Disciplina, Professor, Semestre, Role } from '@/types/api';
+import { Turma, CreateTurma, Disciplina, Professor, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
@@ -33,7 +33,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 const turmaSchema = z.object({
   disciplinaId: z.number().min(1, 'Selecione uma disciplina'),
   professorId: z.string().min(1, 'Selecione um professor'),
-  semestreId: z.number().min(1, 'Selecione um semestre'),
   sala: z.string().max(20).optional(),
   horario: z.string().max(50).optional(),
   secao: z.string().max(6).optional(),
@@ -84,13 +83,7 @@ export default function TurmasPage() {
 
   const professores = professoresResponse?.data || [];
 
-  // Fetch semestres for the dropdown
-  const {
-    data: semestres = [],
-  } = useQuery({
-    queryKey: ['semestres'],
-    queryFn: apiService.getSemestres,
-  });
+  // Semestres removidos
 
   // Fetch turmas
   const {
@@ -205,7 +198,6 @@ export default function TurmasPage() {
     reset({
       disciplinaId: turma.disciplinaId,
       professorId: turma.professorId,
-      semestreId: turma.semestreId,
       sala: turma.sala || '',
       horario: turma.horario || '',
       secao: turma.secao || '',
@@ -226,9 +218,7 @@ export default function TurmasPage() {
     reset();
   };
 
-  const getSemestreLabel = (semestre: Semestre) => {
-    return `${semestre.ano}.${semestre.periodo}`;
-  };
+  // Semestre removido
 
   if (error) {
     return (
@@ -293,7 +283,7 @@ export default function TurmasPage() {
                 columns={[
                   { key: 'disciplina', header: 'Disciplina', render: (t: any) => t?.disciplina?.nome || 'N/A' },
                   { key: 'professor', header: 'Professor', render: (t: any) => t?.professor?.pessoa?.nome || 'N/A' },
-                  { key: 'semestre', header: 'Semestre', render: (t: any) => t?.semestre ? getSemestreLabel(t.semestre) : 'N/A' },
+                  { key: 'periodo', header: 'Período (disciplina)', render: (t: any) => t?.disciplina?.periodo?.nome || t?.disciplina?.periodo?.numero || 'N/A' },
                   { key: 'sala', header: 'Sala', render: (t: any) => t?.sala || '-' },
                   { key: 'horario', header: 'Horário', render: (t: any) => t?.horario || '-' },
                   { key: 'inscritos', header: 'Inscritos', render: (t: any) => t?.totalInscritos || 0 },
@@ -355,7 +345,7 @@ export default function TurmasPage() {
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <Calendar className="h-4 w-4" />
-                          <span>Semestre: {turma.semestre ? getSemestreLabel(turma.semestre) : 'N/A'}</span>
+                          <span>Período: {turma.disciplina?.periodo?.nome || turma.disciplina?.periodo?.numero || 'N/A'}</span>
                         </div>
                         {turma.sala && (
                           <div className="flex items-center space-x-2 text-sm text-gray-600">

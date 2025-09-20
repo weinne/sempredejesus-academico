@@ -4,7 +4,7 @@ export const TurmaSchema = z.object({
   id: z.number().int().positive(),
   disciplinaId: z.number().int().positive(),
   professorId: z.string().length(8),
-  semestreId: z.number().int(),
+  coorteId: z.number().int().optional(),
   sala: z.string().max(20).optional(),
   horario: z.string().max(50).optional(),
   secao: z.string().max(6).optional(),
@@ -30,11 +30,7 @@ export const TurmaCompletaSchema = TurmaSchema.extend({
       nomeCompleto: z.string(),
     }),
   }),
-  semestre: z.object({
-    id: z.number(),
-    ano: z.number(),
-    periodo: z.number(),
-  }),
+  // semestre removido do modelo
   inscritos: z.array(z.object({
     id: z.number(),
     aluno: z.object({
