@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
-import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Periodo } from '@/types/api';
+import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Periodo, Turno, Coorte } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { z } from 'zod';
@@ -29,6 +29,8 @@ const alunoSchema = z.object({
   pessoaId: z.number().optional(),
   pessoa: pessoaInlineSchema.optional(),
   cursoId: z.number().min(1, 'Selecione um curso'),
+  turnoId: z.number().optional(),
+  coorteId: z.number().optional(),
   periodoId: z.number().min(1, 'Selecione um período'),
   anoIngresso: z.number().min(1900).max(2100),
   igreja: z.string().max(120).optional(),
@@ -71,6 +73,8 @@ export default function AlunoNewPage() {
   const { data: pessoas = [] } = useQuery({ queryKey: ['pessoas'], queryFn: apiService.getPessoas });
   const { data: cursosResponse } = useQuery({ queryKey: ['cursos'], queryFn: () => apiService.getCursos({ limit: 100 }) });
   const cursos = cursosResponse?.data || [];
+  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
+  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
 
   const { data: periodosResponse } = useQuery({
     queryKey: ['periodos', selectedCursoId],
@@ -162,6 +166,30 @@ export default function AlunoNewPage() {
                         ))}
                       </select>
                       {errors.periodoId && (<p className="mt-1 text-sm text-red-600">{errors.periodoId.message}</p>)}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Turno</label>
+                      <select
+                        {...register('turnoId', { valueAsNumber: true })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Selecione um turno...</option>
+                        {turnos.map((t: Turno) => (
+                          <option key={t.id} value={t.id}>{t.nome}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Coorte (turma de ingresso)</label>
+                      <select
+                        {...register('coorteId', { valueAsNumber: true })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Selecione uma coorte...</option>
+                        {coortes.map((c: Coorte) => (
+                          <option key={c.id} value={c.id}>{c.rotulo}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Ano de Ingresso *</label>

@@ -86,6 +86,8 @@ export interface Aluno {
   ra: string;
   pessoaId: number;
   cursoId: number;
+  turnoId?: number;
+  coorteId?: number;
   periodoId: number;
   anoIngresso: number;
   igreja?: string;
@@ -95,6 +97,8 @@ export interface Aluno {
   updatedAt: string;
   pessoa?: Pessoa;
   curso?: Curso;
+  turno?: Turno;
+  coorte?: Coorte;
   periodo?: Periodo;
 }
 
@@ -102,6 +106,8 @@ export interface CreateAluno {
   ra?: string;
   pessoaId?: number; // optional when providing inline pessoa
   cursoId: number;
+  turnoId?: number;
+  coorteId?: number;
   periodoId: number;
   anoIngresso: number;
   igreja?: string;
@@ -174,6 +180,8 @@ export interface Curriculo {
   vigenteDe?: string;
   vigenteAte?: string;
   ativo: boolean;
+  curso?: Curso;
+  turno?: Turno;
 }
 
 export interface Coorte {
@@ -184,11 +192,36 @@ export interface Coorte {
   anoIngresso: number;
   rotulo: string;
   ativo: boolean;
+  curso?: Curso;
+  turno?: Turno;
+  curriculo?: Curriculo;
 }
 
 export interface CreateCurso {
   nome: string;
   grau: string;
+}
+
+export interface CreateTurno {
+  nome: string;
+}
+
+export interface CreateCurriculo {
+  cursoId: number;
+  turnoId: number;
+  versao: string;
+  vigenteDe?: string;
+  vigenteAte?: string;
+  ativo?: boolean;
+}
+
+export interface CreateCoorte {
+  cursoId: number;
+  turnoId: number;
+  curriculoId: number;
+  anoIngresso: number;
+  rotulo: string;
+  ativo?: boolean;
 }
 
 export interface Periodo {

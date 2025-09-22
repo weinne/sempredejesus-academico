@@ -284,6 +284,7 @@ export default function TurmasPage() {
                   { key: 'disciplina', header: 'Disciplina', render: (t: any) => t?.disciplina?.nome || 'N/A' },
                   { key: 'professor', header: 'Professor', render: (t: any) => t?.professor?.pessoa?.nome || 'N/A' },
                   { key: 'periodo', header: 'Período (disciplina)', render: (t: any) => t?.disciplina?.periodo?.nome || t?.disciplina?.periodo?.numero || 'N/A' },
+                  { key: 'coorte', header: 'Coorte', render: (t: any) => t?.coorte?.rotulo || '-' },
                   { key: 'sala', header: 'Sala', render: (t: any) => t?.sala || '-' },
                   { key: 'horario', header: 'Horário', render: (t: any) => t?.horario || '-' },
                   { key: 'inscritos', header: 'Inscritos', render: (t: any) => t?.totalInscritos || 0 },

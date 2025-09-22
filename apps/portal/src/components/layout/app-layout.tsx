@@ -22,6 +22,8 @@ import {
   Pin as PinIcon,
   PinOff as PinOffIcon,
   ListOrdered,
+  Clock,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 type SectionKey = 'administracao' | 'gestao' | 'registros' | 'pessoal';
@@ -58,6 +60,9 @@ export default function AppLayout() {
         { to: '/alunos', icon: GraduationCap, label: 'Alunos', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { to: '/professores', icon: UserIcon, label: 'Professores', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { to: '/cursos', icon: BookOpen, label: 'Cursos', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { to: '/turnos', icon: Clock, label: 'Turnos', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { to: '/curriculos', icon: FileSpreadsheet, label: 'Currículos', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { to: '/coortes', icon: GraduationCap, label: 'Coortes', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { to: '/periodos', icon: ListOrdered, label: 'Períodos', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { to: '/disciplinas', icon: BookOpen, label: 'Disciplinas', visible: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { to: '/turmas', icon: Layers3, label: 'Turmas', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },

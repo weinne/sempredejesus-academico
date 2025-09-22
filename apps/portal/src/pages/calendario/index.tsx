@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link } from 'react-router-dom';
 import { apiService } from '@/services/api';
-import { CalendarioItem, CreateCalendarioItem, Role } from '@/types/api';
+import { CalendarioItem, CreateCalendarioItem, Role, Periodo } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
@@ -22,6 +22,12 @@ export default function CalendarioPage() {
     queryKey: ['calendario'],
     queryFn: () => apiService.getCalendario(),
   });
+
+  const { data: periodosResponse } = useQuery({
+    queryKey: ['periodos'],
+    queryFn: () => apiService.getPeriodos({ limit: 200 }),
+  });
+  const periodos = periodosResponse?.data || [];
 
   const criar = useMutation({
     mutationFn: (payload: CreateCalendarioItem) => apiService.createCalendario(payload),
@@ -41,6 +47,7 @@ export default function CalendarioPage() {
       evento: String(novo.evento || ''),
       inicio: String(novo.inicio || ''),
       termino: String(novo.termino || ''),
+      periodoId: novo.periodoId,
       obs: (novo as any).obs || undefined,
     } as any;
     criar.mutate(payload);
@@ -67,12 +74,24 @@ export default function CalendarioPage() {
               <CardTitle>Novo Evento</CardTitle>
               <CardDescription>Adicionar item ao calendário</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <CardContent className="grid grid-cols-1 md:grid-cols-6 gap-3">
               <Input placeholder="Evento" value={novo.evento || ''} onChange={e=>setNovo(v=>({...v, evento: e.target.value}))} />
               <Input type="date" placeholder="Início" value={novo.inicio as any || ''} onChange={e=>setNovo(v=>({...v, inicio: e.target.value}))} />
               <Input type="date" placeholder="Término" value={novo.termino as any || ''} onChange={e=>setNovo(v=>({...v, termino: e.target.value}))} />
+              <select
+                value={novo.periodoId || ''}
+                onChange={e=>setNovo(v=>({...v, periodoId: e.target.value ? Number(e.target.value) : undefined}))}
+                className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Período (opcional)</option>
+                {periodos.map((p: Periodo) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome || `Período ${p.numero}`} - {p.curso?.nome}
+                  </option>
+                ))}
+              </select>
               <div className="flex items-center justify-end"><Button onClick={handleCreate}><Plus className="h-4 w-4 mr-2"/>Criar</Button></div>
-              <Input className="md:col-span-5" placeholder="Observação (opcional)" value={(novo as any).obs || ''} onChange={e=>setNovo(v=>({...v, obs: e.target.value as any}))} />
+              <Input className="md:col-span-6" placeholder="Observação (opcional)" value={(novo as any).obs || ''} onChange={e=>setNovo(v=>({...v, obs: e.target.value as any}))} />
             </CardContent>
           </Card>
         )}

@@ -25,7 +25,6 @@ import {
   Disciplina,
   Turma,
   CreateTurma,
-  Semestre,
   Role,
   ApiError 
 } from '@/types/api';
