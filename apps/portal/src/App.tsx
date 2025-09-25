@@ -40,6 +40,10 @@ import CurriculoEditPage from '@/pages/curriculos/edit/[id]';
 import CurriculoDetailPage from '@/pages/curriculos/view/[id]';
 import CoortesPage from '@/pages/coortes';
 import CoorteDetailPage from '@/pages/coortes/view/[id]';
+import TurnosPage from '@/pages/turnos';
+import TurnoNewPage from '@/pages/turnos/new';
+import TurnoEditPage from '@/pages/turnos/edit/[id]';
+import TurnoDetailPage from '@/pages/turnos/view/[id]';
 import PeriodosPage from '@/pages/periodos';
 import PeriodoNewPage from '@/pages/periodos/new';
 import PeriodoEditPage from '@/pages/periodos/edit/[id]';
@@ -107,6 +111,10 @@ function App() {
             <Route path="/curriculos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoDetailPage /></ProtectedRoute>} />
             <Route path="/coortes" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CoortesPage /></ProtectedRoute>} />
             <Route path="/coortes/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteDetailPage /></ProtectedRoute>} />
+            <Route path="/turnos" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurnosPage /></ProtectedRoute>} />
+            <Route path="/turnos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoNewPage /></ProtectedRoute>} />
+            <Route path="/turnos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoEditPage /></ProtectedRoute>} />
+            <Route path="/turnos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoDetailPage /></ProtectedRoute>} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/avaliacoes" element={<AvaliacoesPage />} />
             <Route path="/aulas" element={<AulasPage />} />
