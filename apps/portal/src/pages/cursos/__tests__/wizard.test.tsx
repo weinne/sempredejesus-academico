@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import CursoWizardPage from '../wizard';
 
@@ -115,3 +115,4 @@ describe('CursoWizardPage', () => {
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/cursos/view/101'));
   });
 });
+

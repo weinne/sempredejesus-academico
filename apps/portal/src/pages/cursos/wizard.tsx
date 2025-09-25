@@ -21,7 +21,6 @@ import {
   ChevronRight,
   Loader2,
   Plus,
-  Sparkles,
   Trash2,
 } from 'lucide-react';
 
@@ -36,7 +35,8 @@ interface DisciplineDraft {
 }
 
 interface PeriodDraft {
-  numero: number;
+  id: string;
+  numero: string;
   nome: string;
   descricao: string;
   disciplinas: DisciplineDraft[];
@@ -79,7 +79,8 @@ const emptyDiscipline = (): DisciplineDraft => ({
 });
 
 const emptyPeriod = (numero: number): PeriodDraft => ({
-  numero,
+  id: Math.random().toString(36).slice(2),
+  numero: numero.toString(),
   nome: `Periodo ${numero}`,
   descricao: '',
   disciplinas: [],
@@ -291,7 +292,7 @@ export default function CursoWizardPage() {
     }));
   };
 
-  const addDiscipline = (turnoId: number, numero: number) => {
+  const addDiscipline = (turnoId: number, periodId: string) => {
     setWizardData((prev) => ({
       ...prev,
       turnos: prev.turnos.map((turno) => {
@@ -301,7 +302,7 @@ export default function CursoWizardPage() {
         return {
           ...turno,
           periodos: turno.periodos.map((periodo) =>
-            periodo.numero === numero
+            periodo.id === periodId
               ? {
                   ...periodo,
                   disciplinas: [...periodo.disciplinas, emptyDiscipline()],
@@ -783,7 +784,6 @@ export default function CursoWizardPage() {
         title="Wizard de configuracao de curso"
         description="Guia passo a passo para criar um curso completo."
         backTo="/cursos"
-        icon={<Sparkles className="h-5 w-5 text-blue-500" />}
       />
 
       <main className="max-w-6xl mx-auto py-6 sm:px-6 lg:px-8">
