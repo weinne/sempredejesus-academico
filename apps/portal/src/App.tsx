@@ -21,6 +21,7 @@ import CursosPage from '@/pages/cursos';
 import CursoNewPage from '@/pages/cursos/new';
 import CursoEditPage from '@/pages/cursos/edit/[id]';
 import CursoViewPage from '@/pages/cursos/view/[id]';
+import CursoWizardPage from '@/pages/cursos/wizard';
 import TurmasPage from '@/pages/turmas';
 import TurmaDetailPage from '@/pages/turmas/[id]';
 import TurmaNewPage from '@/pages/turmas/new';
@@ -90,6 +91,7 @@ function App() {
             <Route path="/professores/view/:matricula" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><ProfessorViewPage /></ProtectedRoute>} />
             <Route path="/cursos" element={<CursosPage />} />
             <Route path="/cursos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoNewPage /></ProtectedRoute>} />
+            <Route path="/cursos/wizard" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoWizardPage /></ProtectedRoute>} />
             <Route path="/cursos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoEditPage /></ProtectedRoute>} />
             <Route path="/cursos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoViewPage /></ProtectedRoute>} />
             <Route path="/periodos" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodosPage /></ProtectedRoute>} />

@@ -24,6 +24,7 @@ import {
   Clock,
   Award,
   Eye,
+  Wand2,
   BarChart3
 } from 'lucide-react';
 import { z } from 'zod';
@@ -221,10 +222,16 @@ export default function CursosPage() {
         description="Administração dos cursos oferecidos pelo seminário"
         backTo="/dashboard"
         actions={canEdit ? (
-          <Button onClick={() => navigate('/cursos/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Curso
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/cursos/wizard')}>
+              <Wand2 className="h-4 w-4 mr-2" />
+              Wizard de configuracao
+            </Button>
+            <Button onClick={() => navigate('/cursos/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Curso
+            </Button>
+          </div>
         ) : undefined}
       />
 
@@ -341,3 +348,4 @@ export default function CursosPage() {
     </div>
   );
 }
+
