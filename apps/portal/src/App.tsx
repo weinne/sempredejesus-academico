@@ -34,6 +34,12 @@ import DisciplinasPage from '@/pages/disciplinas';
 import DisciplinaNewPage from '@/pages/disciplinas/new';
 import DisciplinaEditPage from '@/pages/disciplinas/edit/[id]';
 import DisciplinaViewPage from '@/pages/disciplinas/view/[id]';
+import CurriculosPage from '@/pages/curriculos';
+import CurriculoNewPage from '@/pages/curriculos/new';
+import CurriculoEditPage from '@/pages/curriculos/edit/[id]';
+import CurriculoDetailPage from '@/pages/curriculos/view/[id]';
+import CoortesPage from '@/pages/coortes';
+import CoorteDetailPage from '@/pages/coortes/view/[id]';
 import PeriodosPage from '@/pages/periodos';
 import PeriodoNewPage from '@/pages/periodos/new';
 import PeriodoEditPage from '@/pages/periodos/edit/[id]';
@@ -95,6 +101,12 @@ function App() {
             <Route path="/disciplinas/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaNewPage /></ProtectedRoute>} />
             <Route path="/disciplinas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaEditPage /></ProtectedRoute>} />
             <Route path="/disciplinas/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaViewPage /></ProtectedRoute>} />
+            <Route path="/curriculos" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculosPage /></ProtectedRoute>} />
+            <Route path="/curriculos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoNewPage /></ProtectedRoute>} />
+            <Route path="/curriculos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoEditPage /></ProtectedRoute>} />
+            <Route path="/curriculos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoDetailPage /></ProtectedRoute>} />
+            <Route path="/coortes" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CoortesPage /></ProtectedRoute>} />
+            <Route path="/coortes/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteDetailPage /></ProtectedRoute>} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/avaliacoes" element={<AvaliacoesPage />} />
             <Route path="/aulas" element={<AulasPage />} />

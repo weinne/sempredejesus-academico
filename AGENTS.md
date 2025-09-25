@@ -1,29 +1,166 @@
-# Guia para Contribuidores (AGENTS) - Sistema Acadêmico Completo
+# AGENTS.md - Sistema de Gestão Acadêmica
 
-Este documento consolida toda a documentação do Sistema de Gestão Acadêmica do Seminário Presbiteriano de Jesus. O sistema está **100% funcional** com todas as interfaces CRUD implementadas.
+**Guia Técnico para Agentes de IA** - Este documento serve como referência completa para entender, desenvolver e manter o Sistema de Gestão Acadêmica.
 
-## 🎯 Visão Geral do Projeto
+## 🎯 Sistema Overview
 
-**Sistema de Gestão Acadêmica** - Monorepo completo para administração educacional com:
-- **Backend robusto** com 17 tabelas PostgreSQL
-- **Frontend React completo** com 10+ páginas funcionais
-- **Autenticação JWT** com 4 roles granulares
-- **APIs documentadas** com Swagger/OpenAPI
-- **Deploy production-ready** para Coolify
+**Sistema de Gestão Acadêmica** - Monorepo completo para administração educacional.
 
-**Status Atual**: ✅ **SPRINT 7 COMPLETO** - Todas funcionalidades CRUD implementadas!
+**Status**: ✅ **100% FUNCIONAL** - Sprint 7 Completo com todas interfaces CRUD implementadas.
+
+### 📊 Métricas Atuais
+- 🗄️ **17 tabelas PostgreSQL** relacionais
+- 📡 **8 endpoints CRUD** funcionais
+- 👥 **4 roles** de usuário (ADMIN, SECRETARIA, PROFESSOR, ALUNO)
+- 📱 **15+ páginas** frontend funcionais
+- 🧪 **76 testes unitários** passando
+- 🔒 **Security enterprise-grade** implementado
+- 🚀 **Production-ready** para Coolify
 
 ---
 
-## 🏗️ Arquitetura do Sistema
+## 🏗️ **INSTRUÇÕES PARA AGENTES IA**
 
-### Stack Tecnológico
+### 🎯 **Como Entender o Sistema**
+
+**Stack Principal:**
 - **Backend**: Express 5 + TypeScript + Drizzle ORM + PostgreSQL 15
 - **Frontend**: React 18 + Vite + TypeScript + TailwindCSS + Radix UI
 - **Autenticação**: JWT + Passport + bcrypt (enterprise-grade)
 - **APIs**: RESTful com OpenAPI 3.0 + Zod validation
 - **Database**: PostgreSQL com 17 tabelas relacionais
 - **Deploy**: Docker + Coolify (production-ready)
+
+**Estrutura de Arquivos Importantes:**
+```
+apps/
+├── api/src/
+│   ├── core/          # JWT, Password, TokenBlacklist services
+│   ├── db/            # Schema PostgreSQL + migrations
+│   ├── middleware/    # Auth, validation, security
+│   ├── routes/        # 8 CRUD endpoints
+│   ├── config/        # Swagger, database config
+│   └── server.ts      # Entry point
+└── portal/src/
+    ├── components/    # UI components (shadcn/ui)
+    ├── pages/         # 15+ páginas funcionais
+    ├── providers/     # AuthProvider, context
+    ├── services/      # API client
+    └── types/         # TypeScript interfaces
+```
+
+### 📋 **Como Desenvolver no Sistema**
+
+#### **1. Padrões de Código Obrigatórios**
+```typescript
+// ✅ SEMPRE usar TypeScript com interfaces completas
+interface NovaEntidade {
+  id: number;
+  nome: string;
+  // Incluir campos de relacionamento quando necessário
+  cursoId?: number;
+  turnoId?: number;
+}
+
+// ✅ SEMPRE usar Zod para validação
+const schema = z.object({
+  nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  cursoId: z.number().min(1, 'Curso é obrigatório')
+});
+
+// ✅ SEMPRE seguir convenções de nomenclatura
+// Arquivos: kebab-case.ts
+// Componentes: PascalCase.tsx
+// Hooks: camelCase.ts
+// Types: PascalCase.ts
+```
+
+#### **2. Como Implementar CRUD**
+**Backend (Drizzle ORM):**
+```typescript
+// 1. Criar schema em apps/api/src/db/schema/
+export const novaEntidade = pgTable('nova_entidade', {
+  id: serial('id').primaryKey(),
+  nome: varchar('nome', { length: 100 }).notNull(),
+  cursoId: integer('curso_id').references(() => cursos.id)
+});
+
+// 2. Criar DTO em packages/shared-dtos/src/
+export interface CreateNovaEntidade {
+  nome: string;
+  cursoId: number;
+}
+
+// 3. Criar rota em apps/api/src/routes/
+router.get('/', listNovaEntidade); // Usa CrudFactory
+```
+
+**Frontend (React + TanStack Query):**
+```typescript
+// 1. Criar página em apps/portal/src/pages/nova-entidade/
+export default function NovaEntidadePage() {
+  // 2. Usar hooks do React Query
+  const { data } = useQuery({
+    queryKey: ['nova-entidade'],
+    queryFn: apiService.getNovaEntidade
+  });
+
+  // 3. Usar useMutation para operações
+  const mutation = useMutation({
+    mutationFn: apiService.createNovaEntidade,
+    onSuccess: () => queryClient.invalidateQueries(['nova-entidade'])
+  });
+}
+```
+
+#### **3. Como Lidar com Relacionamentos**
+```typescript
+// ✅ Backend - Joins automáticos via Drizzle
+const result = await db
+  .select()
+  .from(alunos)
+  .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
+  .leftJoin(cursos, eq(alunos.cursoId, cursos.id));
+
+// ✅ Frontend - Relacionamentos em interfaces
+interface AlunoComRelacionamentos {
+  id: number;
+  nome: string; // da tabela pessoas
+  cursoNome: string; // da tabela cursos
+  turnoNome: string; // da tabela turnos
+}
+```
+
+#### **4. Como Implementar Autenticação**
+```typescript
+// ✅ Backend - Middleware de proteção
+router.get('/admin-only', authMiddleware, hasRole(['ADMIN']), handler);
+
+// ✅ Frontend - Role-based UI
+const { hasRole } = useAuth();
+if (hasRole([Role.ADMIN, Role.SECRETARIA])) {
+  // Mostrar interface de admin
+}
+```
+
+#### **5. Como Fazer Testes**
+```typescript
+// ✅ Unit tests com Vitest
+describe('NovaEntidadeService', () => {
+  it('deve criar entidade', async () => {
+    const result = await createNovaEntidade({ nome: 'Teste' });
+    expect(result.id).toBeDefined();
+  });
+});
+
+// ✅ E2E com Playwright
+test('deve criar nova entidade via interface', async ({ page }) => {
+  await page.goto('/nova-entidade/new');
+  await page.fill('[name="nome"]', 'Teste E2E');
+  await page.click('button[type="submit"]');
+  await expect(page.locator('text=Teste E2E')).toBeVisible();
+});
+```
 
 ### Estrutura do Monorepo
 ```
