@@ -45,7 +45,7 @@ export default function PeriodoEditPage() {
   });
   const cursos = cursosResponse?.data || [];
   const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
-  const { data: curriculos = [] } = useQuery({ queryKey: ['curriculos'], queryFn: apiService.getCurriculos });
+  const { data: curriculos = [] } = useQuery({ queryKey: ['curriculos'], queryFn: () => apiService.getCurriculos() });
 
   const {
     data: periodo,

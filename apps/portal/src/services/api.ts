@@ -928,9 +928,24 @@ class ApiService {
   }
 
   // Curriculos CRUD
-  async getCurriculos(): Promise<import('@/types/api').Curriculo[]> {
-    const response = await this.api.get(`/api/curriculos`);
-    return response.data.data as import('@/types/api').Curriculo[];
+  async getCurriculos(params?: {
+    cursoId?: number;
+    turnoId?: number;
+    ativo?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<import('@/types/api').Curriculo[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.cursoId) queryParams.append('cursoId', params.cursoId.toString());
+    if (params?.turnoId) queryParams.append('turnoId', params.turnoId.toString());
+    if (typeof params?.ativo === 'boolean') queryParams.append('ativo', params.ativo ? 'true' : 'false');
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    const queryString = queryParams.toString();
+    const response = await this.api.get(`/api/curriculos${queryString ? `?${queryString}` : ''}`);
+    const payload = response.data;
+    const rawData = Array.isArray(payload?.data) ? payload.data : payload?.data?.data ?? payload?.data ?? payload ?? [];
+    return rawData as import('@/types/api').Curriculo[];
   }
 
   async createCurriculo(payload: Partial<import('@/types/api').Curriculo>): Promise<import('@/types/api').Curriculo> {
@@ -1156,7 +1171,10 @@ class ApiService {
     limit?: number; 
     search?: string; 
     sortBy?: string; 
-    sortOrder?: 'asc' | 'desc' 
+    sortOrder?: 'asc' | 'desc'; 
+    cursoId?: number; 
+    periodoId?: number; 
+    curriculoId?: number; 
   }): Promise<{ data: Disciplina[]; pagination?: any }> {
     try {
       const queryParams = new URLSearchParams();
@@ -1165,8 +1183,12 @@ class ApiService {
       if (params?.search) queryParams.append('search', params.search);
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+      if (params?.cursoId) queryParams.append('cursoId', params.cursoId.toString());
+      if (params?.periodoId) queryParams.append('periodoId', params.periodoId.toString());
+      if (params?.curriculoId) queryParams.append('curriculoId', params.curriculoId.toString());
 
-      const response = await this.api.get(`/api/disciplinas?${queryParams.toString()}`);
+      const queryString = queryParams.toString();
+      const response = await this.api.get(`/api/disciplinas${queryString ? `?${queryString}` : ''}`);
       const payload = response.data;
       const rawData = Array.isArray(payload.data) ? payload.data : payload.data?.data || [];
       const data = (rawData as any[]).map((disciplina) => ({

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Card,
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
-import { Turno } from '@/types/api';
+import { Curso, Curriculo, Disciplina, Periodo, Turno } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -26,6 +26,7 @@ import {
 
 interface DisciplineDraft {
   id: string;
+  persistedId?: number;
   codigo: string;
   nome: string;
   creditos: string;
@@ -36,6 +37,7 @@ interface DisciplineDraft {
 
 interface PeriodDraft {
   id: string;
+  persistedId?: number;
   numero: string;
   nome: string;
   descricao: string;
@@ -44,21 +46,43 @@ interface PeriodDraft {
 
 interface TurnoDraft {
   turnoId: number;
+  curriculoId?: number;
   versao: string;
   vigenteDe: string;
   vigenteAte: string;
   ativo: boolean;
+  isPersisted?: boolean;
   periodos: PeriodDraft[];
 }
 
 interface WizardState {
   course: {
+    id?: number;
     nome: string;
     grau: string;
   };
   periodCount: number;
   turnos: TurnoDraft[];
 }
+
+type WizardMode = 'new' | 'existing';
+
+interface ExistingSnapshots {
+  course?: Curso;
+  curriculos: Record<number, Curriculo>;
+  periodos: Record<number, Periodo>;
+  disciplinas: Record<number, Disciplina>;
+}
+
+const createInitialWizardState = (): WizardState => ({
+  course: {
+    id: undefined,
+    nome: '',
+    grau: '',
+  },
+  periodCount: 4,
+  turnos: [],
+});
 
 const steps = [
   { id: 0, label: 'Curso' },
@@ -70,6 +94,7 @@ const steps = [
 
 const emptyDiscipline = (): DisciplineDraft => ({
   id: Math.random().toString(36).slice(2),
+  persistedId: undefined,
   codigo: '',
   nome: '',
   creditos: '',
@@ -80,6 +105,7 @@ const emptyDiscipline = (): DisciplineDraft => ({
 
 const emptyPeriod = (numero: number): PeriodDraft => ({
   id: Math.random().toString(36).slice(2),
+  persistedId: undefined,
   numero: numero.toString(),
   nome: `Periodo ${numero}`,
   descricao: '',
@@ -97,90 +123,433 @@ const isPositiveNumber = (value: string): boolean => {
   return Number.isFinite(parsed) && parsed > 0;
 };
 
+const loadCourseStructure = async (cursoId: number): Promise<{
+  course: Curso;
+  curriculos: Curriculo[];
+  periodos: Periodo[];
+  disciplinas: Disciplina[];
+}> => {
+  const [course, curriculos, periodosResponse, disciplinasResponse] = await Promise.all([
+    apiService.getCurso(cursoId),
+    apiService.getCurriculos({ cursoId, limit: 100 }),
+    apiService.getPeriodos({ cursoId, limit: 500 }),
+    apiService.getDisciplinas({ cursoId, limit: 1000 }),
+  ]);
+
+  return {
+    course,
+    curriculos,
+    periodos: periodosResponse.data || [],
+    disciplinas: disciplinasResponse.data || [],
+  };
+};
+
 export default function CursoWizardPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = React.useState(0);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [wizardData, setWizardData] = React.useState<WizardState>({
-    course: {
-      nome: '',
-      grau: '',
-    },
-    periodCount: 4,
-    turnos: [],
+  const [wizardData, setWizardData] = React.useState<WizardState>(() => createInitialWizardState());
+
+  const [mode, setMode] = React.useState<WizardMode>('new');
+  const [selectedExistingCourseId, setSelectedExistingCourseId] = React.useState<number | null>(null);
+  const [existingSnapshots, setExistingSnapshots] = React.useState<ExistingSnapshots>({
+    course: undefined,
+    curriculos: {},
+    periodos: {},
+    disciplinas: {},
   });
+
+  const resetWizardToInitialState = React.useCallback(() => {
+    setWizardData(() => createInitialWizardState());
+    setExistingSnapshots({ course: undefined, curriculos: {}, periodos: {}, disciplinas: {} });
+  }, []);
+
+  const handleModeChange = (value: WizardMode) => {
+    if (value === mode) {
+      return;
+    }
+    if (value === 'new') {
+      setMode('new');
+      setSelectedExistingCourseId(null);
+      resetWizardToInitialState();
+    } else {
+      setMode('existing');
+      resetWizardToInitialState();
+    }
+    setCurrentStep(0);
+  };
+
+  const hasInitializedFromQuery = React.useRef(false);
 
   const { data: turnosData, isLoading: isLoadingTurnos } = useQuery({
     queryKey: ['turnos'],
     queryFn: () => apiService.getTurnos(),
   });
 
-  const createCursoMutation = useMutation({
+  const { data: cursosResponse, isLoading: isLoadingCursos } = useQuery({
+    queryKey: ['cursos', 'wizard-list'],
+    queryFn: () => apiService.getCursos({ page: 1, limit: 100, sortBy: 'nome', sortOrder: 'asc' }),
+  });
+
+  const { data: existingCourseStructure, isFetching: isFetchingCourseStructure } = useQuery({
+    queryKey: ['curso-structure', selectedExistingCourseId],
+    queryFn: () => loadCourseStructure(selectedExistingCourseId as number),
+    enabled: mode === 'existing' && !!selectedExistingCourseId,
+    staleTime: 1000 * 60,
+  });
+
+  const availableTurnos = turnosData || [];
+  const availableCourses = cursosResponse?.data || [];
+
+  React.useEffect(() => {
+    const cursoIdParam = searchParams.get('cursoId');
+    if (!cursoIdParam) {
+      return;
+    }
+    const parsedId = Number(cursoIdParam);
+    if (!Number.isFinite(parsedId)) {
+      return;
+    }
+    if (!hasInitializedFromQuery.current) {
+      hasInitializedFromQuery.current = true;
+      setMode('existing');
+      setSelectedExistingCourseId(parsedId);
+      setCurrentStep(0);
+      return;
+    }
+    if (mode === 'existing' && selectedExistingCourseId !== parsedId) {
+      setSelectedExistingCourseId(parsedId);
+    }
+  }, [mode, searchParams, selectedExistingCourseId]);
+
+  React.useEffect(() => {
+    if (mode !== 'existing') {
+      return;
+    }
+    if (!existingCourseStructure) {
+      return;
+    }
+
+    const { course, curriculos, periodos, disciplinas } = existingCourseStructure;
+    const disciplinasByPeriodo = new Map<number, Disciplina[]>();
+    for (const disciplina of disciplinas) {
+      const list = disciplinasByPeriodo.get(disciplina.periodoId) || [];
+      list.push(disciplina);
+      disciplinasByPeriodo.set(disciplina.periodoId, list);
+    }
+
+    const periodosByCurriculo = new Map<number, PeriodDraft[]>();
+    const sortedPeriodos = [...periodos].sort((a, b) => Number(a.numero ?? 0) - Number(b.numero ?? 0));
+    for (const periodo of sortedPeriodos) {
+      const disciplinaDrafts = (disciplinasByPeriodo.get(periodo.id) || []).map((disciplina) => ({
+        id: `disciplina-${disciplina.id}`,
+        persistedId: disciplina.id,
+        codigo: disciplina.codigo || '',
+        nome: disciplina.nome || '',
+        creditos:
+          disciplina.creditos !== undefined && disciplina.creditos !== null
+            ? String(disciplina.creditos)
+            : '',
+        cargaHoraria:
+          disciplina.cargaHoraria !== undefined && disciplina.cargaHoraria !== null
+            ? String(disciplina.cargaHoraria)
+            : '',
+        ementa: disciplina.ementa || '',
+        bibliografia: disciplina.bibliografia || '',
+      }));
+
+      const periodDraft: PeriodDraft = {
+        id: `periodo-${periodo.id}`,
+        persistedId: periodo.id,
+        numero: periodo.numero !== undefined && periodo.numero !== null ? String(periodo.numero) : '',
+        nome: periodo.nome || '',
+        descricao: periodo.descricao || '',
+        disciplinas: disciplinaDrafts,
+      };
+      const bucket = periodosByCurriculo.get(periodo.curriculoId) || [];
+      bucket.push(periodDraft);
+      periodosByCurriculo.set(periodo.curriculoId, bucket);
+    }
+
+    const turnoDrafts: TurnoDraft[] = curriculos.map((curriculo) => {
+      const periodList = periodosByCurriculo.get(curriculo.id) || [];
+      return {
+        turnoId: curriculo.turnoId,
+        curriculoId: curriculo.id,
+        versao: curriculo.versao || 'v1.0',
+        vigenteDe: curriculo.vigenteDe || '',
+        vigenteAte: curriculo.vigenteAte || '',
+        ativo: Boolean(curriculo.ativo),
+        isPersisted: true,
+        periodos: periodList,
+      };
+    });
+
+    const maxPeriodCount = Math.max(
+      1,
+      ...turnoDrafts.map((turno) => turno.periodos.length),
+    );
+
+    const normalizedTurnos = turnoDrafts
+      .map((turno) => {
+        if (turno.periodos.length >= maxPeriodCount) {
+          return turno;
+        }
+        const additions = Array.from({ length: maxPeriodCount - turno.periodos.length }, (_, idx) =>
+          emptyPeriod(turno.periodos.length + idx + 1),
+        );
+        return {
+          ...turno,
+          periodos: [...turno.periodos, ...additions],
+        };
+      })
+      .sort((a, b) => a.turnoId - b.turnoId);
+
+    setWizardData({
+      course: {
+        id: course.id,
+        nome: course.nome,
+        grau: course.grau,
+      },
+      periodCount: maxPeriodCount,
+      turnos: normalizedTurnos,
+    });
+
+    setExistingSnapshots({
+      course,
+      curriculos: Object.fromEntries(curriculos.map((curriculo) => [curriculo.id, curriculo])),
+      periodos: Object.fromEntries(periodos.map((periodo) => [periodo.id, periodo])),
+      disciplinas: Object.fromEntries(disciplinas.map((disciplina) => [disciplina.id, disciplina])),
+    });
+  }, [existingCourseStructure, mode, searchParams, selectedExistingCourseId]);
+
+  const finalizeWizardMutation = useMutation({
     mutationFn: async () => {
-      const createdCurso = await apiService.createCurso({
-        nome: wizardData.course.nome.trim(),
-        grau: wizardData.course.grau,
-      });
+      if (mode === 'new') {
+        const createdCurso = await apiService.createCurso({
+          nome: wizardData.course.nome.trim(),
+          grau: wizardData.course.grau,
+        });
+
+        for (const turnoConfig of wizardData.turnos) {
+          const curriculo = await apiService.createCurriculo({
+            cursoId: createdCurso.id,
+            turnoId: turnoConfig.turnoId,
+            versao: turnoConfig.versao || 'v1.0',
+            vigenteDe: turnoConfig.vigenteDe || undefined,
+            vigenteAte: turnoConfig.vigenteAte || undefined,
+            ativo: turnoConfig.ativo,
+          });
+
+          for (let index = 0; index < turnoConfig.periodos.length; index++) {
+            const periodo = turnoConfig.periodos[index];
+            const numeroParsed = Number(periodo.numero);
+            const fallbackNumero = index + 1;
+            const numeroValue =
+              Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : fallbackNumero;
+
+            const createdPeriodo = await apiService.createPeriodo({
+              cursoId: createdCurso.id,
+              turnoId: turnoConfig.turnoId,
+              curriculoId: curriculo.id,
+              numero: numeroValue,
+              nome: periodo.nome || undefined,
+              descricao: periodo.descricao || undefined,
+            });
+
+            for (const disciplina of periodo.disciplinas) {
+              const codigo = disciplina.codigo.trim();
+              const nome = disciplina.nome.trim();
+              const creditos = Number(disciplina.creditos);
+              const cargaHoraria = Number(disciplina.cargaHoraria);
+
+              if (!codigo || !nome || !Number.isFinite(creditos) || !Number.isFinite(cargaHoraria)) {
+                continue;
+              }
+
+              await apiService.createDisciplina({
+                cursoId: createdCurso.id,
+                periodoId: createdPeriodo.id,
+                codigo,
+                nome,
+                creditos,
+                cargaHoraria,
+                ementa: disciplina.ementa || undefined,
+                bibliografia: disciplina.bibliografia || undefined,
+                ativo: true,
+              });
+            }
+          }
+        }
+
+        return createdCurso.id;
+      }
+
+      if (!wizardData.course.id) {
+        throw new Error('Selecione um curso existente para continuar a configuracao.');
+      }
+
+      const courseId = wizardData.course.id;
+      const normalizedName = wizardData.course.nome.trim();
+      const normalizedDegree = wizardData.course.grau.trim();
+
+      if (!normalizedName || !normalizedDegree) {
+        throw new Error('Nome e grau do curso sao obrigatorios.');
+      }
+
+      const ensureString = (value?: string | null) => value ?? '';
+
+      if (
+        !existingSnapshots.course ||
+        existingSnapshots.course.id !== courseId ||
+        ensureString(existingSnapshots.course.nome) !== normalizedName ||
+        ensureString(existingSnapshots.course.grau) !== normalizedDegree
+      ) {
+        await apiService.updateCurso(courseId, {
+          nome: normalizedName,
+          grau: normalizedDegree,
+        });
+      }
 
       for (const turnoConfig of wizardData.turnos) {
-        const curriculo = await apiService.createCurriculo({
-          cursoId: createdCurso.id,
-          turnoId: turnoConfig.turnoId,
+        const baseCurriculoPayload = {
           versao: turnoConfig.versao || 'v1.0',
           vigenteDe: turnoConfig.vigenteDe || undefined,
           vigenteAte: turnoConfig.vigenteAte || undefined,
           ativo: turnoConfig.ativo,
-        });
+        };
+
+        let curriculoId = turnoConfig.curriculoId;
+        if (curriculoId) {
+          const snapshot = existingSnapshots.curriculos[curriculoId];
+          const hasChanges =
+            !snapshot ||
+            ensureString(snapshot.versao) !== baseCurriculoPayload.versao ||
+            ensureString(snapshot.vigenteDe) !== ensureString(baseCurriculoPayload.vigenteDe) ||
+            ensureString(snapshot.vigenteAte) !== ensureString(baseCurriculoPayload.vigenteAte) ||
+            Boolean(snapshot.ativo) !== Boolean(baseCurriculoPayload.ativo);
+          if (hasChanges) {
+            await apiService.updateCurriculo(curriculoId, baseCurriculoPayload);
+          }
+        } else {
+          const createdCurriculo = await apiService.createCurriculo({
+            cursoId: courseId,
+            turnoId: turnoConfig.turnoId,
+            ...baseCurriculoPayload,
+          });
+          curriculoId = createdCurriculo.id;
+        }
+
+        if (!curriculoId) {
+          throw new Error('Nao foi possivel determinar o curriculo do turno selecionado.');
+        }
 
         for (let index = 0; index < turnoConfig.periodos.length; index++) {
-          const periodo = turnoConfig.periodos[index];
-          const numeroParsed = Number(periodo.numero);
-          const fallbackNumero = index + 1;
-          const numeroValue = Number.isFinite(numeroParsed) && numeroParsed > 0 ? numeroParsed : fallbackNumero;
+          const periodoDraft = turnoConfig.periodos[index];
+          const numeroParsed = Number(periodoDraft.numero);
+          const numeroValue =
+            Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : index + 1;
 
-          const createdPeriodo = await apiService.createPeriodo({
-            cursoId: createdCurso.id,
-            turnoId: turnoConfig.turnoId,
-            curriculoId: curriculo.id,
+          const periodoPayload = {
             numero: numeroValue,
-            nome: periodo.nome || undefined,
-            descricao: periodo.descricao || undefined,
-          });
+            nome: periodoDraft.nome || undefined,
+            descricao: periodoDraft.descricao || undefined,
+          };
 
-          for (const disciplina of periodo.disciplinas) {
-            if (!disciplina.nome || !disciplina.codigo) {
+          let periodoId = periodoDraft.persistedId;
+          if (periodoId) {
+            const snapshot = existingSnapshots.periodos[periodoId];
+            const hasChanges =
+              !snapshot ||
+              Number(snapshot.numero ?? 0) !== periodoPayload.numero ||
+              ensureString(snapshot.nome) !== ensureString(periodoPayload.nome) ||
+              ensureString(snapshot.descricao) !== ensureString(periodoPayload.descricao);
+            if (hasChanges) {
+              await apiService.updatePeriodo(periodoId, periodoPayload);
+            }
+          } else {
+            const createdPeriodo = await apiService.createPeriodo({
+              cursoId: courseId,
+              turnoId: turnoConfig.turnoId,
+              curriculoId,
+              ...periodoPayload,
+            });
+            periodoId = createdPeriodo.id;
+          }
+
+          if (!periodoId) {
+            continue;
+          }
+
+          for (const disciplinaDraft of periodoDraft.disciplinas) {
+            const codigo = disciplinaDraft.codigo.trim();
+            const nome = disciplinaDraft.nome.trim();
+            const creditos = Number(disciplinaDraft.creditos);
+            const cargaHoraria = Number(disciplinaDraft.cargaHoraria);
+
+            if (!codigo || !nome || !Number.isFinite(creditos) || !Number.isFinite(cargaHoraria)) {
               continue;
             }
 
-            await apiService.createDisciplina({
-              cursoId: createdCurso.id,
-              periodoId: createdPeriodo.id,
-              codigo: disciplina.codigo,
-              nome: disciplina.nome,
-              creditos: Number(disciplina.creditos),
-              cargaHoraria: Number(disciplina.cargaHoraria),
-              ementa: disciplina.ementa || undefined,
-              bibliografia: disciplina.bibliografia || undefined,
+            const disciplinaPayload = {
+              cursoId: courseId,
+              periodoId,
+              codigo,
+              nome,
+              creditos,
+              cargaHoraria,
+              ementa: disciplinaDraft.ementa || undefined,
+              bibliografia: disciplinaDraft.bibliografia || undefined,
               ativo: true,
-            });
+            };
+
+            if (disciplinaDraft.persistedId) {
+              const snapshot = existingSnapshots.disciplinas[disciplinaDraft.persistedId];
+              const hasChanges =
+                !snapshot ||
+                ensureString(snapshot.codigo) !== codigo ||
+                ensureString(snapshot.nome) !== nome ||
+                Number(snapshot.creditos ?? 0) !== disciplinaPayload.creditos ||
+                Number(snapshot.cargaHoraria ?? 0) !== disciplinaPayload.cargaHoraria ||
+                ensureString(snapshot.ementa) !== ensureString(disciplinaPayload.ementa) ||
+                ensureString(snapshot.bibliografia) !== ensureString(disciplinaPayload.bibliografia);
+              if (hasChanges) {
+                await apiService.updateDisciplina(disciplinaDraft.persistedId, {
+                  periodoId,
+                  codigo,
+                  nome,
+                  creditos,
+                  cargaHoraria,
+                  ementa: disciplinaPayload.ementa,
+                  bibliografia: disciplinaPayload.bibliografia,
+                  ativo: true,
+                });
+              }
+            } else {
+              await apiService.createDisciplina(disciplinaPayload);
+            }
           }
         }
       }
 
-      return createdCurso;
+      return courseId;
     },
-    onSuccess: (createdCurso) => {
+    onSuccess: (cursoId) => {
       queryClient.invalidateQueries({ queryKey: ['cursos'] });
       queryClient.invalidateQueries({ queryKey: ['curriculos'] });
       queryClient.invalidateQueries({ queryKey: ['periodos'] });
       queryClient.invalidateQueries({ queryKey: ['disciplinas'] });
       toast({
         title: 'Curso configurado',
-        description: 'Wizard concluido com sucesso. Curso pronto para uso.',
+        description:
+          mode === 'new'
+            ? 'Wizard concluido com sucesso. Curso pronto para uso.'
+            : 'Estrutura do curso atualizada com sucesso.',
       });
-      navigate(`/cursos/view/${createdCurso.id}`);
+      navigate(`/cursos/view/${cursoId}`);
     },
     onError: (error: any) => {
       toast({
@@ -190,8 +559,6 @@ export default function CursoWizardPage() {
       });
     },
   });
-
-  const availableTurnos = turnosData || [];
 
   const updateCourseField = (field: 'nome' | 'grau', value: string) => {
     setWizardData((prev) => ({
@@ -205,15 +572,19 @@ export default function CursoWizardPage() {
 
   const updatePeriodCount = (value: string) => {
     const parsed = Number(value);
-    const safeValue = Number.isFinite(parsed) ? Math.max(1, Math.min(12, Math.floor(parsed))) : 1;
+    const requested = Number.isFinite(parsed) ? Math.max(1, Math.min(12, Math.floor(parsed))) : 1;
 
     setWizardData((prev) => {
-      const periodCount = safeValue;
+      const maxPersisted = prev.turnos.reduce(
+        (acc, turno) => Math.max(acc, turno.periodos.filter((periodo) => periodo.persistedId).length),
+        0,
+      );
+      const periodCount = Math.max(requested, maxPersisted);
       const turnos = prev.turnos.map((turno) => {
         let periodos = turno.periodos.slice(0, periodCount);
         if (periodos.length < periodCount) {
           const additions = Array.from({ length: periodCount - periodos.length }, (_, idx) =>
-            emptyPeriod(periodos.length + idx + 1)
+            emptyPeriod(periodos.length + idx + 1),
           );
           periodos = [...periodos, ...additions];
         }
@@ -231,9 +602,14 @@ export default function CursoWizardPage() {
   };
 
   const toggleTurno = (turno: Turno) => {
+    let removalBlocked = false;
     setWizardData((prev) => {
       const exists = prev.turnos.find((item) => item.turnoId === turno.id);
       if (exists) {
+        if (exists.isPersisted) {
+          removalBlocked = true;
+          return prev;
+        }
         return {
           ...prev,
           turnos: prev.turnos.filter((item) => item.turnoId !== turno.id),
@@ -242,10 +618,12 @@ export default function CursoWizardPage() {
 
       const draft: TurnoDraft = {
         turnoId: turno.id,
+        curriculoId: undefined,
         versao: 'v1.0',
         vigenteDe: '',
         vigenteAte: '',
         ativo: true,
+        isPersisted: false,
         periodos: buildPeriods(prev.periodCount),
       };
 
@@ -254,6 +632,13 @@ export default function CursoWizardPage() {
         turnos: [...prev.turnos, draft].sort((a, b) => a.turnoId - b.turnoId),
       };
     });
+    if (removalBlocked) {
+      toast({
+        title: 'Turno ja configurado',
+        description: 'Para remover um turno existente, utilize a area de curriculos.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const updateTurnoField = (turnoId: number, field: keyof TurnoDraft, value: string | boolean) => {
@@ -348,6 +733,7 @@ export default function CursoWizardPage() {
   };
 
   const removeDiscipline = (turnoId: number, periodId: string, disciplineId: string) => {
+    let removalBlocked = false;
     setWizardData((prev) => ({
       ...prev,
       turnos: prev.turnos.map((turno) => {
@@ -356,17 +742,30 @@ export default function CursoWizardPage() {
         }
         return {
           ...turno,
-          periodos: turno.periodos.map((periodo) =>
-            periodo.id === periodId
-              ? {
-                  ...periodo,
-                  disciplinas: periodo.disciplinas.filter((disciplina) => disciplina.id !== disciplineId),
-                }
-              : periodo,
-          ),
+          periodos: turno.periodos.map((periodo) => {
+            if (periodo.id !== periodId) {
+              return periodo;
+            }
+            const target = periodo.disciplinas.find((disciplina) => disciplina.id === disciplineId);
+            if (target?.persistedId) {
+              removalBlocked = true;
+              return periodo;
+            }
+            return {
+              ...periodo,
+              disciplinas: periodo.disciplinas.filter((disciplina) => disciplina.id !== disciplineId),
+            };
+          }),
         };
       }),
     }));
+    if (removalBlocked) {
+      toast({
+        title: 'Disciplina existente',
+        description: 'Remova disciplinas ja cadastradas pela tela de disciplinas.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const hasIncompleteDiscipline = wizardData.turnos.some((turno) =>
@@ -384,6 +783,14 @@ export default function CursoWizardPage() {
   const canProceed = () => {
     switch (currentStep) {
       case 0:
+        if (mode === 'existing') {
+          return (
+            Boolean(selectedExistingCourseId && wizardData.course.id) &&
+            wizardData.course.nome.trim().length >= 2 &&
+            wizardData.course.grau.trim().length > 0 &&
+            !isFetchingCourseStructure
+          );
+        }
         return (
           wizardData.course.nome.trim().length >= 2 && wizardData.course.grau.trim().length > 0
         );
@@ -421,9 +828,17 @@ export default function CursoWizardPage() {
       return;
     }
 
+    if (mode === 'existing' && (!selectedExistingCourseId || isFetchingCourseStructure)) {
+      toast({
+        title: 'Selecione um curso',
+        description: 'Escolha um curso existente e aguarde o carregamento para continuar.',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await createCursoMutation.mutateAsync();
+      await finalizeWizardMutation.mutateAsync();
     } finally {
       setIsSubmitting(false);
     }
@@ -436,24 +851,110 @@ export default function CursoWizardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Dados do curso</CardTitle>
-              <CardDescription>Informe o nome e o grau academico.
-              </CardDescription>
+              <CardDescription>Informe os dados do curso ou continue a partir de um curso existente.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-gray-700">Como deseja prosseguir?</span>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <label className={`flex items-center gap-2 text-sm font-medium ${mode === 'new' ? 'text-blue-600' : 'text-gray-600'}`}>
+                    <input
+                      type="radio"
+                      name="wizard-mode"
+                      value="new"
+                      checked={mode === 'new'}
+                      onChange={() => handleModeChange('new')}
+                    />
+                    Criar novo curso
+                  </label>
+                  <label className={`flex items-center gap-2 text-sm font-medium ${mode === 'existing' ? 'text-blue-600' : 'text-gray-600'}`}>
+                    <input
+                      type="radio"
+                      name="wizard-mode"
+                      value="existing"
+                      checked={mode === 'existing'}
+                      onChange={() => handleModeChange('existing')}
+                    />
+                    Continuar curso existente
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">Escolha a opcao desejada para configurar o curso.</p>
+              </div>
+
+              {mode === 'existing' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
+                    {isLoadingCursos ? (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Carregando cursos...
+                      </div>
+                    ) : (
+                      <select
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        value={selectedExistingCourseId ?? ''}
+                        onChange={(event) => {
+                          const value = event.target.value;
+                          const nextId = value ? Number(value) : null;
+                          if (!nextId) {
+                            setSelectedExistingCourseId(null);
+                            resetWizardToInitialState();
+                            return;
+                          }
+                          setSelectedExistingCourseId(nextId);
+                          setWizardData(() => ({
+                            ...createInitialWizardState(),
+                            course: { id: nextId, nome: '', grau: '' },
+                          }));
+                          setExistingSnapshots({ course: undefined, curriculos: {}, periodos: {}, disciplinas: {} });
+                          setCurrentStep(0);
+                        }}
+                      >
+                        <option value="">Selecione o curso...</option>
+                        {availableCourses.map((curso) => (
+                          <option key={curso.id} value={curso.id}>
+                            {curso.nome}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  {selectedExistingCourseId ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      {isFetchingCourseStructure ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Carregando estrutura do curso...
+                        </>
+                      ) : (
+                        <span>
+                          Estrutura carregada. Ajuste os dados para adicionar novos turnos, periodos e disciplinas.
+                        </span>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do curso *</label>
+                <label htmlFor="wizard-course-name" className="block text-sm font-medium text-gray-700 mb-1">Nome do curso *</label>
                 <Input
+                  id="wizard-course-name"
                   value={wizardData.course.nome}
                   onChange={(event) => updateCourseField('nome', event.target.value)}
                   placeholder="Ex: Bacharel em Teologia"
+                  disabled={mode === 'existing' && (!wizardData.course.id || isFetchingCourseStructure)}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Grau *</label>
+                <label htmlFor="wizard-course-degree" className="block text-sm font-medium text-gray-700 mb-1">Grau *</label>
                 <select
+                  id="wizard-course-degree"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   value={wizardData.course.grau}
                   onChange={(event) => updateCourseField('grau', event.target.value)}
+                  disabled={mode === 'existing' && (!wizardData.course.id || isFetchingCourseStructure)}
                 >
                   <option value="">Selecione o grau...</option>
                   <option value="BACHARELADO">Bacharelado</option>
@@ -466,6 +967,7 @@ export default function CursoWizardPage() {
             </CardContent>
           </Card>
         );
+
       case 1:
         return (
           <Card>
@@ -475,8 +977,9 @@ export default function CursoWizardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Quantidade de periodos *</label>
+                <label htmlFor="wizard-period-count" className="block text-sm font-medium text-gray-700 mb-1">Quantidade de periodos *</label>
                 <Input
+                  id="wizard-period-count"
                   type="number"
                   min={1}
                   max={12}
@@ -600,118 +1103,141 @@ export default function CursoWizardPage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                      {turno.periodos.map((periodo) => (
-                        <div key={periodo.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
-                          <div className="space-y-3">
-                            <div className="flex flex-col gap-1">
-                              <h4 className="text-sm font-semibold text-gray-800">Configuracao do periodo</h4>
-                              <p className="text-xs text-gray-500">Cadastre as disciplinas que compoem este periodo no turno selecionado.</p>
+                      {turno.periodos.map((periodo) => {
+                        const numeroFieldId = `periodo-${periodo.id}-numero` as const;
+                        const nomeFieldId = `periodo-${periodo.id}-nome` as const;
+                        const descricaoFieldId = `periodo-${periodo.id}-descricao` as const;
+
+                        return (
+                          <div key={periodo.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
+                            <div className="space-y-3">
+                              <div className="flex flex-col gap-1">
+                                <h4 className="text-sm font-semibold text-gray-800">Configuracao do periodo</h4>
+                                <p className="text-xs text-gray-500">Cadastre as disciplinas que compoem este periodo no turno selecionado.</p>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
+                                <div>
+                                  <label htmlFor={numeroFieldId} className="block text-xs font-medium text-gray-600 mb-1">Numero *</label>
+                                  <Input
+                                    id={numeroFieldId}
+                                    type="number"
+                                    min={1}
+                                    value={periodo.numero}
+                                    onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'numero', event.target.value)}
+                                    placeholder="Ex: 1"
+                                  />
+                                  <p className="text-[11px] text-gray-500 mt-1">E permitido repetir numeros conforme necessario.</p>
+                                </div>
+                                <div>
+                                  <label htmlFor={nomeFieldId} className="block text-xs font-medium text-gray-600 mb-1">Nome opcional</label>
+                                  <Input
+                                    id={nomeFieldId}
+                                    value={periodo.nome}
+                                    onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'nome', event.target.value)}
+                                    placeholder="Nome do periodo (opcional)"
+                                  />
+                                </div>
+                              </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Numero *</label>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  value={periodo.numero}
-                                  onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'numero', event.target.value)}
-                                  placeholder="Ex: 1"
-                                />
-                                <p className="text-[11px] text-gray-500 mt-1">E permitido repetir numeros conforme necessario.</p>
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Nome opcional</label>
-                                <Input
-                                  value={periodo.nome}
-                                  onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'nome', event.target.value)}
-                                  placeholder="Nome do periodo (opcional)"
-                                />
-                              </div>
+                            <Textarea
+                              id={descricaoFieldId}
+                              value={periodo.descricao}
+                              onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'descricao', event.target.value)}
+                              placeholder="Descricao opcional do periodo"
+                            />
+                            <div className="space-y-3">
+                              {periodo.disciplinas.length === 0 && (
+                                <p className="text-xs text-gray-500">Nenhuma disciplina adicionada ainda.</p>
+                              )}
+                              {periodo.disciplinas.map((disciplina) => {
+                                const disciplinaPrefix = `disciplina-${disciplina.id}` as const;
+                                const disciplinaCodigoFieldId = `${disciplinaPrefix}-codigo`;
+                                const disciplinaNomeFieldId = `${disciplinaPrefix}-nome`;
+                                const disciplinaCreditosFieldId = `${disciplinaPrefix}-creditos`;
+                                const disciplinaCargaFieldId = `${disciplinaPrefix}-carga`;
+
+                                return (
+                                  <div key={disciplina.id} className="border border-dashed border-gray-300 rounded-md p-4 space-y-3 bg-gray-50">
+                                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                      <h5 className="text-sm font-medium text-gray-700">Disciplina</h5>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => removeDiscipline(turno.turnoId, periodo.id, disciplina.id)}
+                                        className={`text-red-600 hover:text-red-700 ${disciplina.persistedId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        disabled={Boolean(disciplina.persistedId)}
+                                        title={disciplina.persistedId ? 'Remova disciplinas existentes na tela de disciplinas.' : 'Remover disciplina'}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-1" /> Remover
+                                      </Button>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                      <div>
+                                        <label htmlFor={disciplinaCodigoFieldId} className="block text-xs font-medium text-gray-600 mb-1">Codigo *</label>
+                                        <Input
+                                          id={disciplinaCodigoFieldId}
+                                          value={disciplina.codigo}
+                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'codigo', event.target.value)}
+                                          placeholder="Ex: DISC101"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label htmlFor={disciplinaNomeFieldId} className="block text-xs font-medium text-gray-600 mb-1">Nome *</label>
+                                        <Input
+                                          id={disciplinaNomeFieldId}
+                                          value={disciplina.nome}
+                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'nome', event.target.value)}
+                                          placeholder="Nome da disciplina"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label htmlFor={disciplinaCreditosFieldId} className="block text-xs font-medium text-gray-600 mb-1">Creditos *</label>
+                                        <Input
+                                          id={disciplinaCreditosFieldId}
+                                          type="number"
+                                          min={1}
+                                          value={disciplina.creditos}
+                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'creditos', event.target.value)}
+                                          placeholder="Ex: 4"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label htmlFor={disciplinaCargaFieldId} className="block text-xs font-medium text-gray-600 mb-1">Carga horaria (horas) *</label>
+                                        <Input
+                                          id={disciplinaCargaFieldId}
+                                          type="number"
+                                          min={1}
+                                          value={disciplina.cargaHoraria}
+                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'cargaHoraria', event.target.value)}
+                                          placeholder="Ex: 60"
+                                        />
+                                      </div>
+                                    </div>
+                                    <Textarea
+                                      value={disciplina.ementa}
+                                      onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'ementa', event.target.value)}
+                                      placeholder="Ementa (opcional)"
+                                    />
+                                    <Textarea
+                                      value={disciplina.bibliografia}
+                                      onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'bibliografia', event.target.value)}
+                                      placeholder="Bibliografia (opcional)"
+                                    />
+                                  </div>
+                                );
+                              })}
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => addDiscipline(turno.turnoId, periodo.id)}
+                              >
+                                <Plus className="h-4 w-4 mr-2" /> Adicionar disciplina
+                              </Button>
                             </div>
                           </div>
-                          <Textarea
-                            value={periodo.descricao}
-                            onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'descricao', event.target.value)}
-                            placeholder="Descricao opcional do periodo"
-                          />
-                          <div className="space-y-3">
-                            {periodo.disciplinas.length === 0 && (
-                              <p className="text-xs text-gray-500">Nenhuma disciplina adicionada ainda.</p>
-                            )}
-                            {periodo.disciplinas.map((disciplina) => (
-                              <div key={disciplina.id} className="border border-dashed border-gray-300 rounded-md p-4 space-y-3 bg-gray-50">
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                                  <h5 className="text-sm font-medium text-gray-700">Disciplina</h5>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => removeDiscipline(turno.turnoId, periodo.id, disciplina.id)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-4 w-4 mr-1" /> Remover
-                                  </Button>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Codigo *</label>
-                                    <Input
-                                      value={disciplina.codigo}
-                                      onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'codigo', event.target.value)}
-                                      placeholder="Ex: DISC101"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Nome *</label>
-                                    <Input
-                                      value={disciplina.nome}
-                                      onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'nome', event.target.value)}
-                                      placeholder="Nome da disciplina"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Creditos *</label>
-                                    <Input
-                                      type="number"
-                                      min={1}
-                                      value={disciplina.creditos}
-                                      onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'creditos', event.target.value)}
-                                      placeholder="Ex: 4"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Carga horaria (horas) *</label>
-                                    <Input
-                                      type="number"
-                                      min={1}
-                                      value={disciplina.cargaHoraria}
-                                      onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'cargaHoraria', event.target.value)}
-                                      placeholder="Ex: 60"
-                                    />
-                                  </div>
-                                </div>
-                                <Textarea
-                                  value={disciplina.ementa}
-                                  onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'ementa', event.target.value)}
-                                  placeholder="Ementa (opcional)"
-                                />
-                                <Textarea
-                                  value={disciplina.bibliografia}
-                                  onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'bibliografia', event.target.value)}
-                                  placeholder="Bibliografia (opcional)"
-                                />
-                              </div>
-                            ))}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => addDiscipline(turno.turnoId, periodo.id)}
-                            >
-                              <Plus className="h-4 w-4 mr-2" /> Adicionar disciplina
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </CardContent>
                   </Card>
                 );

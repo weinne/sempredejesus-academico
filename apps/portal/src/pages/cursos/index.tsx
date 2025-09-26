@@ -272,6 +272,14 @@ export default function CursosPage() {
                       </Link>
                       {canEdit && (
                         <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/cursos/wizard?cursoId=${c.id}`)}
+                            title="Continuar no wizard"
+                          >
+                            <Wand2 className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => navigate(`/cursos/edit/${c.id}`)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -297,6 +305,14 @@ export default function CursosPage() {
                         </div>
                         {canEdit && (
                           <div className="flex space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => navigate(`/cursos/wizard?cursoId=${curso.id}`)}
+                              title="Continuar no wizard"
+                            >
+                              <Wand2 className="h-4 w-4" />
+                            </Button>
                             <Button variant="ghost" size="sm" onClick={() => navigate(`/cursos/edit/${curso.id}`)} title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>
