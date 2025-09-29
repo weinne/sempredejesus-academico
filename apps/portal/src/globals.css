@@ -93,6 +93,72 @@
   @apply bg-muted-foreground;
 }
 
+/* Sidebar scrollbar - thinner and more subtle */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(203 213 225) rgb(241 245 249);
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: rgb(241 245 249);
+  border-radius: 3px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184);
+}
+
+/* Force scrollbar to be visible */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: rgb(241 245 249) !important;
+  border-radius: 3px !important;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgb(203 213 225) !important;
+  border-radius: 3px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184) !important;
+}
+
+/* Hide scrollbar on mobile devices */
+@media (max-width: 768px) {
+  .sidebar-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .sidebar-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .overflow-y-auto::-webkit-scrollbar {
+    display: none !important;
+  }
+}
+
+/* Smooth scrolling */
+.sidebar-scrollbar {
+  scroll-behavior: smooth;
+}
+
 /* Loading animation */
 @keyframes spin {
   to {

@@ -3,13 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Turno, CreateTurno, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
-import CrudToolbar from '@/components/crud/crud-toolbar';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import {
@@ -20,7 +22,11 @@ import {
   Trash2,
   Clock,
   Eye,
-  Users
+  Users,
+  ArrowRight,
+  TrendingUp,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -199,7 +205,7 @@ export default function TurnosPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <CrudHeader
         title="Gerenciar Turnos"
         description="Administração dos turnos oferecidos pelo seminário"
@@ -212,15 +218,78 @@ export default function TurnosPage() {
         ) : undefined}
       />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 space-y-6">
-          <CrudToolbar
-            search={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Busque por nome do turno..."
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
+      {/* Hero Section */}
+      <HeroSection
+        badge="Estrutura Acadêmica"
+        title="Gestão dos turnos acadêmicos"
+        description="Configure e gerencie os turnos oferecidos pelo seminário para organizar a estrutura acadêmica."
+        stats={[
+          { value: turnos.length, label: 'Total de Turnos' },
+          { value: turnos.filter(t => t.nome.includes('Manhã')).length, label: 'Manhã' },
+          { value: turnos.filter(t => t.nome.includes('Tarde')).length, label: 'Tarde' },
+          { value: turnos.filter(t => t.nome.includes('Noite')).length, label: 'Noite' }
+        ]}
+        actionLink={{
+          href: '/cursos',
+          label: 'Ver cursos'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="space-y-6">
+          {/* Filtros */}
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-slate-800">Filtros e Busca</h2>
+                <p className="text-sm text-slate-500">Encontre turnos por nome ou período</p>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Buscar</label>
+                  <Input
+                    placeholder="Busque por nome do turno..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-96"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={() => setSearchTerm('')}>
+                    Limpar filtros
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Estatísticas */}
+          <StatsGrid>
+            <StatCard
+              title="Total de Turnos"
+              value={turnos.length}
+              icon={Clock}
+              iconColor="text-blue-600"
+            />
+            <StatCard
+              title="Manhã"
+              value={turnos.filter(t => t.nome.includes('Manhã')).length}
+              icon={TrendingUp}
+              iconColor="text-yellow-600"
+            />
+            <StatCard
+              title="Tarde"
+              value={turnos.filter(t => t.nome.includes('Tarde')).length}
+              icon={CheckCircle}
+              iconColor="text-orange-600"
+            />
+            <StatCard
+              title="Noite"
+              value={turnos.filter(t => t.nome.includes('Noite')).length}
+              icon={XCircle}
+              iconColor="text-purple-600"
+            />
+          </StatsGrid>
 
           <Card>
             <CardHeader>

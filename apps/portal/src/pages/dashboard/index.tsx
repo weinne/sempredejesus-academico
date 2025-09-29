@@ -1,13 +1,15 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { Role } from '@/types/api';
 import { Link } from 'react-router-dom';
-import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User, Layers3, BarChart3, CalendarDays, ClipboardList, LogOut, ListOrdered, Clock, FileSpreadsheet } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User, Layers3, BarChart3, CalendarDays, ClipboardList, LogOut, ListOrdered, Clock, FileSpreadsheet, ArrowRight, TrendingUp, Activity, Shield, Zap } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user, logout, hasRole } = useAuth();
+  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
   
   const sections = [
     {
@@ -22,14 +24,14 @@ export default function DashboardPage() {
       key: 'gestao',
       title: 'Gestão Acadêmica',
       items: [
-        // Pessoas removido do dashboard; acessível via menu lateral (Administração)
+        // Pessoas removido do dashboard; acessvel via menu lateral (Administrao)
         { title: 'Alunos', description: 'Visualizar e editar alunos', href: '/alunos', icon: GraduationCap, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { title: 'Professores', description: 'Visualizar e editar professores', href: '/professores', icon: User, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Cursos', description: 'Cadastrar e editar cursos', href: '/cursos', icon: BookOpen, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Turnos', description: 'Gerenciar turnos acadêmicos', href: '/turnos', icon: Clock, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Currículos', description: 'Gerenciar versões de currículo', href: '/curriculos', icon: FileSpreadsheet, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Coortes', description: 'Gerenciar turmas de ingresso', href: '/coortes', icon: GraduationCap, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
-        { title: 'Períodos', description: 'Gerenciar períodos acadêmicos', href: '/periodos', icon: ListOrdered, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
+        { title: 'Períodos', description: 'Gerenciar períodos acadmicos', href: '/periodos', icon: ListOrdered, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Disciplinas', description: 'Cadastrar e editar disciplinas', href: '/disciplinas', icon: BookOpen, show: hasRole([Role.ADMIN, Role.SECRETARIA]) },
         { title: 'Turmas', description: 'Organizar turmas e disciplinas', href: '/turmas', icon: Layers3, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { title: 'Relatórios', description: 'Visualizar relatórios gerenciais', href: '/relatorios', icon: BarChart3, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
@@ -40,17 +42,17 @@ export default function DashboardPage() {
       title: 'Registros',
       items: [
         { title: 'Aulas', description: 'Visualizar e gerenciar aulas', href: '/aulas', icon: CalendarDays, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
-        { title: 'Avaliações', description: 'Visualizar e gerenciar avaliações', href: '/avaliacoes', icon: FileText, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
-        { title: 'Presenças', description: 'Gerenciar registros de presença', href: '/presencas', icon: ClipboardList, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { title: 'Avaliaes', description: 'Visualizar e gerenciar avaliaes', href: '/avaliacoes', icon: FileText, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { title: 'Presenas', description: 'Gerenciar registros de presena', href: '/presencas', icon: ClipboardList, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
       ],
     },
     {
       key: 'pessoal',
       title: 'Pessoal',
       items: [
-        { title: 'Meu Portal', description: 'Informações pessoais', href: '/meu-portal', icon: User, show: true },
+        { title: 'Meu Portal', description: 'Informaes pessoais', href: '/meu-portal', icon: User, show: true },
         { title: 'Alterar Senha', description: 'Atualizar sua senha de acesso', href: '/meu-portal#alterar-senha', icon: Settings, show: true },
-        { title: 'Sair', description: 'Encerrar sessão atual', href: '#logout', icon: LogOut, show: true, onClick: () => logout() },
+        { title: 'Sair', description: 'Encerrar sesso atual', href: '#logout', icon: LogOut, show: true, onClick: () => logout() },
       ],
     },
   ] as const;
@@ -71,109 +73,163 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Sistema Acadêmico</h1>
-              <p className="text-sm text-gray-600">Seminário Presbiteriano de Jesus</p>
+    <div className="min-h-screen bg-slate-50">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-sky-900/70 to-slate-900" />
+        <div className="relative max-w-7xl mx-auto px-6 py-16 text-white">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-10">
+            <div className="max-w-2xl space-y-4">
+              <Badge className="bg-white/20 text-white hover:bg-white/30">
+                {user?.role && getRoleDisplayName(user.role)}
+              </Badge>
+              <h1 className="text-4xl md:text-5xl font-semibold leading-tight">
+                Bem-vindo(a), {user?.pessoa?.nome || user?.username}!
+              </h1>
+              <p className="text-base md:text-lg text-slate-200/80">
+                Sistema de Gestão Acadêmica do Seminário Presbiteriano de Jesus.
+                Acesse as funcionalidades disponíveis para seu perfil abaixo.
+              </p>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user?.pessoa?.nome || user?.username}</p>
-                <p className="text-xs text-gray-500">{user?.role && getRoleDisplayName(user.role)}</p>
+            <div className="bg-white/10 backdrop-blur rounded-2xl p-6 w-full max-w-md shadow-lg border border-white/10">
+              <p className="text-sm uppercase tracking-wide text-slate-200/70">Status do Sistema</p>
+              <div className="mt-4 flex items-center gap-3">
+                <div className="h-3 w-3 bg-emerald-400 rounded-full animate-pulse" />
+                <span className="text-sm text-slate-200">Sistema funcionando normalmente</span>
               </div>
-              <Link to="/meu-portal" className="hidden sm:block">
-                <Button variant="secondary">Meu Portal</Button>
-              </Link>
-              <Link to="/meu-portal#alterar-senha" className="hidden sm:block">
-                <Button variant="outline">Alterar Senha</Button>
-              </Link>
-              <Button variant="outline" onClick={logout}>
-                Sair
-              </Button>
+              <div className="mt-6 flex gap-2">
+                <Link to="/meu-portal">
+                  <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/20">
+                    <User className="h-4 w-4 mr-2" />
+                    Meu Portal
+                  </Button>
+                </Link>
+                <Button variant="secondary" size="sm" onClick={logout} className="bg-white/20 border-white/20 text-white hover:bg-white/30">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sair
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </header>
+      </section>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {/* Welcome Card */}
-          <Card className="mb-8">
-            <CardHeader>
-                              <CardTitle>Bem-vindo(a), {user?.pessoa?.nome || user?.username}!</CardTitle>
-              <CardDescription>
-                Você está logado como {user?.role && getRoleDisplayName(user.role)}. 
-                Selecione uma das opções abaixo para começar.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          {/* Sections */}
-          <div className="space-y-8">
-            {sections.map((section) => {
-              const visibleItems = section.items.filter((i) => i.show);
-              if (visibleItems.length === 0) return null;
-              return (
-                <div key={section.key}>
-                  <h2 className="text-xl font-semibold mb-3">{section.title}</h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {visibleItems.map((item, idx) => {
-                      const Icon = item.icon;
-                      const content = (
-                        <>
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center space-x-2">
-                              <Icon className="h-5 w-5 text-blue-600" />
-                              <CardTitle className="text-lg">{item.title}</CardTitle>
-                            </div>
-                          </CardHeader>
-                          <CardContent>
-                            <CardDescription>{item.description}</CardDescription>
-                          </CardContent>
-                        </>
-                      );
-                      return (
-                        <Card key={idx} className="hover:shadow-md transition-shadow">
-                          {'onClick' in item && item.onClick ? (
-                            <button
-                              type="button"
-                              onClick={item.onClick}
-                              className="w-full text-left"
-                            >
-                              {content}
-                            </button>
-                          ) : (
-                            <Link to={item.href} className="block">
-                              {content}
-                            </Link>
-                          )}
-                        </Card>
-                      );
-                    })}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Sections */}
+        <div className="space-y-12">
+          {sections.map((section) => {
+            const visibleItems = section.items.filter((i) => i.show);
+            if (visibleItems.length === 0) return null;
+            
+            return (
+              <div key={section.key} className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center">
+                    {section.key === 'administracao' && <Shield className="h-4 w-4 text-slate-600" />}
+                    {section.key === 'gestao' && <TrendingUp className="h-4 w-4 text-slate-600" />}
+                    {section.key === 'registros' && <Activity className="h-4 w-4 text-slate-600" />}
+                    {section.key === 'pessoal' && <User className="h-4 w-4 text-slate-600" />}
                   </div>
+                  <h2 className="text-2xl font-semibold text-slate-900">{section.title}</h2>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* System Status */}
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="text-lg">Status do Sistema</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-2">
-                <div className="h-3 w-3 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">Sistema funcionando normalmente</span>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {visibleItems.map((item, idx) => {
+                    const Icon = item.icon;
+                    return (
+                      <Card key={idx} className="group hover:shadow-lg transition-all duration-200 border-0 shadow-sm hover:shadow-slate-200/50">
+                        {'onClick' in item && item.onClick ? (
+                          <button
+                            type="button"
+                            onClick={item.onClick}
+                            className="w-full text-left p-6 space-y-4"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="p-3 rounded-xl bg-slate-100 group-hover:bg-slate-200 transition-colors">
+                                <Icon className="h-6 w-6 text-slate-600" />
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="font-semibold text-slate-900 text-lg">{item.title}</h3>
+                              <p className="text-sm text-slate-600 leading-relaxed">{item.description}</p>
+                            </div>
+                          </button>
+                        ) : (
+                          <Link to={item.href} className="block p-6 space-y-4 group">
+                            <div className="flex items-start justify-between">
+                              <div className="p-3 rounded-xl bg-slate-100 group-hover:bg-slate-200 transition-colors">
+                                <Icon className="h-6 w-6 text-slate-600" />
+                              </div>
+                              <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="font-semibold text-slate-900 text-lg">{item.title}</h3>
+                              <p className="text-sm text-slate-600 leading-relaxed">{item.description}</p>
+                            </div>
+                          </Link>
+                        )}
+                      </Card>
+                    );
+                  })}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            );
+          })}
         </div>
+
+        {/* Quick Actions */}
+        <Card className="mt-12 border-0 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-amber-500" />
+              Ações Rápidas
+            </CardTitle>
+            <CardDescription>
+              Acesso rápido às funcionalidades mais utilizadas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {canEdit && (
+                <Link to="/cursos">
+                  <Button variant="outline" className="w-full justify-start h-auto p-4">
+                    <div className="flex items-center gap-3">
+                      <BookOpen className="h-5 w-5 text-blue-600" />
+                      <div className="text-left">
+                        <div className="font-medium">Gerenciar Cursos</div>
+                        <div className="text-sm text-slate-500">Visualizar e editar cursos</div>
+                      </div>
+                    </div>
+                  </Button>
+                </Link>
+              )}
+              <Link to="/relatorios">
+                <Button variant="outline" className="w-full justify-start h-auto p-4">
+                  <div className="flex items-center gap-3">
+                    <BarChart3 className="h-5 w-5 text-emerald-600" />
+                    <div className="text-left">
+                      <div className="font-medium">Relatórios</div>
+                      <div className="text-sm text-slate-500">Análises e estatísticas</div>
+                    </div>
+                  </div>
+                </Button>
+              </Link>
+              <Link to="/meu-portal">
+                <Button variant="outline" className="w-full justify-start h-auto p-4">
+                  <div className="flex items-center gap-3">
+                    <User className="h-5 w-5 text-purple-600" />
+                    <div className="text-left">
+                      <div className="font-medium">Meu Portal</div>
+                      <div className="text-sm text-slate-500">Informações pessoais</div>
+                    </div>
+                  </div>
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

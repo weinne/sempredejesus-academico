@@ -3,6 +3,8 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/providers/auth-provider';
 import { cn } from '@/lib/utils';
 import { Role } from '@/types/api';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   ChevronDown,
   ChevronRight,
@@ -24,6 +26,12 @@ import {
   ListOrdered,
   Clock,
   FileSpreadsheet,
+  Home,
+  X,
+  Shield,
+  TrendingUp,
+  Activity,
+  Zap,
 } from 'lucide-react';
 
 type SectionKey = 'administracao' | 'gestao' | 'registros' | 'pessoal';
@@ -91,70 +99,143 @@ export default function AppLayout() {
   const sidebar = (
     <aside
       className={cn(
-        'w-72 h-full bg-white border-r shadow-sm',
+        'w-72 h-full bg-white border-r border-slate-200/60 shadow-xl',
         isPinned ? 'sticky top-0 hidden md:block' : 'fixed left-0 top-0 z-50'
       )}
       aria-label="Menu lateral"
     >
-      <div className="h-14 flex items-center justify-between px-4 border-b">
-        <span className="font-semibold">Sistema Acadêmico</span>
-        <div className="flex items-center gap-2">
+      {/* Header */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200/60 bg-white">
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center shadow-sm">
+            <BookOpen className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <span className="font-semibold text-slate-900 text-sm">Sistema Acadêmico</span>
+            <p className="text-xs text-slate-500">Seminário Presbiteriano</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => setIsPinned((v) => !v)}
-            className="hidden md:inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="hidden md:inline-flex items-center justify-center h-8 w-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
             title={isPinned ? 'Desafixar' : 'Fixar'}
           >
             {isPinned ? <PinOffIcon className="h-4 w-4" /> : <PinIcon className="h-4 w-4" />}
-            <span>{isPinned ? 'Desafixar' : 'Fixar'}</span>
           </button>
+          {!isPinned && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsOpen(false)}
+              className="h-8 w-8 rounded-lg hover:bg-slate-100"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
-      <nav className="p-2 space-y-2">
-          {menuSections.map((section) => {
-            const items = section.items.filter((it) => it.visible);
-            if (items.length === 0) return null;
-            return (
-              <Section
-                key={section.key}
-                title={section.title}
-                isOpen={openSections[section.key as SectionKey]}
-                onToggle={() => toggleSection(section.key as SectionKey)}
-             >
-                {items.map((it) => (
-                  <NavItem key={it.to} to={it.to} icon={it.icon} label={it.label} />
-                ))}
+      {/* Navigation */}
+      <div 
+        className="flex-1 overflow-y-auto p-3 space-y-1" 
+        style={{ 
+          maxHeight: 'calc(100vh - 64px)',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgb(203 213 225) rgb(241 245 249)',
+          scrollBehavior: 'smooth'
+        }}
+      >
+        <nav className="space-y-1">
+        {/* Dashboard Link */}
+        <NavLink
+          to="/dashboard"
+          className={({ isActive }) =>
+            cn(
+              'flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all group',
+              isActive
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            )
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <div className={cn(
+                'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
+                isActive 
+                  ? 'bg-white/20' 
+                  : 'bg-slate-100 group-hover:bg-slate-200'
+              )}>
+                <Home className={cn(
+                  'h-4 w-4',
+                  isActive ? 'text-white' : 'text-slate-600'
+                )} />
+              </div>
+              <span>Dashboard</span>
+            </>
+          )}
+        </NavLink>
 
-                {section.key === 'pessoal' && (
-                  <>
-                    <a
-                      href="#alterar-senha"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        navigate('/meu-portal#alterar-senha');
-                      }}
-                      className={cn(
-                        'flex items-center gap-2 rounded px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors'
-                      )}
-                    >
-                      <SettingsIcon className="h-4 w-4" />
-                      <span>Alterar Senha</span>
-                    </a>
-                    <button
-                      type="button"
-                      onClick={logout}
-                      className="w-full text-left flex items-center gap-2 rounded px-2.5 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>Sair</span>
-                    </button>
-                  </>
-                )}
-              </Section>
-            );
-          })}
-      </nav>
+        {/* Sections */}
+        {menuSections.map((section) => {
+          const items = section.items.filter((it) => it.visible);
+          if (items.length === 0) return null;
+          
+          const sectionIcons = {
+            administracao: Shield,
+            gestao: TrendingUp,
+            registros: Activity,
+            pessoal: UserCircle2,
+          };
+          
+          const SectionIcon = sectionIcons[section.key as keyof typeof sectionIcons];
+          
+          return (
+            <Section
+              key={section.key}
+              title={section.title}
+              icon={SectionIcon}
+              isOpen={openSections[section.key as SectionKey]}
+              onToggle={() => toggleSection(section.key as SectionKey)}
+            >
+              {items.map((it) => (
+                <NavItem key={it.to} to={it.to} icon={it.icon} label={it.label} />
+              ))}
+
+              {section.key === 'pessoal' && (
+                <>
+                  <a
+                    href="#alterar-senha"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/meu-portal#alterar-senha');
+                    }}
+                    className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors group"
+                  >
+                    <div className="h-8 w-8 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center transition-colors">
+                      <SettingsIcon className="h-4 w-4 text-slate-600" />
+                    </div>
+                    <span>Alterar Senha</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="w-full text-left flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors group"
+                  >
+                    <div className="h-8 w-8 rounded-lg bg-red-100 group-hover:bg-red-200 flex items-center justify-center transition-colors">
+                      <LogOut className="h-4 w-4 text-red-600 group-hover:text-red-700" />
+                    </div>
+                    <span>Sair</span>
+                  </button>
+                </>
+              )}
+            </Section>
+          );
+        })}
+        </nav>
+      </div>
     </aside>
   );
 
@@ -162,15 +243,15 @@ export default function AppLayout() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Hamburger button */}
       {!isPinned && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => setIsOpen(true)}
-          className="fixed top-3 left-3 z-40 inline-flex items-center gap-2 rounded-md bg-white/90 border px-3 py-2 shadow-sm hover:bg-white"
+          className="fixed top-4 left-4 z-50 h-10 w-10 bg-white/95 backdrop-blur-sm border border-slate-200/60 shadow-lg hover:bg-white hover:shadow-xl transition-all rounded-full"
           aria-label="Abrir menu"
         >
           <MenuIcon className="h-5 w-5" />
-          <span className="hidden sm:inline">Menu</span>
-        </button>
+        </Button>
       )}
 
       {/* Sidebar */}
@@ -210,26 +291,35 @@ export default function AppLayout() {
 
 function Section({
   title,
+  icon: Icon,
   isOpen,
   onToggle,
   children,
 }: {
   title: string;
+  icon: React.ComponentType<any>;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <div className="border rounded-md">
+    <div className="space-y-1">
       <button
         type="button"
-        className="w-full flex items-center justify-between px-3 py-2 text-left text-sm font-medium"
+        className="w-full flex items-center justify-between px-3 py-3 text-left text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors group"
         onClick={onToggle}
       >
-        <span>{title}</span>
-        {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        <div className="flex items-center gap-3">
+          <div className="h-8 w-8 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center transition-colors">
+            <Icon className="h-4 w-4 text-slate-600" />
+          </div>
+          <span>{title}</span>
+        </div>
+        <div className="h-6 w-6 rounded-lg bg-slate-100 group-hover:bg-slate-200 flex items-center justify-center transition-colors">
+          {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        </div>
       </button>
-      {isOpen && <div className="px-2 pb-2 space-y-1">{children}</div>}
+      {isOpen && <div className="ml-11 space-y-1">{children}</div>}
     </div>
   );
 }
@@ -240,14 +330,30 @@ function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ComponentT
       to={to}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-2 rounded px-2.5 py-2 text-sm hover:bg-muted transition-colors',
-          isActive ? 'bg-muted text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
+          'flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all group',
+          isActive 
+            ? 'bg-slate-900 text-white shadow-sm font-medium' 
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
         )
       }
       end
     >
-      <Icon className="h-4 w-4" />
-      <span>{label}</span>
+      {({ isActive }) => (
+        <>
+          <div className={cn(
+            'h-8 w-8 rounded-lg flex items-center justify-center transition-colors',
+            isActive 
+              ? 'bg-white/20' 
+              : 'bg-slate-100 group-hover:bg-slate-200'
+          )}>
+            <Icon className={cn(
+              'h-4 w-4',
+              isActive ? 'text-white' : 'text-slate-600'
+            )} />
+          </div>
+          <span>{label}</span>
+        </>
+      )}
     </NavLink>
   );
 }

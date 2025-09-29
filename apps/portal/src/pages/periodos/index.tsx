@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import CrudHeader from '@/components/crud/crud-header';
 import CrudToolbar from '@/components/crud/crud-toolbar';
 import { DataList } from '@/components/crud/data-list';
@@ -21,6 +22,9 @@ import {
   Eye,
   Users,
   ListOrdered,
+  Wand2,
+  Clock,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function PeriodosPage() {
@@ -59,38 +63,100 @@ export default function PeriodosPage() {
   const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
   const { data: curriculos = [] } = useQuery({ queryKey: ['curriculos'], queryFn: () => apiService.getCurriculos() });
 
+  const hasActiveCurso = cursoFiltro !== '';
+
+  const curriculosDisponiveis = useMemo(() => {
+    if (!hasActiveCurso) {
+      return [] as Curriculo[];
+    }
+    return curriculos.filter((curriculo) => curriculo.cursoId === Number(cursoFiltro));
+  }, [curriculos, hasActiveCurso, cursoFiltro]);
+
+  const turnosDisponiveis = useMemo(() => {
+    if (!hasActiveCurso) {
+      return turnos;
+    }
+    const turnoIds = new Set(curriculosDisponiveis.map((curriculo) => curriculo.turnoId));
+    return turnos.filter((turno) => turnoIds.has(turno.id));
+  }, [hasActiveCurso, turnos, curriculosDisponiveis]);
+
+  useEffect(() => {
+    if (turnoFiltro !== '' && !turnosDisponiveis.some((turno) => turno.id === Number(turnoFiltro))) {
+      setTurnoFiltro('');
+    }
+  }, [turnoFiltro, turnosDisponiveis]);
+
+  useEffect(() => {
+    if (curriculoFiltro !== '' && !curriculosDisponiveis.some((curriculo) => curriculo.id === Number(curriculoFiltro))) {
+      setCurriculoFiltro('');
+    }
+  }, [curriculoFiltro, curriculosDisponiveis]);
+
   const {
     data: periodosResponse,
     isLoading,
     error,
   } = useQuery({
     queryKey: ['periodos', page, searchTerm, cursoFiltro, turnoFiltro, curriculoFiltro],
-    queryFn: () => apiService.getPeriodos({
-      page,
-      limit: 20,
-      search: searchTerm,
-      cursoId: cursoFiltro ? Number(cursoFiltro) : undefined,
-      ...(turnoFiltro ? { turnoId: Number(turnoFiltro) } as any : {}),
-      ...(curriculoFiltro ? { curriculoId: Number(curriculoFiltro) } as any : {}),
-    }),
+    queryFn: () =>
+      apiService.getPeriodos({
+        page,
+        limit: 20,
+        search: searchTerm,
+        cursoId: cursoFiltro ? Number(cursoFiltro) : undefined,
+        ...(turnoFiltro ? { turnoId: Number(turnoFiltro) } : {}),
+        ...(curriculoFiltro ? { curriculoId: Number(curriculoFiltro) } : {}),
+      }),
     retry: false,
+    enabled: hasActiveCurso,
   });
 
-  const periodos = periodosResponse?.data || [];
-  const pagination = periodosResponse?.pagination;
+  const periodos = hasActiveCurso ? periodosResponse?.data || [] : [];
+  const pagination = hasActiveCurso ? periodosResponse?.pagination : undefined;
+
+  const { data: disciplinasResumo } = useQuery({
+    queryKey: ['disciplinas', 'resumo-curso', cursoFiltro],
+    queryFn: () => apiService.getDisciplinas({ cursoId: Number(cursoFiltro), limit: 1 }),
+    enabled: hasActiveCurso,
+    staleTime: 1000 * 60 * 5,
+  });
+  const totalDisciplinasCurso = disciplinasResumo?.pagination?.total ?? 0;
+  const periodosTotal = hasActiveCurso ? (pagination?.total ?? periodos.length) : 0;
+  const turnosConectados = hasActiveCurso ? turnosDisponiveis.length : 0;
+  const selectedCourse = useMemo(() => {
+    if (cursoFiltro === '') {
+      return undefined;
+    }
+    const cursoId = Number(cursoFiltro);
+    return cursos.find((curso) => curso.id === cursoId);
+  }, [cursoFiltro, cursos]);
+  const selectedTurno = useMemo(() => {
+    if (turnoFiltro === '') {
+      return undefined;
+    }
+    const turnoId = Number(turnoFiltro);
+    return turnosDisponiveis.find((turno) => turno.id === turnoId) || turnos.find((turno) => turno.id === turnoId);
+  }, [turnoFiltro, turnosDisponiveis, turnos]);
+  const selectedCurriculo = useMemo(() => {
+    if (curriculoFiltro === '') {
+      return undefined;
+    }
+    const curriculoId = Number(curriculoFiltro);
+    return curriculosDisponiveis.find((curriculo) => curriculo.id === curriculoId);
+  }, [curriculoFiltro, curriculosDisponiveis]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiService.deletePeriodo(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['periodos'] });
       toast({
-        title: 'Período removido',
-        description: 'Período removido com sucesso!',
+        title: 'Perodo removido',
+        description: 'Perodo removido com sucesso!',
       });
     },
     onError: (mutationError: any) => {
       toast({
-        title: 'Erro ao remover período',
+        title: 'Erro ao remover perodo',
         description: mutationError.message || 'Erro desconhecido',
         variant: 'destructive',
       });
@@ -98,7 +164,7 @@ export default function PeriodosPage() {
   });
 
   const handleDelete = (id: number) => {
-    if (window.confirm('Tem certeza que deseja remover este período?')) {
+    if (window.confirm('Tem certeza que deseja remover este perodo?')) {
       deleteMutation.mutate(id);
     }
   };
@@ -110,7 +176,7 @@ export default function PeriodosPage() {
           <Card>
             <CardContent className="p-8 text-center">
               <h2 className="text-2xl font-bold text-red-600 mb-4">Erro ao carregar dados</h2>
-              <p className="text-gray-600">Não foi possível conectar com o servidor.</p>
+              <p className="text-gray-600">No foi possvel conectar com o servidor.</p>
             </CardContent>
           </Card>
         </div>
@@ -119,7 +185,7 @@ export default function PeriodosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <CrudHeader
         title="Gestão de Períodos"
         description="Organize os períodos dos cursos"
@@ -133,35 +199,101 @@ export default function PeriodosPage() {
           ) : undefined
         }
       />
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 space-y-6">
-          <CrudToolbar
-            search={searchTerm}
-            onSearchChange={(value) => {
-              setSearchTerm(value);
-              setPage(1);
-            }}
-            searchPlaceholder="Buscar por nome, número ou curso..."
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            filtersSlot={
-              <div className="flex gap-2 items-center">
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-sky-900/70 to-slate-900" />
+        <div className="relative max-w-7xl mx-auto px-6 py-16 text-white">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-10">
+            <div className="max-w-2xl space-y-4">
+              <Badge className="bg-white/20 text-white hover:bg-white/30">Gestão Acadêmica</Badge>
+              <h1 className="text-4xl md:text-5xl font-semibold leading-tight">
+                Organização completa dos períodos acadêmicos
+              </h1>
+              <p className="text-base md:text-lg text-slate-200/80">
+                Visualize e gerencie os períodos de cada curso com seus turnos, currículos e disciplinas.
+                Configure a estrutura acadêmica de forma organizada e eficiente.
+              </p>
+            </div>
+            <div className="bg-white/10 backdrop-blur rounded-2xl p-6 w-full max-w-md shadow-lg border border-white/10">
+              <p className="text-sm uppercase tracking-wide text-slate-200/70">Visão geral</p>
+              <div className="mt-4 grid grid-cols-2 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-semibold">{cursos.length}</p>
+                  <p className="text-xs text-slate-200/70">Cursos</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold">{periodosTotal}</p>
+                  <p className="text-xs text-slate-200/70">Períodos</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold">{turnosConectados}</p>
+                  <p className="text-xs text-slate-200/70">Turnos</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-semibold">{totalDisciplinasCurso}</p>
+                  <p className="text-xs text-slate-200/70">Disciplinas</p>
+                </div>
+              </div>
+              <Link
+                to="/cursos"
+                className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-slate-100 hover:text-white transition"
+              >
+                Voltar aos cursos
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="space-y-6">
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-slate-800">Escolha um curso para explorar os periodos</h2>
+                <p className="text-sm text-slate-500">Os filtros de turno e curriculo serao habilitados apos selecionar o curso desejado.</p>
+              </div>
+              <div className="flex w-full md:w-auto items-center gap-2">
                 <select
                   value={cursoFiltro ? String(cursoFiltro) : ''}
                   onChange={(event) => {
                     const value = event.target.value;
                     setCursoFiltro(value ? Number(value) : '');
+                    setTurnoFiltro('');
+                    setCurriculoFiltro('');
+                    setSearchTerm('');
                     setPage(1);
                   }}
-                  className="px-3 py-2 border rounded-md"
+                  className="w-full md:w-64 rounded-md border px-3 py-2 text-sm"
                 >
-                  <option value="">Todos os cursos</option>
+                  <option value="">Selecione um curso...</option>
                   {cursos.map((curso: Curso) => (
                     <option key={curso.id} value={curso.id}>
                       {curso.nome}
                     </option>
                   ))}
                 </select>
+                {canEdit && (
+                  <Button variant="outline" onClick={() => navigate('/cursos/wizard')} title="Abrir wizard de cursos">
+                    <Wand2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <CrudToolbar
+            search={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setPage(1);
+            }}
+            searchPlaceholder="Buscar por nome, numero ou descricao..."
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            filtersSlot={
+              <div className="flex gap-2 items-center">
                 <select
                   value={turnoFiltro ? String(turnoFiltro) : ''}
                   onChange={(event) => {
@@ -169,11 +301,12 @@ export default function PeriodosPage() {
                     setTurnoFiltro(value ? Number(value) : '');
                     setPage(1);
                   }}
-                  className="px-3 py-2 border rounded-md"
+                  className="px-3 py-2 border rounded-md text-sm"
+                  disabled={!hasActiveCurso || turnosDisponiveis.length === 0}
                 >
-                  <option value="">Todos os turnos</option>
-                  {turnos.map((t: Turno) => (
-                    <option key={t.id} value={t.id}>{t.nome}</option>
+                  <option value="">{turnosDisponiveis.length ? 'Todos os turnos' : 'Selecione um curso'}</option>
+                  {turnosDisponiveis.map((turno: Turno) => (
+                    <option key={turno.id} value={turno.id}>{turno.nome}</option>
                   ))}
                 </select>
                 <select
@@ -183,25 +316,72 @@ export default function PeriodosPage() {
                     setCurriculoFiltro(value ? Number(value) : '');
                     setPage(1);
                   }}
-                  className="px-3 py-2 border rounded-md"
+                  className="px-3 py-2 border rounded-md text-sm"
+                  disabled={!hasActiveCurso || curriculosDisponiveis.length === 0}
                 >
-                  <option value="">Todos os currículos</option>
-                  {curriculos.map((c: Curriculo) => (
-                    <option key={c.id} value={c.id}>{c.versao}</option>
+                  <option value="">{curriculosDisponiveis.length ? 'Todos os curriculos' : 'Selecione um curso'}</option>
+                  {curriculosDisponiveis.map((curriculo: Curriculo) => (
+                    <option key={curriculo.id} value={curriculo.id}>{curriculo.versao}</option>
                   ))}
                 </select>
               </div>
             }
           />
 
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 flex flex-col gap-1">
+                <span className="text-xs font-medium uppercase text-slate-500">Curso ativo</span>
+                <span className="text-lg font-semibold text-slate-900">{selectedCourse?.nome ?? 'Selecione um curso'}</span>
+                <span className="text-sm text-slate-500">
+                  {selectedCourse ? `Grau ${selectedCourse.grau}` : 'Os indicadores aparecem apos a selecao.'}
+                </span>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase text-slate-500">Curriculos associados</p>
+                    <p className="text-2xl font-semibold text-slate-900">{curriculosDisponiveis.length}</p>
+                  </div>
+                  <Layers3 className="h-5 w-5 text-slate-400" />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Filtro: {selectedCurriculo ? `Versao ${selectedCurriculo.versao}` : 'Todos'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase text-slate-500">Turnos disponiveis</p>
+                    <p className="text-2xl font-semibold text-slate-900">{turnosConectados}</p>
+                  </div>
+                  <Clock className="h-5 w-5 text-slate-400" />
+                </div>
+                <p className="text-xs text-slate-500">
+                  Filtro: {selectedTurno ? selectedTurno.nome : 'Todos'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs uppercase text-slate-500">Periodos listados</p>
+                    <p className="text-2xl font-semibold text-slate-900">{periodosTotal}</p>
+                  </div>
+                  <ListOrdered className="h-5 w-5 text-slate-400" />
+                </div>
+                <p className="text-xs text-slate-500">Disciplinas vinculadas: {totalDisciplinasCurso}</p>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ListOrdered className="h-5 w-5" />
-                Períodos Acadêmicos
+                Perodos Acadmicos
               </CardTitle>
               <CardDescription>
-                Acompanhe os períodos cadastrados e seu volume de disciplinas e alunos
+                Acompanhe os perodos cadastrados e seu volume de disciplinas e alunos
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -212,29 +392,29 @@ export default function PeriodosPage() {
                 columns={[
                   {
                     key: 'numero',
-                    header: 'Período',
-                    render: (p: Periodo) => p.nome || `Período ${p.numero}`,
+                    header: 'Perodo',
+                    render: (p: Periodo) => p.nome || `Perodo ${p.numero}`,
                   },
                   {
                     key: 'turno',
                     header: 'Turno',
                     render: (p: any) => {
                       const t = (turnos as any[]).find((x)=> x.id === (p.turnoId || p.turno?.id));
-                      return t?.nome || p.turno?.nome || '—';
+                      return t?.nome || p.turno?.nome || '';
                     },
                   },
                   {
                     key: 'curriculo',
-                    header: 'Currículo',
+                    header: 'Currculo',
                     render: (p: any) => {
                       const c = (curriculos as any[]).find((x)=> x.id === (p.curriculoId || p.curriculo?.id));
-                      return c?.versao || '—';
+                      return c?.versao || '';
                     },
                   },
                   {
                     key: 'curso',
                     header: 'Curso',
-                    render: (p: Periodo) => p.curso?.nome || cursos.find((c) => c.id === p.cursoId)?.nome || '—',
+                    render: (p: Periodo) => p.curso?.nome || cursos.find((c) => c.id === p.cursoId)?.nome || '',
                   },
                   {
                     key: 'totalDisciplinas',
@@ -248,7 +428,7 @@ export default function PeriodosPage() {
                   },
                   {
                     key: 'actions',
-                    header: 'Ações',
+                    header: 'Aes',
                     render: (p: Periodo) => (
                       <div className="flex items-center gap-1">
                         <Link to={`/periodos/view/${p.id}`} title="Visualizar">
@@ -288,10 +468,10 @@ export default function PeriodosPage() {
                           </div>
                           <div>
                             <h3 className="font-semibold text-lg text-gray-900">
-                              {periodo.nome || `Período ${periodo.numero}`}
+                              {periodo.nome || `Perodo ${periodo.numero}`}
                             </h3>
                             <p className="text-sm text-gray-500">
-                              {periodo.curso?.nome || cursos.find((c) => c.id === periodo.cursoId)?.nome || 'Curso não informado'}
+                              {periodo.curso?.nome || cursos.find((c) => c.id === periodo.cursoId)?.nome || 'Curso no informado'}
                             </p>
                           </div>
                         </div>
@@ -325,7 +505,7 @@ export default function PeriodosPage() {
                         <div className="flex items-center space-x-2">
                           <BookOpen className="h-4 w-4" />
                           <span>
-                            {periodo.curso?.grau || cursos.find((c) => c.id === periodo.cursoId)?.grau || 'Grau não informado'}
+                            {periodo.curso?.grau || cursos.find((c) => c.id === periodo.cursoId)?.grau || 'Grau no informado'}
                           </span>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -345,7 +525,7 @@ export default function PeriodosPage() {
                 )}
                 emptyState={
                   <div className="text-center py-8 text-gray-500">
-                    Nenhum período encontrado
+                    Nenhum perodo encontrado
                   </div>
                 }
               />
@@ -361,3 +541,11 @@ export default function PeriodosPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+

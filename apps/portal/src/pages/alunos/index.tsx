@@ -3,12 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Aluno, Curso, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import {
   Plus,
   Edit,
@@ -21,7 +24,13 @@ import {
   BookOpen,
   Award,
   Eye,
-  Layers3
+  Layers3,
+  ArrowRight,
+  Users,
+  TrendingUp,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react';
 export default function AlunosPage() {
   const { hasRole, user } = useAuth();
@@ -141,7 +150,7 @@ export default function AlunosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <CrudHeader
         title="Gerenciar Alunos"
         description="Cadastro e gestão de alunos"
@@ -154,72 +163,130 @@ export default function AlunosPage() {
         ) : undefined}
       />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+      {/* Hero Section */}
+      <HeroSection
+        badge="Gestão Acadêmica"
+        title="Gestão completa dos alunos"
+        description="Visualize e gerencie todos os alunos matriculados com suas informações acadêmicas, situação e histórico."
+        stats={[
+          { value: alunos.length, label: 'Total de Alunos' },
+          { value: alunos.filter(a => a.situacao === 'ATIVO').length, label: 'Ativos' },
+          { value: cursos.length, label: 'Cursos' },
+          { value: alunos.filter(a => a.situacao === 'CONCLUIDO').length, label: 'Concluídos' }
+        ]}
+        actionLink={{
+          href: '/cursos',
+          label: 'Ver cursos'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="space-y-6">
           {/* Filtros */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Alunos Matriculados</CardTitle>
-              <CardDescription>Listagem e filtros de alunos</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-end gap-4 flex-wrap">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-600">Curso</label>
-                <select
-                  className="border rounded px-2 py-2 w-64"
-                  value={typeof cursoFiltro === 'number' ? String(cursoFiltro) : ''}
-                  onChange={(e) => setCursoFiltro(e.target.value ? Number(e.target.value) : '')}
-                >
-                  <option value="">Todos os cursos</option>
-                  {cursos.map((c: any) => (
-                    <option key={c.id} value={c.id}>{c.nome}</option>
-                  ))}
-                </select>
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-slate-800">Filtros e Busca</h2>
+                <p className="text-sm text-slate-500">Encontre alunos por curso, situação ou informações pessoais</p>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-600">Situação</label>
-                <select
-                  className="border rounded px-2 py-2 w-48"
-                  value={situacaoFiltro}
-                  onChange={(e) => setSituacaoFiltro((e.target.value || '') as any)}
-                >
-                  <option value="">Todas</option>
-                  <option value="ATIVO">ATIVO</option>
-                  <option value="TRANCADO">TRANCADO</option>
-                  <option value="CONCLUIDO">CONCLUIDO</option>
-                  <option value="CANCELADO">CANCELADO</option>
-                </select>
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-600">Buscar</label>
-                <Input
-                  placeholder="RA, nome, email ou curso"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-72"
-                />
-              </div>
-              <div className="ml-auto flex items-end gap-2">
-                <Button onClick={() => { /* server already reacts via state; keep for symmetry */ }}>
-                  Buscar
-                </Button>
-                <Button onClick={() => { setCursoFiltro(''); setSituacaoFiltro(''); setSearchTerm(''); setPage(1); }}>
-                  Limpar filtros
-                </Button>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Curso</label>
+                  <select
+                    className="border rounded-md px-3 py-2 w-64 text-sm"
+                    value={typeof cursoFiltro === 'number' ? String(cursoFiltro) : ''}
+                    onChange={(e) => setCursoFiltro(e.target.value ? Number(e.target.value) : '')}
+                  >
+                    <option value="">Todos os cursos</option>
+                    {cursos.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.nome}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Situação</label>
+                  <select
+                    className="border rounded-md px-3 py-2 w-48 text-sm"
+                    value={situacaoFiltro}
+                    onChange={(e) => setSituacaoFiltro((e.target.value || '') as any)}
+                  >
+                    <option value="">Todas</option>
+                    <option value="ATIVO">ATIVO</option>
+                    <option value="TRANCADO">TRANCADO</option>
+                    <option value="CONCLUIDO">CONCLUIDO</option>
+                    <option value="CANCELADO">CANCELADO</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Buscar</label>
+                  <Input
+                    placeholder="RA, nome, email ou curso"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-72"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={() => { setCursoFiltro(''); setSituacaoFiltro(''); setSearchTerm(''); setPage(1); }}>
+                    Limpar filtros
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Estatísticas */}
+          <StatsGrid>
+            <StatCard
+              title="Total de Alunos"
+              value={alunos.length}
+              icon={Users}
+              iconColor="text-blue-600"
+            />
+            <StatCard
+              title="Alunos Ativos"
+              value={alunos.filter(a => a.situacao === 'ATIVO').length}
+              icon={CheckCircle}
+              iconColor="text-green-600"
+            />
+            <StatCard
+              title="Concluídos"
+              value={alunos.filter(a => a.situacao === 'CONCLUIDO').length}
+              icon={Award}
+              iconColor="text-purple-600"
+            />
+            <StatCard
+              title="Trancados"
+              value={alunos.filter(a => a.situacao === 'TRANCADO').length}
+              icon={Clock}
+              iconColor="text-yellow-600"
+            />
+          </StatsGrid>
+
           {/* Alunos List */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <GraduationCap className="h-5 w-5 mr-2" />
-                Alunos Matriculados ({filteredAlunos.length})
-              </CardTitle>
-              <CardDescription>
-                Lista de todos os alunos matriculados no sistema
-              </CardDescription>
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <GraduationCap className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-slate-800">
+                      Alunos Matriculados
+                    </CardTitle>
+                    <CardDescription className="text-slate-500">
+                      {filteredAlunos.length} aluno{filteredAlunos.length !== 1 ? 's' : ''} encontrado{filteredAlunos.length !== 1 ? 's' : ''}
+                    </CardDescription>
+                  </div>
+                </div>
+                {canEdit && (
+                  <Button onClick={() => navigate('/alunos/new')} size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Aluno
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -236,24 +303,25 @@ export default function AlunosPage() {
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                   {filteredAlunos.map((aluno) => (
-                    <Card key={aluno.ra} className="hover:shadow-md transition-shadow">
+                    <Card key={aluno.ra} className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
                       <CardContent className="p-6">
                         {/* Header do Card */}
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center space-x-3">
-                            <div className="p-2 bg-blue-100 rounded-full">
-                              <GraduationCap className="h-5 w-5 text-blue-600" />
+                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                              <GraduationCap className="h-6 w-6 text-white" />
                             </div>
-                            <div>                            <h3 className="font-semibold text-lg text-gray-900">
-                              {aluno.pessoa?.nome || 'Nome não informado'}
-                            </h3>
-                              <p className="text-sm text-gray-500">RA: {aluno.ra}</p>
+                            <div>
+                              <h3 className="font-semibold text-lg text-slate-800">
+                                {aluno.pessoa?.nome || 'Nome não informado'}
+                              </h3>
+                              <p className="text-sm text-slate-500">RA: {aluno.ra}</p>
                             </div>
                           </div>
                           {canEdit && (
                             <div className="flex space-x-1">
                               <Link to={`/alunos/${aluno.ra}`}>
-                                <Button variant="ghost" size="sm" title="Visualizar">
+                                <Button variant="ghost" size="sm" title="Visualizar" className="h-8 w-8 p-0">
                                   <Eye className="h-4 w-4" />
                                 </Button>
                               </Link>
@@ -262,16 +330,18 @@ export default function AlunosPage() {
                                   variant="ghost"
                                   size="sm"
                                   title="Editar"
+                                  className="h-8 w-8 p-0"
                                 >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               </Link>
                               <Button
-                                variant="destructive"
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => handleDelete(aluno.ra)}
                                 disabled={deleteMutation.isPending}
                                 title="Remover"
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

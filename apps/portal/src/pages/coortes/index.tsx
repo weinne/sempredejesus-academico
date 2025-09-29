@@ -3,13 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Coorte, CreateCoorte, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
-import CrudToolbar from '@/components/crud/crud-toolbar';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import {
@@ -22,7 +24,11 @@ import {
   Eye,
   GraduationCap,
   CheckCircle,
-  XCircle
+  XCircle,
+  ArrowRight,
+  TrendingUp,
+  Clock,
+  Award
 } from 'lucide-react';
 
 export default function CoortesPage() {
@@ -111,7 +117,7 @@ export default function CoortesPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <CrudHeader
         title="Gerenciar Coortes"
         description="Administração das turmas de ingresso dos alunos"
@@ -124,15 +130,78 @@ export default function CoortesPage() {
         ) : undefined}
       />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 space-y-6">
-          <CrudToolbar
-            search={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Busque por rótulo, curso ou ano..."
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
+      {/* Hero Section */}
+      <HeroSection
+        badge="Estrutura Acadêmica"
+        title="Gestão das coortes acadêmicas"
+        description="Configure e gerencie as turmas de ingresso dos alunos para organizar a estrutura acadêmica."
+        stats={[
+          { value: coortes.length, label: 'Total de Coortes' },
+          { value: coortes.filter(c => c.ativo).length, label: 'Ativas' },
+          { value: cursos.length, label: 'Cursos' },
+          { value: coortes.length, label: 'Coortes' }
+        ]}
+        actionLink={{
+          href: '/alunos',
+          label: 'Ver alunos'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="space-y-6">
+          {/* Filtros */}
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-slate-800">Filtros e Busca</h2>
+                <p className="text-sm text-slate-500">Encontre coortes por rótulo, curso ou ano de ingresso</p>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Buscar</label>
+                  <Input
+                    placeholder="Busque por rótulo, curso ou ano..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-96"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={() => setSearchTerm('')}>
+                    Limpar filtros
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Estatísticas */}
+          <StatsGrid>
+            <StatCard
+              title="Total de Coortes"
+              value={coortes.length}
+              icon={Users}
+              iconColor="text-blue-600"
+            />
+            <StatCard
+              title="Coortes Ativas"
+              value={coortes.filter(c => c.ativo).length}
+              icon={CheckCircle}
+              iconColor="text-green-600"
+            />
+            <StatCard
+              title="Cursos"
+              value={cursos.length}
+              icon={Award}
+              iconColor="text-purple-600"
+            />
+            <StatCard
+              title="Coortes"
+              value={coortes.length}
+              icon={Clock}
+              iconColor="text-orange-600"
+            />
+          </StatsGrid>
 
           <Card>
             <CardHeader>

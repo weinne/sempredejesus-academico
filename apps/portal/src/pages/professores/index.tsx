@@ -3,13 +3,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Professor, CreateProfessorWithUser, Pessoa, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
-// import CrudToolbar from '@/components/crud/crud-toolbar';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import { 
@@ -29,7 +31,13 @@ import {
   Eye,
   EyeOff,
   List,
-  LayoutGrid
+  LayoutGrid,
+  ArrowRight,
+  Users,
+  TrendingUp,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -300,7 +308,7 @@ export default function ProfessoresPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <CrudHeader
         title="Gerenciar Professores"
         description="Cadastro e gestão do corpo docente"
@@ -313,43 +321,86 @@ export default function ProfessoresPage() {
         ) : undefined}
       />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Professores Cadastrados</CardTitle>
-              <CardDescription>Listagem e filtros de professores</CardDescription>
-            </CardHeader>
-            <CardContent className="flex items-end gap-4 flex-wrap">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-600">Situação</label>
-                <select className="border rounded px-2 py-2 w-48" value={situacaoFiltro} onChange={(e)=>setSituacaoFiltro((e.target.value||'') as any)}>
-                  <option value="">Todas</option>
-                  <option value="ATIVO">ATIVO</option>
-                  <option value="INATIVO">INATIVO</option>
-                </select>
+      {/* Hero Section */}
+      <HeroSection
+        badge="Corpo Docente"
+        title="Gestão completa dos professores"
+        description="Visualize e gerencie todos os professores com suas informações acadêmicas, situação e histórico."
+        stats={[
+          { value: professores.length, label: 'Total de Professores' },
+          { value: professores.filter(p => p.situacao === 'ATIVO').length, label: 'Ativos' },
+          { value: professores.filter(p => p.situacao === 'INATIVO').length, label: 'Inativos' },
+          { value: professores.filter(p => p.formacaoAcad).length, label: 'Com Formação' }
+        ]}
+        actionLink={{
+          href: '/disciplinas',
+          label: 'Ver disciplinas'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="space-y-6">
+          {/* Filtros */}
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-slate-800">Filtros e Busca</h2>
+                <p className="text-sm text-slate-500">Encontre professores por situação, nome ou informações acadêmicas</p>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-gray-600">Buscar</label>
-                <Input
-                  placeholder="Matrícula, nome, email, situação ou formação"
-                  value={searchTerm}
-                  onChange={(e)=>setSearchTerm(e.target.value)}
-                  className="w-96"
-                />
-              </div>
-              <div className="ml-auto flex items-end gap-2">
-                <Button variant={viewMode === 'table' ? 'secondary' : 'ghost'} size="sm" onClick={()=>setViewMode('table')} title="Tabela">
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button variant={viewMode === 'card' ? 'secondary' : 'ghost'} size="sm" onClick={()=>setViewMode('card')} title="Cartões">
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-                <Button onClick={()=>{ /* buscador reactivo pelo estado */ }}>Buscar</Button>
-                <Button onClick={()=>{ setSituacaoFiltro(''); setSearchTerm(''); setPage(1); }}>Limpar filtros</Button>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Situação</label>
+                  <select className="border rounded-md px-3 py-2 w-48 text-sm" value={situacaoFiltro} onChange={(e)=>setSituacaoFiltro((e.target.value||'') as any)}>
+                    <option value="">Todas</option>
+                    <option value="ATIVO">ATIVO</option>
+                    <option value="INATIVO">INATIVO</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Buscar</label>
+                  <Input
+                    placeholder="Matrícula, nome, email, situação ou formação"
+                    value={searchTerm}
+                    onChange={(e)=>setSearchTerm(e.target.value)}
+                    className="w-96"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={()=>{ setSituacaoFiltro(''); setSearchTerm(''); setPage(1); }}>
+                    Limpar filtros
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Estatísticas */}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              title="Total de Professores"
+              value={professores.length}
+              icon={Users}
+              iconColor="text-blue-600"
+            />
+            <StatCard
+              title="Professores Ativos"
+              value={professores.filter(p => p.situacao === 'ATIVO').length}
+              icon={CheckCircle}
+              iconColor="text-green-600"
+            />
+            <StatCard
+              title="Inativos"
+              value={professores.filter(p => p.situacao === 'INATIVO').length}
+              icon={XCircle}
+              iconColor="text-red-600"
+            />
+            <StatCard
+              title="Com Formação"
+              value={professores.filter(p => p.formacaoAcad).length}
+              icon={Award}
+              iconColor="text-purple-600"
+            />
+          </div>
 
           <Card>
             <CardHeader>
