@@ -42,8 +42,8 @@ export default function DashboardPage() {
       title: 'Registros',
       items: [
         { title: 'Aulas', description: 'Visualizar e gerenciar aulas', href: '/aulas', icon: CalendarDays, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
-        { title: 'Avaliaes', description: 'Visualizar e gerenciar avaliaes', href: '/avaliacoes', icon: FileText, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
-        { title: 'Presenas', description: 'Gerenciar registros de presena', href: '/presencas', icon: ClipboardList, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { title: 'Avaliações', description: 'Visualizar e gerenciar avaliações', href: '/avaliacoes', icon: FileText, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { title: 'Presenças', description: 'Gerenciar registros de presença', href: '/presencas', icon: ClipboardList, show: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
       ],
     },
     {
