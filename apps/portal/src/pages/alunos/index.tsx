@@ -85,6 +85,19 @@ export default function AlunosPage() {
       });
     },
     onError: (error: any) => {
+      // Verificar se é erro de restrição de FK
+      if (error.response?.status === 409 || 
+          error.message?.includes('foreign key') || 
+          error.message?.includes('constraint') ||
+          error.message?.includes('violates foreign key')) {
+        toast({
+          title: 'Não é possível excluir',
+          description: 'Este aluno possui inscrições em turmas ou avaliações relacionadas. Remova primeiro os dados relacionados para poder excluir o aluno.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       toast({
         title: 'Erro ao remover aluno',
         description: error.message || 'Erro desconhecido',

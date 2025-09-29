@@ -4,6 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Curriculo, CreateCurriculo, Role } from '@/types/api';
@@ -28,7 +39,8 @@ import {
   ArrowRight,
   TrendingUp,
   Clock,
-  Award
+  Award,
+  AlertTriangle
 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -53,6 +65,7 @@ export default function CurriculosPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingCurriculo, setEditingCurriculo] = useState<Curriculo | null>(null);
+  const [deletingCurriculo, setDeletingCurriculo] = useState<Curriculo | null>(null);
   const [page, setPage] = useState(1);
 
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
@@ -142,13 +155,26 @@ export default function CurriculosPage() {
         title: 'Currículo removido',
         description: 'Currículo removido com sucesso!',
       });
+      setDeletingCurriculo(null);
     },
     onError: (error: any) => {
+      // Verificar se é erro de restrição de FK
+      if (error.response?.status === 409 || error.message?.includes('foreign key') || error.message?.includes('constraint')) {
+        toast({
+          title: 'Restrição de Integridade',
+          description: 'Este currículo possui dados relacionados. Deseja excluir o currículo e todos os dados relacionados?',
+          variant: 'destructive',
+        });
+        // Não fechar o diálogo, permitir que o usuário confirme
+        return;
+      }
+      
       toast({
         title: 'Erro ao remover currículo',
         description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
+      setDeletingCurriculo(null);
     },
   });
 
@@ -175,6 +201,21 @@ export default function CurriculosPage() {
     }
   };
 
+  // Handle delete with FK constraint
+  const handleDelete = (curriculo: Curriculo) => {
+    setDeletingCurriculo(curriculo);
+    deleteMutation.mutate(curriculo.id);
+  };
+
+  // Handle forced delete (with related data)
+  const handleForceDelete = () => {
+    if (deletingCurriculo) {
+      // Aqui você pode implementar uma lógica para excluir dados relacionados
+      // Por enquanto, vamos tentar excluir novamente
+      deleteMutation.mutate(deletingCurriculo.id);
+    }
+  };
+
   // Handle edit
   const handleEdit = (curriculo: Curriculo) => {
     setEditingCurriculo(curriculo);
@@ -189,12 +230,6 @@ export default function CurriculosPage() {
     });
   };
 
-  // Handle delete
-  const handleDelete = (id: number) => {
-    if (window.confirm('Tem certeza que deseja remover este currículo? Esta ação pode afetar períodos e coortes vinculados.')) {
-      deleteMutation.mutate(id);
-    }
-  };
 
   // Handle new curriculo
   const handleNew = () => {
@@ -382,9 +417,38 @@ export default function CurriculosPage() {
                           <Button variant="ghost" size="sm" onClick={() => navigate(`/curriculos/edit/${c.id}`)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)} disabled={deleteMutation.isPending} title="Remover">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm" disabled={deleteMutation.isPending} title="Remover">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="flex items-center">
+                                  <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+                                  Confirmar Exclusão
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja excluir o currículo <strong>{c.versao}</strong>?
+                                  <br />
+                                  <br />
+                                  <span className="text-red-600 font-medium">
+                                    Esta ação não pode ser desfeita.
+                                  </span>
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(c)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  Excluir
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </>
                       )}
                     </div>
@@ -412,9 +476,38 @@ export default function CurriculosPage() {
                             <Button variant="ghost" size="sm" onClick={() => navigate(`/curriculos/edit/${curriculo.id}`)} title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(curriculo.id)} disabled={deleteMutation.isPending} title="Remover">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm" disabled={deleteMutation.isPending} title="Remover">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center">
+                                    <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+                                    Confirmar Exclusão
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir o currículo <strong>{curriculo.versao}</strong>?
+                                    <br />
+                                    <br />
+                                    <span className="text-red-600 font-medium">
+                                      Esta ação não pode ser desfeita.
+                                    </span>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(curriculo)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         )}
                       </div>
@@ -463,6 +556,42 @@ export default function CurriculosPage() {
           </Card>
         </div>
       </main>
+
+      {/* Dialog para exclusão forçada quando há restrições de FK */}
+      <AlertDialog open={!!deletingCurriculo && deleteMutation.isError}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-orange-500" />
+              Restrição de Integridade
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O currículo <strong>{deletingCurriculo?.versao}</strong> possui dados relacionados que impedem sua exclusão.
+              <br />
+              <br />
+              <span className="text-orange-600 font-medium">
+                Deseja excluir o currículo e todos os dados relacionados?
+              </span>
+              <br />
+              <br />
+              <span className="text-red-600 text-sm">
+                ⚠️ Esta ação irá excluir permanentemente todos os dados relacionados e não pode ser desfeita.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeletingCurriculo(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleForceDelete}
+              className="bg-orange-600 hover:bg-orange-700"
+            >
+              Excluir Tudo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

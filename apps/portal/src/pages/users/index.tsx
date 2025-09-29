@@ -2,15 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { User, Role, Pessoa } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import { Edit, Trash2, User as UserIcon, Mail, Key, Eye, UserPlus, Plus, Shield, ArrowLeft } from 'lucide-react';
+import { Edit, Trash2, User as UserIcon, Mail, Key, Eye, UserPlus, Plus, Shield, ArrowLeft, Users, CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import CrudHeader from '@/components/crud/crud-header';
-import CrudToolbar from '@/components/crud/crud-toolbar';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 
@@ -107,6 +109,19 @@ export default function UsersPage() {
       });
     },
     onError: (error: any) => {
+      // Verificar se é erro de restrição de FK
+      if (error.response?.status === 409 || 
+          error.message?.includes('foreign key') || 
+          error.message?.includes('constraint') ||
+          error.message?.includes('violates foreign key')) {
+        toast({
+          title: 'Não é possível excluir',
+          description: 'Este usuário possui dados relacionados (aluno ou professor). Remova primeiro os dados relacionados para poder excluir o usuário.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       toast({
         title: 'Erro ao remover usuário',
         description: error.message || 'Erro desconhecido',
@@ -161,7 +176,7 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <CrudHeader
         title="Gerenciar Usuários"
         description="Criação, edição e controle de acesso de usuários"
@@ -180,15 +195,79 @@ export default function UsersPage() {
         }
       />
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 space-y-6">
-          <CrudToolbar
-            search={searchTerm}
-            onSearchChange={setSearchTerm}
-            searchPlaceholder="Busque por username, nome ou role..."
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-          />
+      {/* Hero Section */}
+      <HeroSection
+        badge="Controle de Acesso"
+        title="Gestão completa de usuários"
+        description="Crie e gerencie todos os usuários do sistema com seus perfis, permissões e controle de acesso."
+        stats={[
+          { value: users.length, label: 'Total de Usuários' },
+          { value: users.filter(u => u.role === 'ADMIN').length, label: 'Administradores' },
+          { value: users.filter(u => u.role === 'PROFESSOR').length, label: 'Professores' },
+          { value: users.filter(u => u.role === 'ALUNO').length, label: 'Alunos' }
+        ]}
+        actionLink={{
+          href: '/pessoas',
+          label: 'Ver pessoas'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="space-y-6">
+          {/* Filtros */}
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <h2 className="text-lg font-semibold text-slate-800">Filtros e Busca</h2>
+                <p className="text-sm text-slate-500">Encontre usuários por username, nome ou role</p>
+              </div>
+              <div className="flex flex-wrap gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Buscar</label>
+                  <input
+                    type="text"
+                    placeholder="Busque por username, nome ou role..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-96 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  />
+                </div>
+                <div className="flex items-end gap-2">
+                  <Button onClick={() => setSearchTerm('')}>
+                    Limpar filtros
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Estatísticas */}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              title="Total de Usuários"
+              value={users.length}
+              icon={Users}
+              iconColor="text-blue-600"
+            />
+            <StatCard
+              title="Administradores"
+              value={users.filter(u => u.role === 'ADMIN').length}
+              icon={Shield}
+              iconColor="text-red-600"
+            />
+            <StatCard
+              title="Professores"
+              value={users.filter(u => u.role === 'PROFESSOR').length}
+              icon={UserIcon}
+              iconColor="text-green-600"
+            />
+            <StatCard
+              title="Alunos"
+              value={users.filter(u => u.role === 'ALUNO').length}
+              icon={UserIcon}
+              iconColor="text-yellow-600"
+            />
+          </div>
 
           <Card>
             <CardHeader>

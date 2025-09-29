@@ -3,7 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { apiService } from '@/services/api';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard } from '@/components/ui/stats-card';
 import { 
   ArrowLeft, 
   Calendar, 
@@ -16,7 +19,11 @@ import {
   Mail,
   Phone,
   TrendingUp,
-  Award
+  Award,
+  CheckCircle,
+  XCircle,
+  ArrowRight,
+  Edit
 } from 'lucide-react';
 
 export default function TurmaDetailPage() {
@@ -35,9 +42,9 @@ export default function TurmaDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-slate-50">
         <div className="flex items-center justify-center py-20">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
         </div>
       </div>
     );
@@ -78,27 +85,87 @@ export default function TurmaDetailPage() {
   // Semestre removido; exibiremos período da disciplina
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-4 py-4">
-            <Link to="/turmas">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-4">
+              <Link to="/turmas">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar às Turmas
+                </Button>
+              </Link>
+              <div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline">
+                    {turma.secao ? `Seção ${turma.secao}` : 'Turma'}
+                  </Badge>
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    {turma.disciplina?.nome || 'Disciplina não informada'}
+                  </h1>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Código: {turma.disciplina?.codigo || 'N/A'}
+                </p>
+              </div>
+            </div>
+            <Link to={`/turmas/edit/${turma.id}`}>
+              <Button>
+                <Edit className="h-4 w-4 mr-2" />
+                Editar Turma
               </Button>
             </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Detalhes da Turma</h1>
-              <p className="text-sm text-gray-600">
-                {turma.disciplina?.codigo || 'N/A'} - {turma.secao ? `Seção ${turma.secao}` : 'Turma'}
-              </p>
-            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      {/* Hero Section */}
+      <HeroSection
+        badge="Detalhes da Turma"
+        title={turma.disciplina?.nome || 'Disciplina não informada'}
+        description={`Turma ${turma.secao ? `seção ${turma.secao}` : 'única'} da disciplina ${turma.disciplina?.codigo || 'N/A'}`}
+        stats={[
+          { value: turma.disciplina?.codigo || 'N/A', label: 'Código' },
+          { value: turma.secao || 'Única', label: 'Seção' },
+          { value: turma.sala || 'N/A', label: 'Sala' },
+          { value: turma.horario || 'N/A', label: 'Horário' }
+        ]}
+        actionLink={{
+          href: '/turmas',
+          label: 'Ver todas as turmas'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Estatísticas */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
+          <StatCard
+            title="Código"
+            value={turma.disciplina?.codigo || 'N/A'}
+            icon={BookOpen}
+            iconColor="text-blue-600"
+          />
+          <StatCard
+            title="Seção"
+            value={turma.secao || 'Única'}
+            icon={Users}
+            iconColor="text-green-600"
+          />
+          <StatCard
+            title="Sala"
+            value={turma.sala || 'N/A'}
+            icon={MapPin}
+            iconColor="text-purple-600"
+          />
+          <StatCard
+            title="Horário"
+            value={turma.horario || 'N/A'}
+            icon={Clock}
+            iconColor="text-orange-600"
+          />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Informações Principais */}
           <div className="lg:col-span-2 space-y-6">

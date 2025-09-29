@@ -3,12 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { CalendarioItem, CreateCalendarioItem, Role, Periodo } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard } from '@/components/ui/stats-card';
+import { ArrowLeft, Plus, Trash2, Calendar, Clock, CheckCircle, XCircle, Users, ArrowRight } from 'lucide-react';
 
 export default function CalendarioPage() {
   const { hasRole } = useAuth();
@@ -54,7 +57,7 @@ export default function CalendarioPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-4 py-4">
@@ -67,7 +70,24 @@ export default function CalendarioPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
+      {/* Hero Section */}
+      <HeroSection
+        badge="Calendário Acadêmico"
+        title="Gestão de eventos e prazos"
+        description="Organize e gerencie todos os eventos acadêmicos, prazos e feriados do sistema."
+        stats={[
+          { value: eventos.length, label: 'Total de Eventos' },
+          { value: periodos.length, label: 'Períodos' },
+          { value: eventos.filter(e => new Date(e.inicio) > new Date()).length, label: 'Próximos' },
+          { value: eventos.filter(e => new Date(e.termino) < new Date()).length, label: 'Concluídos' }
+        ]}
+        actionLink={{
+          href: '/periodos',
+          label: 'Ver períodos'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
         {canEdit && (
           <Card>
             <CardHeader>
@@ -95,6 +115,34 @@ export default function CalendarioPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* Estatísticas */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Total de Eventos"
+            value={eventos.length}
+            icon={Calendar}
+            iconColor="text-blue-600"
+          />
+          <StatCard
+            title="Períodos"
+            value={periodos.length}
+            icon={Clock}
+            iconColor="text-green-600"
+          />
+          <StatCard
+            title="Próximos"
+            value={eventos.filter(e => new Date(e.inicio) > new Date()).length}
+            icon={CheckCircle}
+            iconColor="text-yellow-600"
+          />
+          <StatCard
+            title="Concluídos"
+            value={eventos.filter(e => new Date(e.termino) < new Date()).length}
+            icon={XCircle}
+            iconColor="text-gray-600"
+          />
+        </div>
 
         <Card>
           <CardHeader>

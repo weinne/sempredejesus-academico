@@ -167,6 +167,19 @@ export default function TurmasPage() {
       });
     },
     onError: (error: any) => {
+      // Verificar se é erro de restrição de FK
+      if (error.response?.status === 409 || 
+          error.message?.includes('foreign key') || 
+          error.message?.includes('constraint') ||
+          error.message?.includes('violates foreign key')) {
+        toast({
+          title: 'Não é possível excluir',
+          description: 'Esta turma possui inscrições de alunos, aulas ou avaliações relacionadas. Remova primeiro os dados relacionados para poder excluir a turma.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       toast({
         title: 'Erro ao remover turma',
         description: error.message || 'Erro desconhecido',

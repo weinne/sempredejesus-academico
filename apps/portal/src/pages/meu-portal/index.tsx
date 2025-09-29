@@ -1,8 +1,11 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, User } from 'lucide-react';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard } from '@/components/ui/stats-card';
+import { ArrowLeft, User, Shield, Mail, Phone, Key, CheckCircle, XCircle, Clock, ArrowRight, Users, Settings } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
 import { Input } from '@/components/ui/input';
 import { useForm } from 'react-hook-form';
@@ -50,7 +53,7 @@ export default function MeuPortalPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-4 py-4">
@@ -68,7 +71,52 @@ export default function MeuPortalPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      {/* Hero Section */}
+      <HeroSection
+        badge="Meu Portal"
+        title={`Bem-vindo, ${user?.pessoa?.nome || 'Usuário'}!`}
+        description="Gerencie suas informações pessoais, altere sua senha e visualize seus dados acadêmicos."
+        stats={[
+          { value: user?.role || 'N/A', label: 'Perfil' },
+          { value: user?.pessoa?.email ? 'Sim' : 'Não', label: 'Email' },
+          { value: user?.pessoa?.telefone ? 'Sim' : 'Não', label: 'Telefone' },
+          { value: 'Ativo', label: 'Status' }
+        ]}
+        actionLink={{
+          href: '/dashboard',
+          label: 'Ver dashboard'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Estatísticas */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
+          <StatCard
+            title="Perfil"
+            value={user?.role || 'N/A'}
+            icon={User}
+            iconColor="text-blue-600"
+          />
+          <StatCard
+            title="Email"
+            value={user?.pessoa?.email ? 'Sim' : 'Não'}
+            icon={Mail}
+            iconColor={user?.pessoa?.email ? 'text-green-600' : 'text-red-600'}
+          />
+          <StatCard
+            title="Telefone"
+            value={user?.pessoa?.telefone ? 'Sim' : 'Não'}
+            icon={Phone}
+            iconColor={user?.pessoa?.telefone ? 'text-green-600' : 'text-red-600'}
+          />
+          <StatCard
+            title="Status"
+            value="Ativo"
+            icon={CheckCircle}
+            iconColor="text-green-600"
+          />
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">

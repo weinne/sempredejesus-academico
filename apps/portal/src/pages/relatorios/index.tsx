@@ -2,8 +2,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Search } from 'lucide-react';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard } from '@/components/ui/stats-card';
+import { ArrowLeft, Search, BarChart3, FileText, TrendingUp, Users, ArrowRight, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { apiService } from '@/services/api';
 
 export default function RelatoriosPage() {
@@ -18,7 +21,7 @@ export default function RelatoriosPage() {
   const [desempenho, setDesempenho] = useState<any | null>(null);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center space-x-4 py-4">
@@ -36,7 +39,52 @@ export default function RelatoriosPage() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
+      {/* Hero Section */}
+      <HeroSection
+        badge="Relatórios Acadêmicos"
+        title="Análise e relatórios do sistema"
+        description="Gere relatórios detalhados sobre histórico acadêmico, frequência e desempenho dos alunos."
+        stats={[
+          { value: '4', label: 'Tipos de Relatórios' },
+          { value: '100%', label: 'Cobertura' },
+          { value: 'Real-time', label: 'Dados' },
+          { value: 'PDF/Excel', label: 'Exportação' }
+        ]}
+        actionLink={{
+          href: '/dashboard',
+          label: 'Ver dashboard'
+        }}
+      />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
+        {/* Estatísticas */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            title="Tipos de Relatórios"
+            value="4"
+            icon={FileText}
+            iconColor="text-blue-600"
+          />
+          <StatCard
+            title="Cobertura"
+            value="100%"
+            icon={CheckCircle}
+            iconColor="text-green-600"
+          />
+          <StatCard
+            title="Dados"
+            value="Real-time"
+            icon={TrendingUp}
+            iconColor="text-yellow-600"
+          />
+          <StatCard
+            title="Exportação"
+            value="PDF/Excel"
+            icon={BarChart3}
+            iconColor="text-purple-600"
+          />
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Histórico Acadêmico</CardTitle>

@@ -3,11 +3,13 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import CrudHeader from '@/components/crud/crud-header';
+import { Badge } from '@/components/ui/badge';
 import { apiService } from '@/services/api';
 import { Role } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
-import { Layers3, BookOpen, Users, BarChart3, Edit, ListOrdered } from 'lucide-react';
+import { HeroSection } from '@/components/ui/hero-section';
+import { StatCard } from '@/components/ui/stats-card';
+import { Layers3, BookOpen, Users, BarChart3, Edit, ListOrdered, Calendar, Clock, CheckCircle, XCircle, ArrowRight, Award } from 'lucide-react';
 
 export default function PeriodoViewPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,31 +27,93 @@ export default function PeriodoViewPage() {
 
   if (isLoading || !periodo) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <CrudHeader title="Detalhes do Período" backTo="/periodos" />
-        <div className="max-w-4xl mx-auto p-6">Carregando...</div>
+      <div className="min-h-screen bg-slate-50">
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CrudHeader
-        title={periodo.nome ? `Período: ${periodo.nome}` : `Período ${periodo.numero}`}
-        backTo="/periodos"
-        actions={
-          canEdit ? (
-            <Link to={`/periodos/edit/${periodo.id}`}>
-              <Button>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
-              </Button>
-            </Link>
-          ) : undefined
-        }
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-4">
+              <Link to="/periodos">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar aos Períodos
+                </Button>
+              </Link>
+              <div>
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline">Período {periodo.numero}</Badge>
+                  <h1 className="text-2xl font-bold text-gray-900">{periodo.nome || `Período ${periodo.numero}`}</h1>
+                </div>
+                <p className="text-sm text-gray-600">Curso: {periodo.curso?.nome || 'N/A'}</p>
+              </div>
+            </div>
+            {canEdit && (
+              <Link to={`/periodos/edit/${periodo.id}`}>
+                <Button>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar Período
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <HeroSection
+        badge="Detalhes do Período"
+        title={periodo.nome || `Período ${periodo.numero}`}
+        description={`Período acadêmico do curso ${periodo.curso?.nome || 'N/A'} com disciplinas e estrutura curricular`}
+        stats={[
+          { value: periodo.numero, label: 'Número' },
+          { value: periodo.curso?.nome || 'N/A', label: 'Curso' },
+          { value: periodo.dataInicio ? new Date(periodo.dataInicio).toLocaleDateString() : 'N/A', label: 'Início' },
+          { value: periodo.dataFim ? new Date(periodo.dataFim).toLocaleDateString() : 'N/A', label: 'Fim' }
+        ]}
+        actionLink={{
+          href: '/periodos',
+          label: 'Ver todos os períodos'
+        }}
       />
-      <main className="max-w-5xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 space-y-6">
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        {/* Estatísticas */}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
+          <StatCard
+            title="Número"
+            value={periodo.numero}
+            icon={Award}
+            iconColor="text-blue-600"
+          />
+          <StatCard
+            title="Curso"
+            value={periodo.curso?.nome || 'N/A'}
+            icon={BookOpen}
+            iconColor="text-green-600"
+          />
+          <StatCard
+            title="Início"
+            value={periodo.dataInicio ? new Date(periodo.dataInicio).toLocaleDateString() : 'N/A'}
+            icon={Calendar}
+            iconColor="text-purple-600"
+          />
+          <StatCard
+            title="Fim"
+            value={periodo.dataFim ? new Date(periodo.dataFim).toLocaleDateString() : 'N/A'}
+            icon={Clock}
+            iconColor="text-orange-600"
+          />
+        </div>
+
+        <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

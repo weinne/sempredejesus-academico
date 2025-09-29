@@ -72,6 +72,19 @@ export default function CoortesPage() {
       });
     },
     onError: (error: any) => {
+      // Verificar se é erro de restrição de FK
+      if (error.response?.status === 409 || 
+          error.message?.includes('foreign key') || 
+          error.message?.includes('constraint') ||
+          error.message?.includes('violates foreign key')) {
+        toast({
+          title: 'Não é possível excluir',
+          description: 'Esta coorte possui alunos relacionados. Remova primeiro os alunos relacionados para poder excluir a coorte.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       toast({
         title: 'Erro ao remover coorte',
         description: error.message || 'Erro desconhecido',

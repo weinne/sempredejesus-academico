@@ -192,6 +192,19 @@ export default function ProfessoresPage() {
       });
     },
     onError: (error: any) => {
+      // Verificar se é erro de restrição de FK
+      if (error.response?.status === 409 || 
+          error.message?.includes('foreign key') || 
+          error.message?.includes('constraint') ||
+          error.message?.includes('violates foreign key')) {
+        toast({
+          title: 'Não é possível excluir',
+          description: 'Este professor possui turmas relacionadas. Remova primeiro as turmas relacionadas para poder excluir o professor.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       toast({
         title: 'Erro ao remover professor',
         description: error.message || 'Erro desconhecido',

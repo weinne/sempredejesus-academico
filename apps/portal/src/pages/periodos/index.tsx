@@ -150,13 +150,26 @@ export default function PeriodosPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['periodos'] });
       toast({
-        title: 'Perodo removido',
-        description: 'Perodo removido com sucesso!',
+        title: 'Período removido',
+        description: 'Período removido com sucesso!',
       });
     },
     onError: (mutationError: any) => {
+      // Verificar se é erro de restrição de FK
+      if (mutationError.response?.status === 409 || 
+          mutationError.message?.includes('foreign key') || 
+          mutationError.message?.includes('constraint') ||
+          mutationError.message?.includes('violates foreign key')) {
+        toast({
+          title: 'Não é possível excluir',
+          description: 'Este período possui disciplinas ou turmas relacionadas. Remova primeiro os dados relacionados para poder excluir o período.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       toast({
-        title: 'Erro ao remover perodo',
+        title: 'Erro ao remover período',
         description: mutationError.message || 'Erro desconhecido',
         variant: 'destructive',
       });
@@ -378,7 +391,7 @@ export default function PeriodosPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <ListOrdered className="h-5 w-5" />
-                Perodos Acadmicos
+                Períodos Acadêmicos
               </CardTitle>
               <CardDescription>
                 Acompanhe os perodos cadastrados e seu volume de disciplinas e alunos
