@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { apiService } from '@/services/api';
 import { HeroSection } from '@/components/ui/hero-section';
 import { StatCard } from '@/components/ui/stats-card';
-import { Edit, User, Mail, Phone, Calendar, Award, CheckCircle, XCircle, Clock, ArrowRight, Users, GraduationCap } from 'lucide-react';
+import { Edit, User, Mail, Phone, Calendar, Award, CheckCircle, XCircle, Clock, ArrowRight, Users, GraduationCap, ArrowLeft } from 'lucide-react';
 
 export default function ProfessorViewPage() {
   const { matricula } = useParams<{ matricula: string }>();

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { apiService } from '@/services/api';
 import { HeroSection } from '@/components/ui/hero-section';
 import { StatCard } from '@/components/ui/stats-card';
-import { Edit, BookOpen, Clock, Award, CheckCircle, XCircle, ArrowRight, Users, Calendar, Hash } from 'lucide-react';
+import { Edit, BookOpen, Clock, Award, CheckCircle, XCircle, ArrowRight, Users, Calendar, Hash, ArrowLeft } from 'lucide-react';
 
 export default function DisciplinaViewPage() {
   const { id } = useParams<{ id: string }>();

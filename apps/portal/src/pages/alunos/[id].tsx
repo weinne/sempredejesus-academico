@@ -141,7 +141,7 @@ export default function AlunoDetailPage() {
       {/* Hero Section */}
       <HeroSection
         badge="Detalhes do Aluno"
-        title={aluno.pessoa.nome}
+        title={aluno.pessoa?.nome || 'Nome não disponível'}
         description={`Aluno ${aluno.situacao.toLowerCase()} do curso ${aluno.curso?.nome || 'N/A'}`}
         stats={[
           { value: aluno.ra, label: 'RA' },
@@ -209,7 +209,7 @@ export default function AlunoDetailPage() {
                       <Mail className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">Email</p>
-                        <p className="font-medium">{aluno.pessoa.email}</p>
+                        <p className="font-medium">{aluno.pessoa?.email || 'N/A'}</p>
                       </div>
                     </div>
                   )}
@@ -219,7 +219,7 @@ export default function AlunoDetailPage() {
                       <Phone className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">Telefone</p>
-                        <p className="font-medium">{aluno.pessoa.telefone}</p>
+                        <p className="font-medium">{aluno.pessoa?.telefone || 'N/A'}</p>
                       </div>
                     </div>
                   )}
@@ -230,7 +230,7 @@ export default function AlunoDetailPage() {
                       <div>
                         <p className="text-sm text-gray-500">Data de Nascimento</p>
                         <p className="font-medium">
-                          {new Date(aluno.pessoa.data_nascimento).toLocaleDateString('pt-BR')}
+                          {aluno.pessoa?.data_nascimento ? new Date(aluno.pessoa.data_nascimento).toLocaleDateString('pt-BR') : 'N/A'}
                         </p>
                       </div>
                     </div>
@@ -241,7 +241,7 @@ export default function AlunoDetailPage() {
                       <CreditCard className="h-5 w-5 text-gray-400" />
                       <div>
                         <p className="text-sm text-gray-500">CPF</p>
-                        <p className="font-medium">{aluno.pessoa.cpf}</p>
+                        <p className="font-medium">{aluno.pessoa?.cpf || 'N/A'}</p>
                       </div>
                     </div>
                   )}
@@ -252,7 +252,7 @@ export default function AlunoDetailPage() {
                     <MapPin className="h-5 w-5 text-gray-400 mt-1" />
                     <div>
                       <p className="text-sm text-gray-500">Endereço</p>
-                      <p className="font-medium">{aluno.pessoa.endereco}</p>
+                      <p className="font-medium">{aluno.pessoa?.endereco || 'N/A'}</p>
                     </div>
                   </div>
                 )}

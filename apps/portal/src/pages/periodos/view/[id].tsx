@@ -9,7 +9,7 @@ import { Role } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
 import { HeroSection } from '@/components/ui/hero-section';
 import { StatCard } from '@/components/ui/stats-card';
-import { Layers3, BookOpen, Users, BarChart3, Edit, ListOrdered, Calendar, Clock, CheckCircle, XCircle, ArrowRight, Award } from 'lucide-react';
+import { Layers3, BookOpen, Users, BarChart3, Edit, ListOrdered, Calendar, Clock, CheckCircle, XCircle, ArrowRight, Award, ArrowLeft } from 'lucide-react';
 
 export default function PeriodoViewPage() {
   const { id } = useParams<{ id: string }>();
