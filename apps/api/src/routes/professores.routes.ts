@@ -4,7 +4,7 @@ import { professores, pessoas, users } from '../db/schema';
 import { CreateProfessorSchema, UpdateProfessorSchema, CreateProfessorWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireProfessor } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
-import { eq } from 'drizzle-orm';
+import { eq, asc, desc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import bcrypt from 'bcrypt';
@@ -310,7 +310,8 @@ const professoresCrud = new EnhancedCrudFactory({
       on: eq(professores.pessoaId, pessoas.id),
     }
   ],
-  searchFields: ['nomeCompleto'], // Search by pessoa name
+  // Limit search to fields on main table to avoid Drizzle select issues
+  searchFields: ['matricula'],
   orderBy: [{ field: 'matricula', direction: 'asc' }],
 });
 
@@ -399,8 +400,60 @@ const getProfessorComplete = asyncHandler(async (req: Request, res: Response) =>
 // Authentication middleware enabled
 router.use(requireAuth);
 
-// GET /professores - List all professores with pessoa information
-router.get('/', professoresCrud.getAll);
+// GET /professores - List all professores with pessoa information (custom to avoid drizzle join bug)
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  const { page = '1', limit = '20', sortBy = 'matricula', sortOrder = 'asc', search = '' } = req.query as any;
+  const pageNum = Math.max(parseInt(page), 1);
+  const limitNum = Math.min(Math.max(parseInt(limit), 1), 100);
+  const offset = (pageNum - 1) * limitNum;
+
+  // Allowed sort fields map to columns
+  const sortField = professores.matricula;
+  const sortDirection = (sortOrder as string)?.toLowerCase() === 'desc' ? 'desc' : 'asc';
+
+  let query = db
+    .select({
+      matricula: professores.matricula,
+      pessoaId: professores.pessoaId,
+      dataInicio: professores.dataInicio,
+      formacaoAcad: professores.formacaoAcad,
+      situacao: professores.situacao,
+      pessoa: {
+        id: pessoas.id,
+        nomeCompleto: pessoas.nomeCompleto,
+        sexo: pessoas.sexo,
+        email: pessoas.email,
+        cpf: pessoas.cpf,
+        dataNasc: pessoas.dataNasc,
+        telefone: pessoas.telefone,
+        endereco: pessoas.endereco,
+      }
+    })
+    .from(professores)
+    .leftJoin(pessoas, eq(professores.pessoaId, pessoas.id));
+
+  // Simple search by matricula
+  if (typeof search === 'string' && search.trim()) {
+    // Using filter on matricula only to keep safe
+    query = query.where(eq(professores.matricula, search.trim()));
+  }
+
+  // Order
+  query = sortDirection === 'desc' ? query.orderBy(desc(sortField)) : query.orderBy(asc(sortField));
+
+  const data = await query.limit(limitNum).offset(offset);
+
+  // Count total from base table (ignores search for simplicity; can add same filter if needed)
+  const totalRows = await db.select({ id: professores.matricula }).from(professores);
+  const total = totalRows.length;
+  const totalPages = Math.ceil(total / limitNum);
+
+  res.json({
+    success: true,
+    data,
+    pagination: { page: pageNum, limit: limitNum, total, totalPages },
+  });
+}));
 
 // GET /professores/:id - Get professor by matricula with complete information
 router.get('/:id', validateParams(StringIdParamSchema), getProfessorComplete);

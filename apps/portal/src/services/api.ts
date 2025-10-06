@@ -121,6 +121,35 @@ class ApiService {
     );
   }
 
+  private mapPessoaFromBackend(pessoa: any): Pessoa | undefined {
+    if (!pessoa) {
+      return undefined;
+    }
+
+    const enderecoValue =
+      typeof pessoa.endereco === 'object' && pessoa.endereco !== null
+        ? JSON.stringify(pessoa.endereco)
+        : pessoa.endereco || '';
+
+    const sexoValue =
+      typeof pessoa.sexo === 'string' && pessoa.sexo.trim().length > 0
+        ? (pessoa.sexo.trim() as Pessoa['sexo'])
+        : undefined;
+
+    return {
+      id: pessoa.id?.toString?.() || '',
+      nome: pessoa.nomeCompleto || pessoa.nome || '',
+      sexo: sexoValue,
+      cpf: pessoa.cpf || '',
+      email: pessoa.email || '',
+      telefone: pessoa.telefone || '',
+      endereco: enderecoValue,
+      data_nascimento: pessoa.dataNasc || pessoa.data_nascimento || '',
+      created_at: pessoa.createdAt || '',
+      updated_at: pessoa.updatedAt || '',
+    };
+  }
+
   private handleOfflineMode(config: any): Promise<any> {
     // Mock responses for development when backend is offline
     const url = config.url;
@@ -459,20 +488,10 @@ class ApiService {
       const response = await this.api.get('/api/pessoas');
       
       // Map backend response structure and field names
-      return response.data.data.map((pessoa: any) => ({
-        id: pessoa.id.toString(),
-        nome: pessoa.nomeCompleto,
-        sexo: pessoa.sexo,
-        cpf: pessoa.cpf || '',
-        email: pessoa.email || '',
-        telefone: pessoa.telefone || '',
-        endereco: typeof pessoa.endereco === 'object' 
-          ? JSON.stringify(pessoa.endereco) 
-          : pessoa.endereco || '',
-        data_nascimento: pessoa.dataNasc || '',
-        created_at: pessoa.createdAt,
-        updated_at: pessoa.updatedAt,
-      }));
+      const raw = response.data.data || [];
+      return raw
+        .map((pessoa: any) => this.mapPessoaFromBackend(pessoa))
+        .filter((pessoa): pessoa is Pessoa => Boolean(pessoa));
     } catch (error) {
       if (this.isOfflineMode) {
         return this.handleOfflineMode('/api/pessoas');
@@ -822,7 +841,34 @@ class ApiService {
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
       const response = await this.api.get(`/api/professores?${queryParams.toString()}`);
-      return response.data;
+      const payload = response.data || {};
+      const rawData = Array.isArray(payload.data) ? payload.data : payload.data?.data || [];
+
+      const data = (rawData as any[]).map((professor) => {
+        const source = professor?.professores || professor || {};
+        const pessoaSource = professor?.pessoa || professor?.pessoas;
+        const pessoaIdValue = Number(source.pessoaId ?? 0);
+
+        const mapped: Professor = {
+          matricula: String(source.matricula ?? ''),
+          pessoaId: Number.isNaN(pessoaIdValue) ? 0 : pessoaIdValue,
+          dataInicio: source.dataInicio || '',
+          formacaoAcad: source.formacaoAcad || undefined,
+          situacao: (source.situacao || 'ATIVO') as Professor['situacao'],
+        };
+
+        const mappedPessoa = this.mapPessoaFromBackend(pessoaSource);
+        if (mappedPessoa) {
+          mapped.pessoa = mappedPessoa;
+        }
+
+        return mapped;
+      });
+
+      return {
+        data,
+        pagination: payload.pagination || payload.data?.pagination,
+      };
     } catch (error: any) {
       console.warn('API offline - showing empty professores list');
       return {
@@ -834,7 +880,25 @@ class ApiService {
 
   async getProfessor(matricula: string): Promise<Professor> {
     const response = await this.api.get(`/api/professores/${matricula}`);
-    return response.data.data;
+    const payload = response.data?.data || {};
+    const source = payload.professores || payload;
+    const pessoaSource = payload.pessoa || payload.pessoas;
+    const pessoaIdValue = Number(source.pessoaId ?? payload.pessoaId ?? 0);
+
+    const mapped: Professor = {
+      matricula: String(source.matricula ?? payload.matricula ?? ''),
+      pessoaId: Number.isNaN(pessoaIdValue) ? 0 : pessoaIdValue,
+      dataInicio: source.dataInicio || payload.dataInicio || '',
+      formacaoAcad: source.formacaoAcad || payload.formacaoAcad || undefined,
+      situacao: (source.situacao || payload.situacao || 'ATIVO') as Professor['situacao'],
+    };
+
+    const mappedPessoa = this.mapPessoaFromBackend(pessoaSource);
+    if (mappedPessoa) {
+      mapped.pessoa = mappedPessoa;
+    }
+
+    return mapped;
   }
 
   async createProfessor(professor: CreateProfessorWithUser): Promise<{ professor: Professor; user?: any }> {

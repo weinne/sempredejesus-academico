@@ -125,6 +125,32 @@ export default function AlunoNewPage() {
     ).slice(0, 20);
   }, [pessoas, pessoaSearch]);
   const [confirmPessoa, setConfirmPessoa] = useState<Pessoa | null>(null);
+  const enderecoStrWatch = watch('pessoa.endereco');
+  const [endLogradouro, setEndLogradouro] = useState('');
+  const [endNumero, setEndNumero] = useState('');
+  const [endComplemento, setEndComplemento] = useState('');
+  const [endBairro, setEndBairro] = useState('');
+  const [endCidade, setEndCidade] = useState('');
+  const [endEstado, setEndEstado] = useState('');
+  const [endCep, setEndCep] = useState('');
+
+  useEffect(() => {
+    if (!enderecoStrWatch) return;
+    try {
+      const parsed = typeof enderecoStrWatch === 'string' ? JSON.parse(enderecoStrWatch) : enderecoStrWatch;
+      if (parsed && typeof parsed === 'object') {
+        setEndLogradouro(parsed.logradouro || '');
+        setEndNumero(parsed.numero || '');
+        setEndComplemento(parsed.complemento || '');
+        setEndBairro(parsed.bairro || '');
+        setEndCidade(parsed.cidade || '');
+        setEndEstado(parsed.estado || '');
+        setEndCep(parsed.cep || '');
+      }
+    } catch {
+      // ignore
+    }
+  }, [enderecoStrWatch]);
 
   const { data: periodosResponse } = useQuery({
     queryKey: ['periodos', selectedCursoId],
@@ -155,6 +181,18 @@ export default function AlunoNewPage() {
   });
 
   const onSubmit = (data: AlunoFormData) => {
+    if (!data.pessoaId && data.pessoa) {
+      const enderecoObj = {
+        logradouro: endLogradouro,
+        numero: endNumero,
+        complemento: endComplemento,
+        bairro: endBairro,
+        cidade: endCidade,
+        estado: endEstado,
+        cep: endCep,
+      };
+      setValue('pessoa.endereco', JSON.stringify(enderecoObj), { shouldDirty: true, shouldValidate: false });
+    }
     createMutation.mutate(data);
   };
 
@@ -305,15 +343,7 @@ export default function AlunoNewPage() {
                                   className="w-full text-left p-2 hover:bg-slate-50"
                                   onClick={() => {
                                     setValue('pessoaId', Number(p.id), { shouldValidate: true, shouldDirty: true });
-                                    setValue('pessoa', {
-                                      nome: p.nome,
-                                      sexo: p.sexo,
-                                      email: p.email,
-                                      cpf: p.cpf,
-                                      telefone: p.telefone,
-                                      endereco: p.endereco,
-                                      data_nascimento: p.data_nascimento,
-                                    } as any, { shouldValidate: false, shouldDirty: false });
+                                    setValue('pessoa', undefined as any, { shouldValidate: true, shouldDirty: true });
                                     setShowPessoaDropdown(false);
                                     toast({ title: 'Pessoa selecionada', description: p.nome });
                                   }}
@@ -395,10 +425,49 @@ export default function AlunoNewPage() {
                         <Input type="date" {...register('pessoa.data_nascimento')} />
                       </div>
                       <div className="md:col-span-2 lg:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                        <Input {...register('pessoa.endereco')} placeholder="Rua, número, bairro, cidade" />
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                          <Input value={endLogradouro} onChange={(e)=>setEndLogradouro(e.target.value)} placeholder="Logradouro" className="md:col-span-3" />
+                          <Input value={endNumero} onChange={(e)=>setEndNumero(e.target.value)} placeholder="Número" className="md:col-span-1" />
+                          <Input value={endComplemento} onChange={(e)=>setEndComplemento(e.target.value)} placeholder="Complemento" className="md:col-span-2" />
+                          <Input value={endBairro} onChange={(e)=>setEndBairro(e.target.value)} placeholder="Bairro" className="md:col-span-2" />
+                          <Input value={endCidade} onChange={(e)=>setEndCidade(e.target.value)} placeholder="Cidade" className="md:col-span-2" />
+                          <Input value={endEstado} onChange={(e)=>setEndEstado(e.target.value)} placeholder="UF" className="md:col-span-1" />
+                          <Input value={endCep} onChange={(e)=>setEndCep(e.target.value)} placeholder="CEP" className="md:col-span-1" />
+                        </div>
                       </div>
                     </div>
+                  </div>
+                )}
+                {selectedPessoaId && (
+                  <div className="border rounded-md p-4 bg-slate-50">
+                    {(() => {
+                      const selected = (pessoas as Pessoa[]).find(p => Number(p.id) === Number(selectedPessoaId));
+                      const addr = (() => {
+                        try {
+                          const raw = selected?.endereco || '';
+                          if (!raw) return null;
+                          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                          return parsed && typeof parsed === 'object' ? parsed : null;
+                        } catch { return null; }
+                      })();
+                      return (
+                        <div className="space-y-1 text-sm">
+                          <div className="font-medium">{selected?.nome}</div>
+                          <div className="text-slate-600">{selected?.cpf || 'CPF não informado'} • {selected?.email || 'sem email'}</div>
+                          {addr && (
+                            <div className="text-slate-600">
+                              {addr.logradouro || ''} {addr.numero || ''} {addr.complemento || ''} - {addr.bairro || ''} - {addr.cidade || ''}/{addr.estado || ''} {addr.cep || ''}
+                            </div>
+                          )}
+                          <div className="pt-2">
+                            <Button type="button" variant="outline" size="sm" onClick={() => setValue('pessoaId', undefined as any, { shouldValidate: true, shouldDirty: true })}>
+                              Desvincular pessoa
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
                 <div>
@@ -446,15 +515,7 @@ export default function AlunoNewPage() {
                         if (!confirmPessoa) return;
                         const p = confirmPessoa;
                         setValue('pessoaId', Number(p.id), { shouldValidate: true, shouldDirty: true });
-                        setValue('pessoa', {
-                          nome: p.nome,
-                          sexo: p.sexo,
-                          email: p.email,
-                          cpf: p.cpf,
-                          telefone: p.telefone,
-                          endereco: p.endereco,
-                          data_nascimento: p.data_nascimento,
-                        } as any, { shouldValidate: false, shouldDirty: false });
+                        setValue('pessoa', undefined as any, { shouldValidate: true, shouldDirty: true });
                         setConfirmPessoa(null);
                       }}>Selecionar</AlertDialogAction>
                     </AlertDialogFooter>

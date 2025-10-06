@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { eq, and, or, like, desc, asc } from 'drizzle-orm';
+import { eq, or, like, desc, asc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { AnyZodObject } from 'zod';
@@ -39,22 +39,9 @@ export class EnhancedCrudFactory {
 
     let query: any;
     
-    // Build select query with explicit field selection when using joins
+    // Build select query; when using joins, rely on Drizzle's default field ordering
     if (this.options.joinTables) {
-      // Create explicit select for main table fields
-      const mainTableFields: any = {};
-      const tableColumns = Object.keys(this.options.table);
-      
-      // Add all fields from main table
-      for (const column of tableColumns) {
-        if (this.options.table[column]) {
-          mainTableFields[column] = this.options.table[column];
-        }
-      }
-      
-      query = db.select(mainTableFields).from(this.options.table);
-      
-      // Add joins
+      query = db.select().from(this.options.table);
       for (const join of this.options.joinTables) {
         query = query.leftJoin(join.table, join.on);
       }
@@ -70,11 +57,13 @@ export class EnhancedCrudFactory {
       query = query.where(or(...searchConditions));
     }
 
-    // Add ordering
+    // Add ordering (skip when joins are present due to drizzle bug with orderSelectedFields)
     const primaryKeyField = this.options.primaryKey || 'id';
-    const orderField = this.options.table[sortBy as string] || this.options.table[primaryKeyField];
-    const orderDirection = sortOrder === 'desc' ? desc : asc;
-    query = query.orderBy(orderDirection(orderField));
+    if (!this.options.joinTables) {
+      const orderField = this.options.table[sortBy as string] || this.options.table[primaryKeyField];
+      const orderDirection = sortOrder === 'desc' ? desc : asc;
+      query = query.orderBy(orderDirection(orderField));
+    }
 
     // Add pagination
     const data = await query.limit(limitNum).offset(offset);
@@ -187,7 +176,7 @@ export class EnhancedCrudFactory {
 
     // Remove undefined values
     const updateData = Object.fromEntries(
-      Object.entries(req.body).filter(([_, value]) => value !== undefined)
+      Object.entries(req.body).filter(([key, value]) => value !== undefined)
     );
 
     // Hash password fields if specified

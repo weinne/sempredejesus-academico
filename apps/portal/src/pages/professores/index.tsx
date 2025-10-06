@@ -9,7 +9,7 @@ import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Professor, CreateProfessorWithUser, Pessoa, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
 import { HeroSection } from '@/components/ui/hero-section';
 import { StatCard } from '@/components/ui/stats-card';
@@ -63,6 +63,7 @@ type UpdateProfessorFormData = z.infer<typeof updateProfessorSchema>;
 export default function ProfessoresPage() {
   const { hasRole } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [situacaoFiltro, setSituacaoFiltro] = useState<'' | 'ATIVO' | 'INATIVO'>('');
@@ -265,6 +266,7 @@ export default function ProfessoresPage() {
       formacaoAcad: professor.formacaoAcad || '',
       situacao: professor.situacao,
     });
+    navigate(`/professores/edit/${professor.matricula}`);
   };
 
   // Handle delete
