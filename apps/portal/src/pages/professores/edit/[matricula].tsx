@@ -176,6 +176,7 @@ export default function ProfessorEditPage() {
         data_nascimento: formatDateForInput(professor.pessoa?.data_nascimento),
       },
     });
+
     setEndereco(parseEndereco(professor.pessoa?.endereco));
   }, [professor, reset]);
 
@@ -318,7 +319,6 @@ export default function ProfessorEditPage() {
                         <Input value={endereco.estado} onChange={(e) => setEndereco(prev => ({ ...prev, estado: e.target.value.toUpperCase().slice(0, 2) }))} placeholder="UF" className="md:col-span-1" />
                         <Input value={endereco.cep} onChange={(e) => setEndereco(prev => ({ ...prev, cep: onlyDigits(e.target.value || '') }))} placeholder="CEP" className="md:col-span-1" />
                       </div>
-                    </div>
                     </div>
                   </div>
                 </div>

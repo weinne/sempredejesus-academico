@@ -661,7 +661,6 @@ export default function EditAlunoPage() {
                         <Input value={endereco.cep} onChange={(e) => handleEnderecoFieldChange('cep')(onlyDigits(e.target.value || ''))} placeholder="CEP" className="md:col-span-1" />
                       </div>
                     </div>
-                    </div>
                   </div>
                 </div>
 

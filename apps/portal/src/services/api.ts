@@ -491,7 +491,7 @@ class ApiService {
       const raw = response.data.data || [];
       return raw
         .map((pessoa: any) => this.mapPessoaFromBackend(pessoa))
-        .filter((pessoa): pessoa is Pessoa => Boolean(pessoa));
+        .filter((pessoa: Pessoa | undefined): pessoa is Pessoa => Boolean(pessoa));
     } catch (error) {
       if (this.isOfflineMode) {
         return this.handleOfflineMode('/api/pessoas');
