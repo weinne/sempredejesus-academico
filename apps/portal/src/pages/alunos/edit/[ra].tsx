@@ -22,6 +22,73 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+type AddressState = {
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  cep: string;
+};
+
+const createEmptyAddress = (): AddressState => ({
+  logradouro: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  estado: '',
+  cep: '',
+});
+
+const parseEndereco = (raw?: unknown): AddressState => {
+  const base = createEmptyAddress();
+  if (!raw) return base;
+
+  const normalize = (value: unknown): Partial<AddressState> | null => {
+    if (!value) return null;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      return value as Partial<AddressState>;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+
+      const attempts = [trimmed, trimmed.replace(/'/g, '"')];
+      for (const candidate of attempts) {
+        try {
+          const parsed = JSON.parse(candidate);
+          const normalized = normalize(parsed);
+          if (normalized) return normalized;
+        } catch {
+          // ignore invalid JSON
+        }
+      }
+    }
+    return null;
+  };
+
+  const normalized = normalize(raw);
+  if (normalized) {
+    return { ...base, ...normalized };
+  }
+
+  if (typeof raw === 'string') {
+    return { ...base, logradouro: raw };
+  }
+
+  return base;
+};
+
+const serializeEndereco = (address: AddressState) => JSON.stringify(address);
+
+const formatDateForInput = (value?: string | null) => {
+  if (!value) return '';
+  if (value.includes('T')) return value.split('T')[0];
+  return value;
+};
+
 const updateAlunoSchema = z.object({
   pessoaId: z.number().min(1, 'Selecione uma pessoa'),
   cursoId: z.number().min(1, 'Selecione um curso'),
@@ -43,6 +110,8 @@ export default function EditAlunoPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showPessoaModal, setShowPessoaModal] = useState(false);
+
+  const [endereco, setEndereco] = useState<AddressState>(createEmptyAddress());
 
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
 
@@ -219,6 +288,24 @@ export default function EditAlunoPage() {
     },
     onError: (error: any) => toast({ title: 'Erro ao atualizar pessoa', description: error.message || 'Erro desconhecido', variant: 'destructive' }),
   });
+
+  useEffect(() => {
+    if (aluno?.pessoa) {
+      setEndereco(parseEndereco(aluno.pessoa.endereco));
+    } else {
+      setEndereco(createEmptyAddress());
+    }
+  }, [aluno]);
+
+  const handleEnderecoFieldChange = (field: keyof AddressState) => (value: string) => {
+    setEndereco(prev => {
+      const next = { ...prev, [field]: value };
+      if (aluno?.pessoa?.id) {
+        updatePessoaMutation.mutate({ endereco: serializeEndereco(next) });
+      }
+      return next;
+    });
+  };
 
   // Handle form submission
   const onSubmit = (data: UpdateAlunoFormData) => {
@@ -539,7 +626,7 @@ export default function EditAlunoPage() {
                       onChange={(e) => {
                         const digits = onlyDigits(e.target.value || '');
                         e.target.value = maskCPF(digits);
-                        updatePessoaMutation.mutate({ cpf: e.target.value });
+                        updatePessoaMutation.mutate({ cpf: digits });
                       }}
                       />
                     </div>
@@ -550,7 +637,7 @@ export default function EditAlunoPage() {
                       onChange={(e) => {
                         const digits = onlyDigits(e.target.value || '');
                         e.target.value = maskPhone(digits);
-                        updatePessoaMutation.mutate({ telefone: e.target.value });
+                        updatePessoaMutation.mutate({ telefone: digits });
                       }}
                       />
                     </div>
@@ -558,16 +645,22 @@ export default function EditAlunoPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
                       <Input
                         type="date"
-                        defaultValue={aluno.pessoa?.data_nascimento || ''}
+                        defaultValue={formatDateForInput(aluno.pessoa?.data_nascimento)}
                         onChange={(e) => updatePessoaMutation.mutate({ data_nascimento: e.target.value })}
                       />
                     </div>
                     <div className="md:col-span-2 lg:col-span-3">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                      <Input
-                        defaultValue={aluno.pessoa?.endereco || ''}
-                        onChange={(e) => updatePessoaMutation.mutate({ endereco: e.target.value })}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                        <Input value={endereco.logradouro} onChange={(e) => handleEnderecoFieldChange('logradouro')(e.target.value)} placeholder="Logradouro" className="md:col-span-3" />
+                        <Input value={endereco.numero} onChange={(e) => handleEnderecoFieldChange('numero')(e.target.value)} placeholder="Número" className="md:col-span-1" />
+                        <Input value={endereco.complemento} onChange={(e) => handleEnderecoFieldChange('complemento')(e.target.value)} placeholder="Complemento" className="md:col-span-2" />
+                        <Input value={endereco.bairro} onChange={(e) => handleEnderecoFieldChange('bairro')(e.target.value)} placeholder="Bairro" className="md:col-span-2" />
+                        <Input value={endereco.cidade} onChange={(e) => handleEnderecoFieldChange('cidade')(e.target.value)} placeholder="Cidade" className="md:col-span-2" />
+                        <Input value={endereco.estado} onChange={(e) => { const value = e.target.value.toUpperCase().slice(0, 2); handleEnderecoFieldChange('estado')(value); }} placeholder="UF" className="md:col-span-1" maxLength={2} />
+                        <Input value={endereco.cep} onChange={(e) => handleEnderecoFieldChange('cep')(onlyDigits(e.target.value || ''))} placeholder="CEP" className="md:col-span-1" />
+                      </div>
+                    </div>
                     </div>
                   </div>
                 </div>

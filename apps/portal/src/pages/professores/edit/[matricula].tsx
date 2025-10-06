@@ -12,6 +12,73 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
+type AddressState = {
+  logradouro: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  cep: string;
+};
+
+const formatDateForInput = (value?: string | null) => {
+  if (!value) return '';
+  if (value.includes('T')) return value.split('T')[0];
+  return value;
+};
+
+const createEmptyAddress = (): AddressState => ({
+  logradouro: '',
+  numero: '',
+  complemento: '',
+  bairro: '',
+  cidade: '',
+  estado: '',
+  cep: '',
+});
+
+const parseEndereco = (raw?: unknown): AddressState => {
+  const base = createEmptyAddress();
+  if (!raw) return base;
+
+  const normalize = (value: unknown): Partial<AddressState> | null => {
+    if (!value) return null;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      return value as Partial<AddressState>;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+
+      const attempts = [trimmed, trimmed.replace(/'/g, '"')];
+      for (const candidate of attempts) {
+        try {
+          const parsed = JSON.parse(candidate);
+          const normalized = normalize(parsed);
+          if (normalized) return normalized;
+        } catch {
+          // ignore invalid JSON
+        }
+      }
+    }
+    return null;
+  };
+
+  const normalized = normalize(raw);
+  if (normalized) {
+    return { ...base, ...normalized };
+  }
+
+  if (typeof raw === 'string') {
+    return { ...base, logradouro: raw };
+  }
+
+  return base;
+};
+
+const serializeEndereco = (address: AddressState) => JSON.stringify(address);
+
 export default function ProfessorEditPage() {
   const { matricula } = useParams<{ matricula: string }>();
   const navigate = useNavigate();
@@ -59,7 +126,6 @@ export default function ProfessorEditPage() {
     email: z.string().email('Email inválido').optional(),
     cpf: z.string().optional(),
     telefone: z.string().optional(),
-    endereco: z.string().optional(),
     data_nascimento: z.string().optional(),
   });
 
@@ -72,10 +138,33 @@ export default function ProfessorEditPage() {
 
   type EditFormData = z.infer<typeof formSchema>;
 
-  const { register, handleSubmit, formState: { errors } } = useForm<EditFormData>({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<EditFormData>({
     resolver: zodResolver(formSchema),
-    values: professor ? {
-      dataInicio: professor.dataInicio,
+    defaultValues: {
+      dataInicio: '',
+      situacao: 'ATIVO',
+      formacaoAcad: '',
+      pessoa: {
+        nome: '',
+        sexo: undefined,
+        email: '',
+        cpf: '',
+        telefone: '',
+        data_nascimento: '',
+      },
+    },
+  });
+
+  const [endereco, setEndereco] = React.useState<AddressState>(createEmptyAddress());
+
+  React.useEffect(() => {
+    if (!professor) {
+      setEndereco(createEmptyAddress());
+      return;
+    }
+
+    reset({
+      dataInicio: formatDateForInput(professor.dataInicio),
       situacao: professor.situacao as 'ATIVO' | 'INATIVO',
       formacaoAcad: professor.formacaoAcad || '',
       pessoa: {
@@ -84,11 +173,11 @@ export default function ProfessorEditPage() {
         email: professor.pessoa?.email || '',
         cpf: professor.pessoa?.cpf || '',
         telefone: professor.pessoa?.telefone || '',
-        endereco: professor.pessoa?.endereco || '',
-        data_nascimento: professor.pessoa?.data_nascimento || '',
+        data_nascimento: formatDateForInput(professor.pessoa?.data_nascimento),
       },
-    } : undefined,
-  });
+    });
+    setEndereco(parseEndereco(professor.pessoa?.endereco));
+  }, [professor, reset]);
 
   // Masks and normalization helpers
   const onlyDigits = (value: string) => value.replace(/\D/g, '');
@@ -126,23 +215,29 @@ export default function ProfessorEditPage() {
             </CardHeader>
             <CardContent>
               <form
-                onSubmit={handleSubmit((data) => {
+                onSubmit={handleSubmit(async (data) => {
+                  try {
+                    if (professor.pessoa?.id) {
+                      const enderecoPayload = serializeEndereco(endereco);
+                      await updatePessoaMutation.mutateAsync({
+                        nome: data.pessoa.nome,
+                        sexo: data.pessoa.sexo,
+                        email: data.pessoa.email,
+                        cpf: onlyDigits(data.pessoa.cpf || ''),
+                        telefone: onlyDigits(data.pessoa.telefone || ''),
+                        endereco: enderecoPayload,
+                        data_nascimento: data.pessoa.data_nascimento || null,
+                      });
+                    }
+                  } catch {
+                    return;
+                  }
+
                   updateMutation.mutate({
                     dataInicio: data.dataInicio,
                     formacaoAcad: data.formacaoAcad || '',
                     situacao: data.situacao,
                   });
-                  if (professor.pessoa?.id) {
-                    updatePessoaMutation.mutate({
-                      nome: data.pessoa.nome,
-                      sexo: data.pessoa.sexo,
-                      email: data.pessoa.email,
-                      cpf: data.pessoa.cpf,
-                      telefone: data.pessoa.telefone,
-                      endereco: data.pessoa.endereco,
-                      data_nascimento: data.pessoa.data_nascimento,
-                    });
-                  }
                 })}
                 className="grid grid-cols-1 md:grid-cols-2 gap-4"
               >
@@ -214,7 +309,16 @@ export default function ProfessorEditPage() {
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                      <Input {...register('pessoa.endereco')} />
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                        <Input value={endereco.logradouro} onChange={(e) => setEndereco(prev => ({ ...prev, logradouro: e.target.value }))} placeholder="Logradouro" className="md:col-span-3" />
+                        <Input value={endereco.numero} onChange={(e) => setEndereco(prev => ({ ...prev, numero: e.target.value }))} placeholder="Número" className="md:col-span-1" />
+                        <Input value={endereco.complemento} onChange={(e) => setEndereco(prev => ({ ...prev, complemento: e.target.value }))} placeholder="Complemento" className="md:col-span-2" />
+                        <Input value={endereco.bairro} onChange={(e) => setEndereco(prev => ({ ...prev, bairro: e.target.value }))} placeholder="Bairro" className="md:col-span-2" />
+                        <Input value={endereco.cidade} onChange={(e) => setEndereco(prev => ({ ...prev, cidade: e.target.value }))} placeholder="Cidade" className="md:col-span-2" />
+                        <Input value={endereco.estado} onChange={(e) => setEndereco(prev => ({ ...prev, estado: e.target.value.toUpperCase().slice(0, 2) }))} placeholder="UF" className="md:col-span-1" />
+                        <Input value={endereco.cep} onChange={(e) => setEndereco(prev => ({ ...prev, cep: onlyDigits(e.target.value || '') }))} placeholder="CEP" className="md:col-span-1" />
+                      </div>
+                    </div>
                     </div>
                   </div>
                 </div>
