@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Disciplina, Curso, Role, Periodo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -63,7 +64,9 @@ export default function DisciplinasPage() {
   const [periodoFiltro, setPeriodoFiltro] = useState<number | ''>('');
   const [statusFiltro, setStatusFiltro] = useState<'all' | 'active' | 'inactive'>('all');
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'disciplinas');
+  const canEdit = useCan('edit', 'disciplinas');
+  const canDelete = useCan('delete', 'disciplinas');
 
   // Form setup
   const {
@@ -368,7 +371,7 @@ export default function DisciplinasPage() {
         title="Gerenciar Disciplinas"
         description="Administração das disciplinas e planos de ensino"
         backTo="/dashboard"
-        actions={canEdit ? (
+        actions={canCreate ? (
           <div className="flex gap-2">
             <Button onClick={handleNew}>
               <Plus className="h-4 w-4 mr-2" />
@@ -603,15 +606,17 @@ export default function DisciplinasPage() {
                                 <Button variant="ghost" size="sm" onClick={() => handleEdit(d)} title="Editar">
                                   <Edit className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => handleDelete(d.id)}
-                                  disabled={deleteMutation.isPending}
-                                  title="Remover"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {canDelete && (
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => handleDelete(d.id)}
+                                    disabled={deleteMutation.isPending}
+                                    title="Remover"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </>
                             )}
                           </div>

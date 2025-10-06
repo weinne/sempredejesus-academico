@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Pessoa, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +38,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 const pessoaSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório'),
-  sexo: z.enum(['M', 'F']).optional(),
+  sexo: z.enum(['M', 'F', 'O']).optional(),
   email: z.string().email('Email inválido').optional().or(z.literal('')),
   cpf: z.string().optional(),
   telefone: z.string().optional(),
@@ -57,7 +58,9 @@ export default function PessoasPage() {
 
 
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'pessoas');
+  const canEdit = useCan('edit', 'pessoas');
+  const canDelete = useCan('delete', 'pessoas');
 
   // Form setup
   const {
@@ -231,6 +234,9 @@ export default function PessoasPage() {
         title="Gerenciar Pessoas"
         description="Cadastro e edição de pessoas"
         backTo="/dashboard"
+        actions={canCreate ? (
+          <Button onClick={() => { setEditingPessoa(null); setShowForm(true); reset(); }}>Nova Pessoa</Button>
+        ) : undefined}
       />
 
       {/* Hero Section */}
@@ -327,6 +333,7 @@ export default function PessoasPage() {
                         <option value="">Selecione...</option>
                         <option value="M">Masculino</option>
                         <option value="F">Feminino</option>
+                        <option value="O">Outro</option>
                       </select>
                       {errors.sexo && (<p className="mt-1 text-sm text-red-600">{errors.sexo.message}</p>)}
                     </div>
@@ -354,8 +361,10 @@ export default function PessoasPage() {
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    {editingPessoa && (
-                      <Button type="submit" disabled={updateMutation.isPending}>Atualizar</Button>
+                    {editingPessoa ? (
+                      canEdit ? <Button type="submit" disabled={updateMutation.isPending}>Atualizar</Button> : null
+                    ) : (
+                      canCreate ? <Button type="submit" disabled={createMutation.isPending}>Criar</Button> : null
                     )}
                     <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingPessoa(null); reset(); }}>Fechar</Button>
                   </div>

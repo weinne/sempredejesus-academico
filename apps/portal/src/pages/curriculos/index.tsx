@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+// import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,70 +15,38 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useAuth } from '@/providers/auth-provider';
+// import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
-import { Curriculo, CreateCurriculo, Role } from '@/types/api';
+import { Curriculo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
 import { HeroSection } from '@/components/ui/hero-section';
 import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
-import { Pagination } from '@/components/crud/pagination';
-import {
-  ArrowLeft,
-  Plus,
-  Search,
-  Edit,
-  Trash2,
-  FileText,
-  Eye,
-  Users,
-  CheckCircle,
-  XCircle,
-  ArrowRight,
-  TrendingUp,
-  Clock,
-  Award,
-  AlertTriangle
-} from 'lucide-react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+// import { Pagination } from '@/components/crud/pagination';
+import { Plus, Edit, Trash2, FileText, Eye, Users, CheckCircle, XCircle, Clock, Award, AlertTriangle } from 'lucide-react';
+// import { z } from 'zod';
 
-const curriculoSchema = z.object({
-  cursoId: z.number().min(1, 'Selecione um curso'),
-  turnoId: z.number().min(1, 'Selecione um turno'),
-  versao: z.string().min(1, 'Versão é obrigatória').max(40),
-  vigenteDe: z.string().optional(),
-  vigenteAte: z.string().optional(),
-  ativo: z.boolean().default(true),
-});
-
-type CurriculoFormData = z.infer<typeof curriculoSchema>;
+// Schema removido (criação/edição ocorre em páginas dedicadas)
 
 export default function CurriculosPage() {
-  const { hasRole } = useAuth();
+  // const { hasRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editingCurriculo, setEditingCurriculo] = useState<Curriculo | null>(null);
+  // inline form removido
   const [deletingCurriculo, setDeletingCurriculo] = useState<Curriculo | null>(null);
-  const [page, setPage] = useState(1);
+  // const [page, setPage] = useState(1);
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'periodos');
+  const canEdit = useCan('edit', 'periodos');
+  const canDelete = useCan('delete', 'periodos');
 
   // Form setup
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<CurriculoFormData>({
-    resolver: zodResolver(curriculoSchema),
-  });
+  // Inline form removido
 
   // Fetch curriculos
   const {
@@ -102,49 +70,9 @@ export default function CurriculosPage() {
 
   const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
 
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: (curriculo: CreateCurriculo) => apiService.createCurriculo(curriculo),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['curriculos'] });
-      toast({
-        title: 'Currículo criado',
-        description: 'Currículo criado com sucesso!',
-      });
-      setShowForm(false);
-      reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Erro ao criar currículo',
-        description: error.message || 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    },
-  });
+  // Criação ocorre em /curriculos/new
 
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<CreateCurriculo> }) =>
-      apiService.updateCurriculo(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['curriculos'] });
-      toast({
-        title: 'Currículo atualizado',
-        description: 'Currículo atualizado com sucesso!',
-      });
-      setShowForm(false);
-      setEditingCurriculo(null);
-      reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Erro ao atualizar currículo',
-        description: error.message || 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    },
-  });
+  // Edição ocorre em /curriculos/edit/[id]
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -185,21 +113,7 @@ export default function CurriculosPage() {
     (curriculo.turno?.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Handle form submission
-  const onSubmit = (data: CurriculoFormData) => {
-    const payload = {
-      ...data,
-      vigenteDe: data.vigenteDe || undefined,
-      vigenteAte: data.vigenteAte || undefined,
-      ativo: data.ativo ?? true,
-    };
-
-    if (editingCurriculo) {
-      updateMutation.mutate({ id: editingCurriculo.id, data: payload });
-    } else {
-      createMutation.mutate(payload);
-    }
-  };
+  // Inline submit removed; creation/edition happens on dedicated pages
 
   // Handle delete with FK constraint
   const handleDelete = (curriculo: Curriculo) => {
@@ -216,27 +130,8 @@ export default function CurriculosPage() {
     }
   };
 
-  // Handle edit
-  const handleEdit = (curriculo: Curriculo) => {
-    setEditingCurriculo(curriculo);
-    setShowForm(true);
-    reset({
-      cursoId: curriculo.cursoId,
-      turnoId: curriculo.turnoId,
-      versao: curriculo.versao,
-      vigenteDe: curriculo.vigenteDe || '',
-      vigenteAte: curriculo.vigenteAte || '',
-      ativo: curriculo.ativo,
-    });
-  };
-
-
-  // Handle new curriculo
-  const handleNew = () => {
-    setEditingCurriculo(null);
-    setShowForm(true);
-    reset();
-  };
+  // Navegação auxiliar
+  // (usamos navigate inline nas ações)
 
   if (error) {
     return (
@@ -266,7 +161,7 @@ export default function CurriculosPage() {
         title="Gerenciar Currículos"
         description="Administração das versões de currículo dos cursos"
         backTo="/dashboard"
-        actions={canEdit ? (
+        actions={canCreate ? (
           <Button onClick={() => navigate('/curriculos/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Currículo
@@ -417,38 +312,41 @@ export default function CurriculosPage() {
                           <Button variant="ghost" size="sm" onClick={() => navigate(`/curriculos/edit/${c.id}`)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="sm" disabled={deleteMutation.isPending} title="Remover">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle className="flex items-center">
-                                  <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
-                                  Confirmar Exclusão
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tem certeza que deseja excluir o currículo <strong>{c.versao}</strong>?
-                                  <br />
-                                  <br />
-                                  <span className="text-red-600 font-medium">
-                                    Esta ação não pode ser desfeita.
-                                  </span>
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDelete(c)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Excluir
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          {canDelete && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="sm" disabled={deleteMutation.isPending} title="Remover">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center">
+                                    <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+                                    Confirmar Exclusão
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tem certeza que deseja excluir o currículo <strong>{c.versao}
+                                    </strong>?
+                                    <br />
+                                    <br />
+                                    <span className="text-red-600 font-medium">
+                                      Esta ação não pode ser desfeita.
+                                    </span>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(c)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    Excluir
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </>
                       )}
                     </div>
@@ -476,38 +374,41 @@ export default function CurriculosPage() {
                             <Button variant="ghost" size="sm" onClick={() => navigate(`/curriculos/edit/${curriculo.id}`)} title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm" disabled={deleteMutation.isPending} title="Remover">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle className="flex items-center">
-                                    <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
-                                    Confirmar Exclusão
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Tem certeza que deseja excluir o currículo <strong>{curriculo.versao}</strong>?
-                                    <br />
-                                    <br />
-                                    <span className="text-red-600 font-medium">
-                                      Esta ação não pode ser desfeita.
-                                    </span>
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(curriculo)}
-                                    className="bg-red-600 hover:bg-red-700"
-                                  >
-                                    Excluir
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                            {canDelete && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="sm" disabled={deleteMutation.isPending} title="Remover">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle className="flex items-center">
+                                      <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+                                      Confirmar Exclusão
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir o currículo <strong>{curriculo.versao}
+                                      </strong>?
+                                      <br />
+                                      <br />
+                                      <span className="text-red-600 font-medium">
+                                        Esta ação não pode ser desfeita.
+                                      </span>
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(curriculo)}
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
                           </div>
                         )}
                       </div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Coorte, CreateCoorte, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -39,7 +40,9 @@ export default function CoortesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'coortes');
+  const canEdit = useCan('edit', 'coortes');
+  const canDelete = useCan('delete', 'coortes');
 
   // Fetch coortes
   const {
@@ -135,7 +138,7 @@ export default function CoortesPage() {
         title="Gerenciar Coortes"
         description="Administração das turmas de ingresso dos alunos"
         backTo="/dashboard"
-        actions={canEdit ? (
+        actions={canCreate ? (
           <Button onClick={() => navigate('/coortes/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Coorte
@@ -278,9 +281,11 @@ export default function CoortesPage() {
                           <Button variant="ghost" size="sm" onClick={() => navigate(`/coortes/edit/${c.id}`)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)} disabled={deleteMutation.isPending} title="Remover">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canDelete && (
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)} disabled={deleteMutation.isPending} title="Remover">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>
@@ -308,9 +313,11 @@ export default function CoortesPage() {
                             <Button variant="ghost" size="sm" onClick={() => navigate(`/coortes/edit/${coorte.id}`)} title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(coorte.id)} disabled={deleteMutation.isPending} title="Remover">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canDelete && (
+                              <Button variant="destructive" size="sm" onClick={() => handleDelete(coorte.id)} disabled={deleteMutation.isPending} title="Remover">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Turma, CreateTurma, Disciplina, Professor, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -57,7 +58,9 @@ export default function TurmasPage() {
   const [editingTurma, setEditingTurma] = useState<Turma | null>(null);
   const [page, setPage] = useState(1);
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'turmas');
+  const canEdit = useCan('edit', 'turmas');
+  const canDelete = useCan('delete', 'turmas');
   const isProfessor = hasRole(Role.PROFESSOR);
 
   // Form setup
@@ -267,7 +270,7 @@ export default function TurmasPage() {
       <CrudHeader
         title="Gerenciar Turmas"
         backTo="/dashboard"
-        actions={canEdit ? (
+        actions={canCreate ? (
           <Button onClick={() => navigate('/turmas/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Turma
@@ -381,9 +384,11 @@ export default function TurmasPage() {
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(t)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(t.id)} disabled={deleteMutation.isPending} title="Remover">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canDelete && (
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(t.id)} disabled={deleteMutation.isPending} title="Remover">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>
@@ -412,9 +417,11 @@ export default function TurmasPage() {
                             <Button variant="ghost" size="sm" onClick={() => handleEdit(turma)} title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(turma.id)} disabled={deleteMutation.isPending} title="Remover">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canDelete && (
+                              <Button variant="destructive" size="sm" onClick={() => handleDelete(turma.id)} disabled={deleteMutation.isPending} title="Remover">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>

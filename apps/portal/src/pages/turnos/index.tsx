@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Turno, CreateTurno, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +49,9 @@ export default function TurnosPage() {
   const [editingTurno, setEditingTurno] = useState<Turno | null>(null);
   const [page, setPage] = useState(1);
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'turnos');
+  const canEdit = useCan('edit', 'turnos');
+  const canDelete = useCan('delete', 'turnos');
 
   // Form setup
   const {
@@ -223,7 +226,7 @@ export default function TurnosPage() {
         title="Gerenciar Turnos"
         description="Administração dos turnos oferecidos pelo seminário"
         backTo="/dashboard"
-        actions={canEdit ? (
+        actions={canCreate ? (
           <Button onClick={() => navigate('/turnos/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Novo Turno
@@ -333,9 +336,11 @@ export default function TurnosPage() {
                           <Button variant="ghost" size="sm" onClick={() => navigate(`/turnos/edit/${t.id}`)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(t.id)} disabled={deleteMutation.isPending} title="Remover">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canDelete && (
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(t.id)} disabled={deleteMutation.isPending} title="Remover">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>
@@ -359,9 +364,11 @@ export default function TurnosPage() {
                             <Button variant="ghost" size="sm" onClick={() => navigate(`/turnos/edit/${turno.id}`)} title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(turno.id)} disabled={deleteMutation.isPending} title="Remover">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canDelete && (
+                              <Button variant="destructive" size="sm" onClick={() => handleDelete(turno.id)} disabled={deleteMutation.isPending} title="Remover">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>

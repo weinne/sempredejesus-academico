@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Professor, CreateProfessorWithUser, Pessoa, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -78,7 +79,9 @@ export default function ProfessoresPage() {
   const [pessoaDataNasc, setPessoaDataNasc] = useState('');
   const [pessoaEndereco, setPessoaEndereco] = useState('');
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'professores');
+  const canEdit = useCan('edit', 'professores');
+  const canDelete = useCan('delete', 'professores');
 
   // Form setup
   const {
@@ -326,11 +329,13 @@ export default function ProfessoresPage() {
         title="Gerenciar Professores"
         description="Cadastro e gestão do corpo docente"
         backTo="/dashboard"
-        actions={canEdit ? (
-          <Button onClick={handleNew}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Professor
-          </Button>
+        actions={canCreate ? (
+          <Link to="/professores/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Professor
+            </Button>
+          </Link>
         ) : undefined}
       />
 
@@ -444,9 +449,11 @@ export default function ProfessoresPage() {
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(p)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(p.matricula)} disabled={deleteMutation.isPending} title="Remover">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {canDelete && (
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(p.matricula)} disabled={deleteMutation.isPending} title="Remover">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>

@@ -119,6 +119,34 @@ export default function EditAlunoPage() {
   });
   const periodos = periodosResponse?.data || [];
 
+  // Masks and normalization helpers for Pessoa fields
+  const onlyDigits = (value: string) => value.replace(/\D/g, '');
+  const maskCPF = (digits: string) => digits
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+    .slice(0, 14);
+  const maskPhone = (digits: string) => {
+    const d = digits.slice(0, 11);
+    if (d.length <= 10) {
+      return d.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').trim();
+    }
+    return d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').trim();
+  };
+
+  // User related: find user by pessoaId of aluno
+  const { data: usersList } = useQuery({ queryKey: ['users'], queryFn: () => apiService.getUsers({ limit: 100 }) });
+  const relatedUser = usersList?.data?.find((u: any) => Number(u.pessoaId) === Number(aluno?.pessoaId));
+
+  const updateUserMutation = useMutation({
+    mutationFn: (payload: any) => apiService.updateUser(Number(relatedUser!.id), payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast({ title: 'Usuário atualizado', description: 'Dados de usuário atualizados com sucesso!' });
+    },
+    onError: (error: any) => toast({ title: 'Erro ao atualizar usuário', description: error.message || 'Erro desconhecido', variant: 'destructive' }),
+  });
+
   // Initialize form with aluno data
   React.useEffect(() => {
     if (aluno) {
@@ -179,6 +207,17 @@ export default function EditAlunoPage() {
         variant: 'destructive',
       });
     },
+  });
+
+  // Inline pessoa editing (update pessoa of current aluno)
+  const updatePessoaMutation = useMutation({
+    mutationFn: (payload: any) => apiService.updatePessoa(String(aluno!.pessoa!.id), payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['aluno', ra] });
+      queryClient.invalidateQueries({ queryKey: ['pessoas'] });
+      toast({ title: 'Pessoa atualizada', description: 'Dados pessoais atualizados com sucesso!' });
+    },
+    onError: (error: any) => toast({ title: 'Erro ao atualizar pessoa', description: error.message || 'Erro desconhecido', variant: 'destructive' }),
   });
 
   // Handle form submission
@@ -461,6 +500,78 @@ export default function EditAlunoPage() {
                   </div>
                 </div>
 
+                {/* Dados de Pessoa (Inline) */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Dados Pessoais</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo</label>
+                      <Input
+                        defaultValue={aluno.pessoa?.nome || ''}
+                        onChange={(e) => updatePessoaMutation.mutate({ nome: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
+                      <select
+                        defaultValue={aluno.pessoa?.sexo || ''}
+                        onChange={(e) => updatePessoaMutation.mutate({ sexo: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="M">Masculino</option>
+                        <option value="F">Feminino</option>
+                        <option value="O">Outro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <Input
+                        type="email"
+                        defaultValue={aluno.pessoa?.email || ''}
+                        onChange={(e) => updatePessoaMutation.mutate({ email: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
+                      <Input
+                        defaultValue={aluno.pessoa?.cpf || ''}
+                      onChange={(e) => {
+                        const digits = onlyDigits(e.target.value || '');
+                        e.target.value = maskCPF(digits);
+                        updatePessoaMutation.mutate({ cpf: e.target.value });
+                      }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                      <Input
+                        defaultValue={aluno.pessoa?.telefone || ''}
+                      onChange={(e) => {
+                        const digits = onlyDigits(e.target.value || '');
+                        e.target.value = maskPhone(digits);
+                        updatePessoaMutation.mutate({ telefone: e.target.value });
+                      }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                      <Input
+                        type="date"
+                        defaultValue={aluno.pessoa?.data_nascimento || ''}
+                        onChange={(e) => updatePessoaMutation.mutate({ data_nascimento: e.target.value })}
+                      />
+                    </div>
+                    <div className="md:col-span-2 lg:col-span-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
+                      <Input
+                        defaultValue={aluno.pessoa?.endereco || ''}
+                        onChange={(e) => updatePessoaMutation.mutate({ endereco: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Dados Complementares */}
                 <div>
                   <h3 className="text-lg font-medium text-gray-900 mb-4">Dados Complementares</h3>
@@ -499,6 +610,108 @@ export default function EditAlunoPage() {
               </form>
             </CardContent>
           </Card>
+
+          {relatedUser && (
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Dados de Usuário</CardTitle>
+                <CardDescription>Atualize as informações de acesso do usuário vinculado</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget as HTMLFormElement);
+                    const payload: any = {
+                      username: String(fd.get('user.username') || relatedUser.username),
+                      role: String(fd.get('user.role') || relatedUser.role) as Role,
+                      isActive: String(fd.get('user.isActive') || relatedUser.isActive) as 'S' | 'N',
+                    };
+                    updateUserMutation.mutate(payload);
+                  }}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <Input name="user.username" defaultValue={relatedUser.username} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Papel</label>
+                    <select name="user.role" defaultValue={relatedUser.role} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                      <option value={Role.ADMIN}>Administrador</option>
+                      <option value={Role.SECRETARIA}>Secretaria</option>
+                      <option value={Role.PROFESSOR}>Professor</option>
+                      <option value={Role.ALUNO}>Aluno</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ativo</label>
+                    <select name="user.isActive" defaultValue={relatedUser.isActive} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                      <option value="S">Sim</option>
+                      <option value="N">Não</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2 flex gap-2">
+                    <Button type="submit" disabled={updateUserMutation.isPending}>Atualizar Usuário</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+          {relatedUser && (
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-100 rounded-full">
+                    <User className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Dados de Usuário</CardTitle>
+                    <CardDescription>Atualize as informações de acesso do usuário vinculado</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget as HTMLFormElement);
+                    const payload: any = {
+                      username: String(fd.get('user.username') || relatedUser.username),
+                      role: String(fd.get('user.role') || relatedUser.role) as Role,
+                      isActive: String(fd.get('user.isActive') || relatedUser.isActive) as 'S' | 'N',
+                    };
+                    updateUserMutation.mutate(payload);
+                  }}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <Input name="user.username" defaultValue={relatedUser.username} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Papel</label>
+                    <select name="user.role" defaultValue={relatedUser.role} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                      <option value={Role.ADMIN}>Administrador</option>
+                      <option value={Role.SECRETARIA}>Secretaria</option>
+                      <option value={Role.PROFESSOR}>Professor</option>
+                      <option value={Role.ALUNO}>Aluno</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ativo</label>
+                    <select name="user.isActive" defaultValue={relatedUser.isActive} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                      <option value="S">Sim</option>
+                      <option value="N">Não</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2 flex gap-2">
+                    <Button type="submit" disabled={updateUserMutation.isPending}>Atualizar Usuário</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
 

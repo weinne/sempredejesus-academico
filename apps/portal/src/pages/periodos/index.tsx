@@ -12,6 +12,7 @@ import { apiService } from '@/services/api';
 import { Curso, Periodo, Role, Turno, Curriculo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import {
   Layers3,
   Plus,
@@ -53,7 +54,9 @@ export default function PeriodosPage() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'periodos');
+  const canEdit = useCan('edit', 'periodos');
+  const canDelete = useCan('delete', 'periodos');
 
   const { data: cursosResponse } = useQuery({
     queryKey: ['cursos'],
@@ -204,7 +207,7 @@ export default function PeriodosPage() {
         description="Organize os períodos dos cursos"
         backTo="/cursos"
         actions={
-          canEdit ? (
+          canCreate ? (
             <Button onClick={() => navigate('/periodos/new')}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Período
@@ -456,15 +459,17 @@ export default function PeriodosPage() {
                                 <Edit className="h-4 w-4" />
                               </Button>
                             </Link>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDelete(p.id)}
-                              disabled={deleteMutation.isPending}
-                              title="Remover"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {canDelete && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleDelete(p.id)}
+                                disabled={deleteMutation.isPending}
+                                title="Remover"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </>
                         )}
                       </div>
@@ -501,15 +506,17 @@ export default function PeriodosPage() {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               </Link>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleDelete(periodo.id)}
-                                disabled={deleteMutation.isPending}
-                                title="Remover"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {canDelete && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDelete(periodo.id)}
+                                  disabled={deleteMutation.isPending}
+                                  title="Remover"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </>
                           )}
                         </div>

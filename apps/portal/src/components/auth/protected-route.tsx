@@ -2,14 +2,16 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/providers/auth-provider';
 import { Role } from '@/types/api';
+import { Action, Resource, can as canPermission } from '@/lib/permissions';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   roles?: Role | Role[];
+  permission?: { action: Action; resource: Resource };
 }
 
-export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
-  const { isAuthenticated, hasRole, isLoading } = useAuth();
+export function ProtectedRoute({ children, roles, permission }: ProtectedRouteProps) {
+  const { isAuthenticated, hasRole, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -24,7 +26,7 @@ export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (roles && !hasRole(roles)) {
+  if ((roles && !hasRole(roles)) || (permission && !canPermission(permission.action, permission.resource, user?.role))) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

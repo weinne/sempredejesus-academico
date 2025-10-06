@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Curso, Curriculo, Disciplina, Periodo, Role, Turno } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -51,7 +52,9 @@ export default function CursosPage() {
  const [searchTerm, setSearchTerm] = useState('');
  const [page, setPage] = useState(1);
 
- const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+ const canCreate = useCan('create', 'cursos');
+ const canEdit = useCan('edit', 'cursos');
+ const canDelete = useCan('delete', 'cursos');
 
  const {
   data: cursosResponse,
@@ -229,7 +232,7 @@ export default function CursosPage() {
     description="Visualize a jornada academica completa de cada curso"
     backTo="/dashboard"
     actions={
-     canEdit ? (
+     canCreate ? (
       <div className="flex gap-2">
        <Button variant="outline" onClick={() => navigate('/cursos/wizard')}>
         <Wand2 className="h-4 w-4 mr-2" />
@@ -335,7 +338,7 @@ export default function CursosPage() {
         <CardContent className="p-10 text-center space-y-3">
          <BookOpen className="h-10 w-10 text-slate-400 mx-auto" />
          <p className="text-slate-600">{searchTerm ? 'Nenhum curso corresponde a busca.' : 'Nenhum curso cadastrado no momento.'}</p>
-         {canEdit && (
+         {canCreate && (
           <Button onClick={() => navigate('/cursos/wizard')}>
            <Wand2 className="h-4 w-4 mr-2" />
            Criar curso pelo wizard
@@ -451,7 +454,7 @@ export default function CursosPage() {
              <Button variant="outline" size="sm" onClick={() => navigate(`/cursos/view/${curso.id}`)}>
               Ver detalhes
              </Button>
-             {canEdit && (
+             {canDelete && (
               <Button
                variant="ghost"
                size="sm"

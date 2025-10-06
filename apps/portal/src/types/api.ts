@@ -72,7 +72,7 @@ export interface BootstrapAdminResponse {
 export interface Pessoa {
   id: string;
   nome: string;
-  sexo?: 'M' | 'F';
+  sexo?: 'M' | 'F' | 'O';
   cpf?: string;
   email?: string;
   telefone?: string;
@@ -143,13 +143,24 @@ export interface Professor {
 
 export interface CreateProfessor {
   matricula: string;
-  pessoaId: number;
+  pessoaId?: number;
   dataInicio: string;
   formacaoAcad?: string;
   situacao: 'ATIVO' | 'INATIVO';
 }
 
 export interface CreateProfessorWithUser extends CreateProfessor {
+  // Inline pessoa creation (alternative to pessoaId)
+  pessoa?: {
+    nome: string;
+    sexo?: 'M' | 'F' | 'O';
+    cpf?: string;
+    email?: string;
+    telefone?: string;
+    endereco?: string;
+    data_nascimento?: string;
+  };
+
   createUser?: boolean;
   username?: string;
   password?: string;

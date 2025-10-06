@@ -838,7 +838,24 @@ class ApiService {
   }
 
   async createProfessor(professor: CreateProfessorWithUser): Promise<{ professor: Professor; user?: any }> {
-    const response = await this.api.post('/api/professores', professor);
+    const payload: any = { ...professor };
+    // If backend requires pessoaId, create pessoa first when missing
+    if (!payload.pessoaId && professor.pessoa) {
+      const p = professor.pessoa as any;
+      // Reuse createPessoa mapping logic
+      const createdPessoa = await this.createPessoa({
+        nome: p.nome,
+        sexo: p.sexo,
+        email: p.email,
+        cpf: p.cpf,
+        data_nascimento: p.data_nascimento,
+        telefone: p.telefone,
+        endereco: p.endereco,
+      });
+      payload.pessoaId = Number(createdPessoa.id);
+      delete payload.pessoa;
+    }
+    const response = await this.api.post('/api/professores', payload);
     return response.data.data;
   }
 

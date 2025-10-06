@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
+import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Aluno, Curso, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -42,7 +43,9 @@ export default function AlunosPage() {
   const [cursoFiltro, setCursoFiltro] = useState<number | ''>('');
   const [situacaoFiltro, setSituacaoFiltro] = useState<'' | 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO'>('');
 
-  const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const canCreate = useCan('create', 'alunos');
+  const canEdit = useCan('edit', 'alunos');
+  const canDelete = useCan('delete', 'alunos');
 
   // Fetch cursos for the dropdown
   const {
@@ -168,7 +171,7 @@ export default function AlunosPage() {
         title="Gerenciar Alunos"
         description="Cadastro e gestão de alunos"
         backTo="/dashboard"
-        actions={canEdit ? (
+        actions={canCreate ? (
           <Button onClick={() => navigate('/alunos/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Nova Matrícula
@@ -293,7 +296,7 @@ export default function AlunosPage() {
                     </CardDescription>
                   </div>
                 </div>
-                {canEdit && (
+                {canCreate && (
                   <Button onClick={() => navigate('/alunos/new')} size="sm">
                     <Plus className="h-4 w-4 mr-2" />
                     Novo Aluno
@@ -348,16 +351,18 @@ export default function AlunosPage() {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               </Link>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDelete(aluno.ra)}
-                                disabled={deleteMutation.isPending}
-                                title="Remover"
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
+                              {canDelete && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(aluno.ra)}
+                                  disabled={deleteMutation.isPending}
+                                  title="Remover"
+                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           )}
                         </div>

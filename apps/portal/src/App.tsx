@@ -15,6 +15,7 @@ import AlunoNewPage from '@/pages/alunos/new';
 import AlunoDetailPage from '@/pages/alunos/[id]';
 import AlunoEditPage from '@/pages/alunos/edit/[ra]';
 import ProfessoresPage from '@/pages/professores';
+import ProfessorNewPage from '@/pages/professores/new';
 import ProfessorEditPage from '@/pages/professores/edit/[matricula]';
 import ProfessorViewPage from '@/pages/professores/view/[matricula]';
 import CursosPage from '@/pages/cursos';
@@ -76,54 +77,55 @@ function App() {
           >
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/users" element={<ProtectedRoute roles={[Role.ADMIN]}><UsersPage /></ProtectedRoute>} />
-            <Route path="/users/new" element={<ProtectedRoute roles={[Role.ADMIN]}><UserNewPage /></ProtectedRoute>} />
-            <Route path="/users/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN]}><UserEditPage /></ProtectedRoute>} />
-            <Route path="/users/view/:id" element={<ProtectedRoute roles={[Role.ADMIN]}><UserViewPage /></ProtectedRoute>} />
+            <Route path="/users" element={<ProtectedRoute permission={{ action: 'view', resource: 'pessoas' }} roles={[Role.ADMIN]}><UsersPage /></ProtectedRoute>} />
+            <Route path="/users/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'pessoas' }} roles={[Role.ADMIN]}><UserNewPage /></ProtectedRoute>} />
+            <Route path="/users/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'pessoas' }} roles={[Role.ADMIN]}><UserEditPage /></ProtectedRoute>} />
+            <Route path="/users/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'pessoas' }} roles={[Role.ADMIN]}><UserViewPage /></ProtectedRoute>} />
             <Route path="/pessoas" element={<PessoasPage />} />
             <Route path="/pessoas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PessoaEditPage /></ProtectedRoute>} />
-            <Route path="/alunos" element={<AlunosPage />} />
-            <Route path="/alunos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><AlunoNewPage /></ProtectedRoute>} />
-            <Route path="/alunos/:ra" element={<AlunoDetailPage />} />
-            <Route path="/alunos/edit/:ra" element={<AlunoEditPage />} />
-            <Route path="/professores" element={<ProfessoresPage />} />
-            <Route path="/professores/edit/:matricula" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><ProfessorEditPage /></ProtectedRoute>} />
-            <Route path="/professores/view/:matricula" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><ProfessorViewPage /></ProtectedRoute>} />
-            <Route path="/cursos" element={<CursosPage />} />
-            <Route path="/cursos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoNewPage /></ProtectedRoute>} />
-            <Route path="/cursos/wizard" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoWizardPage /></ProtectedRoute>} />
-            <Route path="/cursos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoEditPage /></ProtectedRoute>} />
-            <Route path="/cursos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CursoViewPage /></ProtectedRoute>} />
-            <Route path="/periodos" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodosPage /></ProtectedRoute>} />
-            <Route path="/periodos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoNewPage /></ProtectedRoute>} />
-            <Route path="/periodos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoEditPage /></ProtectedRoute>} />
-            <Route path="/periodos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoViewPage /></ProtectedRoute>} />
-            <Route path="/turmas" element={<TurmasPage />} />
-            <Route path="/turmas/:id" element={<TurmaDetailPage />} />
-            <Route path="/turmas/view/:id" element={<TurmaDetailPage />} />
-            <Route path="/turmas/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurmaNewPage /></ProtectedRoute>} />
-            <Route path="/turmas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurmaEditPage /></ProtectedRoute>} />
+            <Route path="/alunos" element={<ProtectedRoute permission={{ action: 'view', resource: 'alunos' }}><AlunosPage /></ProtectedRoute>} />
+            <Route path="/alunos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'alunos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><AlunoNewPage /></ProtectedRoute>} />
+            <Route path="/alunos/:ra" element={<ProtectedRoute permission={{ action: 'view', resource: 'alunos' }}><AlunoDetailPage /></ProtectedRoute>} />
+            <Route path="/alunos/edit/:ra" element={<ProtectedRoute permission={{ action: 'edit', resource: 'alunos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><AlunoEditPage /></ProtectedRoute>} />
+            <Route path="/professores" element={<ProtectedRoute permission={{ action: 'view', resource: 'professores' }}><ProfessoresPage /></ProtectedRoute>} />
+            <Route path="/professores/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'professores' }} roles={[Role.ADMIN, Role.SECRETARIA]}><ProfessorNewPage /></ProtectedRoute>} />
+            <Route path="/professores/edit/:matricula" element={<ProtectedRoute permission={{ action: 'edit', resource: 'professores' }} roles={[Role.ADMIN, Role.SECRETARIA]}><ProfessorEditPage /></ProtectedRoute>} />
+            <Route path="/professores/view/:matricula" element={<ProtectedRoute permission={{ action: 'view', resource: 'professores' }} roles={[Role.ADMIN, Role.SECRETARIA]}><ProfessorViewPage /></ProtectedRoute>} />
+            <Route path="/cursos" element={<ProtectedRoute permission={{ action: 'view', resource: 'cursos' }}><CursosPage /></ProtectedRoute>} />
+            <Route path="/cursos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'cursos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CursoNewPage /></ProtectedRoute>} />
+            <Route path="/cursos/wizard" element={<ProtectedRoute permission={{ action: 'create', resource: 'cursos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CursoWizardPage /></ProtectedRoute>} />
+            <Route path="/cursos/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'cursos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CursoEditPage /></ProtectedRoute>} />
+            <Route path="/cursos/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'cursos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CursoViewPage /></ProtectedRoute>} />
+            <Route path="/periodos" element={<ProtectedRoute permission={{ action: 'view', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodosPage /></ProtectedRoute>} />
+            <Route path="/periodos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoNewPage /></ProtectedRoute>} />
+            <Route path="/periodos/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoEditPage /></ProtectedRoute>} />
+            <Route path="/periodos/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><PeriodoViewPage /></ProtectedRoute>} />
+            <Route path="/turmas" element={<ProtectedRoute permission={{ action: 'view', resource: 'turmas' }}><TurmasPage /></ProtectedRoute>} />
+            <Route path="/turmas/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'turmas' }}><TurmaDetailPage /></ProtectedRoute>} />
+            <Route path="/turmas/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'turmas' }}><TurmaDetailPage /></ProtectedRoute>} />
+            <Route path="/turmas/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurmaNewPage /></ProtectedRoute>} />
+            <Route path="/turmas/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurmaEditPage /></ProtectedRoute>} />
             <Route path="/disciplinas" element={<DisciplinasPage />} />
             <Route path="/disciplinas/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaNewPage /></ProtectedRoute>} />
             <Route path="/disciplinas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaEditPage /></ProtectedRoute>} />
             <Route path="/disciplinas/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaViewPage /></ProtectedRoute>} />
-            <Route path="/curriculos" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculosPage /></ProtectedRoute>} />
-            <Route path="/curriculos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoNewPage /></ProtectedRoute>} />
-            <Route path="/curriculos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoEditPage /></ProtectedRoute>} />
-            <Route path="/curriculos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoDetailPage /></ProtectedRoute>} />
-            <Route path="/coortes" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CoortesPage /></ProtectedRoute>} />
-            <Route path="/coortes/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteDetailPage /></ProtectedRoute>} />
-            <Route path="/turnos" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurnosPage /></ProtectedRoute>} />
-            <Route path="/turnos/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoNewPage /></ProtectedRoute>} />
-            <Route path="/turnos/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoEditPage /></ProtectedRoute>} />
-            <Route path="/turnos/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoDetailPage /></ProtectedRoute>} />
+            <Route path="/curriculos" element={<ProtectedRoute permission={{ action: 'view', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculosPage /></ProtectedRoute>} />
+            <Route path="/curriculos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoNewPage /></ProtectedRoute>} />
+            <Route path="/curriculos/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoEditPage /></ProtectedRoute>} />
+            <Route path="/curriculos/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoDetailPage /></ProtectedRoute>} />
+            <Route path="/coortes" element={<ProtectedRoute permission={{ action: 'view', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoortesPage /></ProtectedRoute>} />
+            <Route path="/coortes/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteDetailPage /></ProtectedRoute>} />
+            <Route path="/turnos" element={<ProtectedRoute permission={{ action: 'view', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnosPage /></ProtectedRoute>} />
+            <Route path="/turnos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoNewPage /></ProtectedRoute>} />
+            <Route path="/turnos/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoEditPage /></ProtectedRoute>} />
+            <Route path="/turnos/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoDetailPage /></ProtectedRoute>} />
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/avaliacoes" element={<AvaliacoesPage />} />
             <Route path="/aulas" element={<AulasPage />} />
             <Route path="/aulas/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><AulaViewPage /></ProtectedRoute>} />
             <Route path="/aulas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><AulaEditPage /></ProtectedRoute>} />
             <Route path="/presencas" element={<PresencasPage />} />
-            <Route path="/calendario" element={<CalendarioPage />} />
+            <Route path="/calendario" element={<ProtectedRoute permission={{ action: 'view', resource: 'periodos' }}><CalendarioPage /></ProtectedRoute>} />
             <Route path="/meu-portal" element={<MeuPortalPage />} />
             <Route path="/config" element={<ConfigPage />} />
           </Route>

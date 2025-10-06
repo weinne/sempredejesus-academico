@@ -1,9 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Wand2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
 import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Periodo, Turno, Coorte } from '@/types/api';
@@ -66,15 +77,54 @@ export default function AlunoNewPage() {
   const selectedPessoaId = watch('pessoaId');
   const selectedCursoId = watch('cursoId');
 
+  // Masks and normalization helpers
+  const onlyDigits = (value: string) => value.replace(/\D/g, '');
+  const maskCPF = (digits: string) => digits
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+    .slice(0, 14);
+  const maskPhone = (digits: string) => {
+    const d = digits.slice(0, 11);
+    if (d.length <= 10) {
+      return d.replace(/(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').trim();
+    }
+    return d.replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').trim();
+  };
+
   useEffect(() => {
     setValue('periodoId', undefined as unknown as number, { shouldValidate: false, shouldDirty: false });
   }, [selectedCursoId, setValue]);
+
+  const generateEightDigitId = () => {
+    const firstDigit = Math.floor(Math.random() * 9) + 1; // 1-9 to avoid leading zero
+    let result = String(firstDigit);
+    while (result.length < 8) {
+      result += Math.floor(Math.random() * 10);
+    }
+    return result;
+  };
 
   const { data: pessoas = [] } = useQuery({ queryKey: ['pessoas'], queryFn: apiService.getPessoas });
   const { data: cursosResponse } = useQuery({ queryKey: ['cursos'], queryFn: () => apiService.getCursos({ limit: 100 }) });
   const cursos = cursosResponse?.data || [];
   const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
   const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
+
+  const pessoaNomeWatch = watch('pessoa.nome');
+  const pessoaCpfWatch = watch('pessoa.cpf');
+  const [showPessoaDropdown, setShowPessoaDropdown] = useState(false);
+  const [pessoaSearch, setPessoaSearch] = useState('');
+  const filteredPessoas = useMemo(() => {
+    const term = pessoaSearch.trim().toLowerCase();
+    if (!term) return pessoas.slice(0, 20);
+    return pessoas.filter(p =>
+      p.nome.toLowerCase().includes(term) ||
+      (p.cpf || '').replace(/\D/g, '').includes(term.replace(/\D/g, '')) ||
+      (p.email || '').toLowerCase().includes(term)
+    ).slice(0, 20);
+  }, [pessoas, pessoaSearch]);
+  const [confirmPessoa, setConfirmPessoa] = useState<Pessoa | null>(null);
 
   const { data: periodosResponse } = useQuery({
     queryKey: ['periodos', selectedCursoId],
@@ -125,7 +175,18 @@ export default function AlunoNewPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">RA (opcional - será gerado automaticamente)</label>
-                      <Input {...register('ra')} placeholder="Ex: 20241001" className={errors.ra ? 'border-red-500' : ''} />
+                      <div className="relative">
+                        <Input {...register('ra')} placeholder="Ex: 20241001" className={`${errors.ra ? 'border-red-500' : ''} pr-10`} maxLength={8} />
+                        <button
+                          type="button"
+                          onClick={() => setValue('ra', generateEightDigitId(), { shouldValidate: true, shouldDirty: true })}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                          title="Gerar RA"
+                          aria-label="Gerar RA"
+                        >
+                          <Wand2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Pessoa</label>
@@ -224,11 +285,65 @@ export default function AlunoNewPage() {
                 {/* Pessoa Inline */}
                 {!selectedPessoaId && (
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">Dados de Pessoa (Inline)</h3>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-medium text-gray-900">Dados Pessoais (Inline)</h3>
+                      <div className="relative">
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowPessoaDropdown(v => !v)}>
+                          Selecionar existente
+                        </Button>
+                        {showPessoaDropdown && (
+                          <div className="absolute right-0 mt-2 w-96 bg-white border rounded-md shadow-lg z-10 p-2">
+                            <Input placeholder="Buscar por nome, CPF ou email" value={pessoaSearch} onChange={(e)=>setPessoaSearch(e.target.value)} />
+                            <div className="max-h-64 overflow-auto divide-y">
+                              {filteredPessoas.length === 0 && (
+                                <div className="p-3 text-sm text-slate-500">Nenhuma pessoa encontrada</div>
+                              )}
+                              {filteredPessoas.map((p: Pessoa) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  className="w-full text-left p-2 hover:bg-slate-50"
+                                  onClick={() => {
+                                    setValue('pessoaId', Number(p.id), { shouldValidate: true, shouldDirty: true });
+                                    setValue('pessoa', {
+                                      nome: p.nome,
+                                      sexo: p.sexo,
+                                      email: p.email,
+                                      cpf: p.cpf,
+                                      telefone: p.telefone,
+                                      endereco: p.endereco,
+                                      data_nascimento: p.data_nascimento,
+                                    } as any, { shouldValidate: false, shouldDirty: false });
+                                    setShowPessoaDropdown(false);
+                                    toast({ title: 'Pessoa selecionada', description: p.nome });
+                                  }}
+                                >
+                                  <div className="font-medium text-sm">{p.nome}</div>
+                                  <div className="text-xs text-slate-500">{p.cpf || 'CPF não informado'} • {p.email || 'sem email'}</div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
-                        <Input {...register('pessoa.nome')} placeholder="Nome completo" className={errors?.pessoa?.nome ? 'border-red-500' : ''} />
+                        <Input
+                          {...register('pessoa.nome', {
+                            onBlur: () => {
+                              const term = (pessoaNomeWatch || '').trim().toLowerCase();
+                              if (!term) return;
+                              const candidates = pessoas.filter(p => p.nome.toLowerCase().includes(term)).slice(0, 5);
+                              if (candidates.length > 0) {
+                                setConfirmPessoa(candidates[0]);
+                              }
+                            }
+                          })}
+                          placeholder="Nome completo"
+                          className={errors?.pessoa?.nome ? 'border-red-500' : ''}
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
@@ -245,11 +360,35 @@ export default function AlunoNewPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
-                        <Input {...register('pessoa.cpf')} placeholder="Somente números" />
+                        <Input
+                          {...register('pessoa.cpf', {
+                            onChange: (e) => {
+                              const digits = onlyDigits(e.target.value || '');
+                              e.target.value = maskCPF(digits);
+                            },
+                            onBlur: () => {
+                              const digits = (pessoaCpfWatch || '').replace(/\D/g, '');
+                              if (digits.length < 11) return;
+                              const found = pessoas.find(p => (p.cpf || '').replace(/\D/g, '') === digits);
+                              if (found) {
+                                setConfirmPessoa(found);
+                              }
+                            }
+                          })}
+                          placeholder="Somente números"
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                        <Input {...register('pessoa.telefone')} placeholder="(11) 99999-9999" />
+                        <Input
+                          {...register('pessoa.telefone', {
+                            onChange: (e) => {
+                              const digits = onlyDigits(e.target.value || '');
+                              e.target.value = maskPhone(digits);
+                            },
+                          })}
+                          placeholder="(11) 99999-9999"
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
@@ -287,6 +426,40 @@ export default function AlunoNewPage() {
                   <Button type="submit" disabled={createMutation.isPending}>Matricular</Button>
                   <Button type="button" variant="outline" onClick={() => navigate('/alunos')}>Cancelar</Button>
                 </div>
+
+                <AlertDialog open={!!confirmPessoa} onOpenChange={(open) => { if (!open) setConfirmPessoa(null); }}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Selecionar pessoa existente?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {confirmPessoa ? (
+                          <div className="space-y-1 text-sm">
+                            <div className="font-medium">{confirmPessoa.nome}</div>
+                            <div className="text-slate-600">{confirmPessoa.cpf || 'CPF não informado'} • {confirmPessoa.email || 'sem email'}</div>
+                          </div>
+                        ) : null}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setConfirmPessoa(null)}>Continuar preenchendo</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => {
+                        if (!confirmPessoa) return;
+                        const p = confirmPessoa;
+                        setValue('pessoaId', Number(p.id), { shouldValidate: true, shouldDirty: true });
+                        setValue('pessoa', {
+                          nome: p.nome,
+                          sexo: p.sexo,
+                          email: p.email,
+                          cpf: p.cpf,
+                          telefone: p.telefone,
+                          endereco: p.endereco,
+                          data_nascimento: p.data_nascimento,
+                        } as any, { shouldValidate: false, shouldDirty: false });
+                        setConfirmPessoa(null);
+                      }}>Selecionar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </form>
             </CardContent>
           </Card>
