@@ -1,102 +1,73 @@
-# 🚀 Guia de Deploy no Coolify - Sistema Ac## 🔧 Arquivos de Configuração Criados
+# 🚀 Guia de Deploy no Coolify
 
-- ✅ `nixpacks.toml` - Configuração principal do Nixpacks (CORRIGIDA - formato providers)
-- ✅ `scripts/nixpacks-start.sh` - Script de inicialização com migrações
-- ✅ `apps/api/src/scripts/migrate-production.ts` - Script de migraçãoco (Nixpacks)
+Este guia descreve o fluxo recomendado para publicar o Sistema Acadêmico no Coolify usando **Nixpacks**. A configuração foi ajustada
+para reduzir o consumo de memória durante o build – um problema comum em instâncias menores, especialmente quando o Turborepo
+executa builds em paralelo e instala pacotes de testes desnecessários.
 
-## 📋 Configuração Simplificada com Nixpacks
+## 🧱 Visão Geral da Pipeline
 
-O projeto agora está configurado para usar **Nixpacks** que é mais simples e tem suporte nativo no Coolify.
+1. **Instalação enxuta** com `pnpm` apenas para os workspaces necessários (`api`, `portal` e pacotes compartilhados usados em produção).
+2. **Build sequencial** (`--concurrency=1`) para evitar que TypeScript/Vite sejam executados ao mesmo tempo e estourem o limite de RAM.
+3. **Start script** único (`scripts/nixpacks-start.sh`) que delega para `scripts/start-production.sh`, garantindo migrações automáticas
+   e verificação do banco antes de subir a API.
 
-## 📦 Configuração no Coolify
+Todas essas etapas são orquestradas pelo arquivo [`nixpacks.toml`](./nixpacks.toml).
 
-### 1. Criar PostgreSQL Service
-- **Service Type**: PostgreSQL 15
-- **Database Name**: `seminario_db` 
-- **Username**: `postgres`
-- **Password**: gerar senha segura (anotar para usar no DATABASE_URL)
+## ⚙️ Configurações no Coolify
 
-### 2. Criar Nova Aplicação
-- **Source**: Repository GitHub/GitLab
-- **Build Pack**: **Nixpacks** (detectado automaticamente)
-- **Port**: `4000`
-- **Health Check Path**: `/health`
+### 1. Banco de Dados
+Crie um serviço PostgreSQL 15 e anote usuário, senha e host para montar a `DATABASE_URL`.
 
-### 3. Environment Variables
-Configure na interface do Coolify (Application > Environment Variables):
+### 2. Aplicação
+- **Source**: GitHub/GitLab
+- **Build Pack**: Nixpacks (detecção automática)
+- **Porta**: `4000`
+- **Health Check**: `/health`
+
+### 3. Variáveis de Ambiente
+No menu *Application → Environment Variables* configure ao menos:
 
 ```bash
-# Database (OBRIGATÓRIO)
-DATABASE_URL=postgresql://postgres:SUA_SENHA@postgresql-service:5432/seminario_db
-
-# Authentication (GERAR CHAVES SEGURAS)
-JWT_SECRET=sua-chave-jwt-256-bits-segura
+DATABASE_URL=postgresql://postgres:SUA_SENHA@postgres-service:5432/seminario_db
+JWT_SECRET=chave-jwt-super-segura
 JWT_EXPIRES_IN=7d
-REFRESH_TOKEN_SECRET=sua-chave-refresh-256-bits-segura
-
-# Application
+REFRESH_TOKEN_SECRET=chave-refresh-super-segura
 NODE_ENV=production
 PORT=4000
 APP_URL=https://seudominio.com
 API_URL=https://api.seudominio.com
-
-# Security (Opcional)
-RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
 ```
 
-## � Arquivos de Configuração Criados
+Opcionalmente acrescente as chaves de rate limit se desejar valores diferentes do padrão.
 
-- ✅ `nixpacks.toml` - Configuração principal do Nixpacks
-- ✅ `scripts/nixpacks-start.sh` - Script de inicialização com migrações
-- ✅ `apps/api/src/scripts/migrate-production.ts` - Script de migração
+## 📦 O que o `nixpacks.toml` faz
 
-## 🚀 Processo de Deploy (Automático)
+| Fase              | Ação                                                                                                                                         |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setup`           | Habilita `corepack` e garante Node 18 + pnpm.                                                                                                 |
+| `install`         | Executa `pnpm install --filter` somente para `api`, `portal`, `shared-auth`, `shared-config` e `shared-dtos`, evitando baixar pacotes de test. |
+| `build`           | Roda `turbo run build` com `--concurrency=1` e sem daemon, reduzindo o pico de memória no Coolify.                                             |
+| `start`           | Usa `scripts/nixpacks-start.sh`, que apenas delega para `scripts/start-production.sh` (migrações + boot da API).                               |
 
-1. **Detecção**: Coolify detecta Nixpacks automaticamente
-2. **Build**: Instala dependências e builda o projeto
-3. **Migrations**: Script aguarda banco e executa migrações
-4. **Start**: Inicia aplicação na porta 4000
-5. **Health Check**: Verifica `/health` endpoint
+> 💡 Dica: se o deploy ainda consumir muita memória, aumente o swap da instância ou reduza a flag `--concurrency` para outra etapa
+> customizada (ex.: build separado do portal).
 
-## ✅ Vantagens do Nixpacks vs Docker
+## ✅ Pós-deploy
 
-- ✅ **Mais simples** - Sem Dockerfile complexo
-- ✅ **Detecção automática** - Coolify reconhece o projeto
-- ✅ **Otimizado** - Build mais rápido
-- ✅ **Menos configuração** - Funciona out-of-the-box
-- ✅ **Mesmo resultado** - Migrações automáticas mantidas
+Após o deploy, verifique:
+- `GET /health` – status geral
+- `GET /health/database` – conectividade com o Postgres
+- `GET /docs` – documentação Swagger
 
-## 🎯 Deploy Steps
-
-1. **Push** o código para seu repositório
-2. **Criar PostgreSQL** service no Coolify
-3. **Criar aplicação** no Coolify (vai detectar Nixpacks)
-4. **Configurar environment variables** (principalmente DATABASE_URL)
-5. **Deploy** - Tudo automático!
-
-## 🔍 Verificação Pós-Deploy
-
-- **API Health**: `https://seudominio.com/health`
-- **Database Status**: `https://seudominio.com/health/database`  
-- **API Docs**: `https://seudominio.com/api-docs`
-- **Logs**: Interface do Coolify
+Logs completos ficam disponíveis na interface do Coolify.
 
 ## 🐛 Troubleshooting
 
-### Database Connection Issues
-```bash
-# Check logs no Coolify
-# Verificar se DATABASE_URL está correto
-# Verificar se PostgreSQL service está rodando
-```
+| Sintoma                            | Diagnóstico sugerido                                                                                 |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Build trava ou mata o contêiner    | Verifique se o build está usando o `nixpacks.toml` atualizado. Confirme a RAM disponível na instância.|
+| Erro de conexão com Postgres       | Cheque `DATABASE_URL` e se o serviço do banco está acessível a partir da aplicação.                  |
+| Migrações não são aplicadas        | Inspecione os logs da aplicação: `scripts/start-production.sh` exibe qualquer falha de migração.     |
 
-### Build Issues
-```bash
-# Nixpacks logs estarão visíveis no Coolify
-# Verificar se pnpm-lock.yaml está commitado
-```
-
-## � Ready to Deploy!
-
-O projeto está **100% configurado** para Nixpacks + Coolify. Apenas configure as environment variables e faça o deploy!
+Pronto! Com essa configuração o deploy fica mais previsível e com consumo de memória muito menor, permitindo builds estáveis no
+Coolify mesmo em máquinas com recursos modestos.
