@@ -5,7 +5,7 @@ import { LoginSchema, RefreshTokenSchema } from '@seminario/shared-dtos';
 import { validateBody } from '../middleware/validation.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { db } from '../db';
-import { pessoas, alunos, professores, users } from '../db/schema';
+import { pessoas, alunos, professores, users, userRoles } from '../db/schema';
 import { and, eq, sql, or } from 'drizzle-orm';
 import { tokenBlacklistService } from '../core/token-blacklist.service';
 
@@ -167,15 +167,22 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Reques
     throw createError('Invalid credentials', 401);
   }
 
-  // Use role from database
-  const role = userData.role as UserRole;
+  // Roles from database (primary + extras)
+  const primaryRole = userData.role as UserRole;
+  const extras = await db
+    .select({ role: userRoles.role })
+    .from(userRoles)
+    .where(eq(userRoles.userId, userData.userId));
+  const roles = [primaryRole, ...extras.map(r => r.role as UserRole)]
+    .filter((v, i, arr) => arr.indexOf(v) === i);
 
   // Generate tokens using the correct user.id
   const tokens = jwtService.generateTokenPair({
     id: userData.userId.toString(),
     email: userData.email || '',
     nome: userData.nomeCompleto,
-    role,
+    role: primaryRole,
+    roles,
     pessoaId: userData.pessoaId.toString(),
     ativo: userData.isActive === 'S',
     createdAt: new Date(),
@@ -200,7 +207,8 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Reques
         id: userData.userId.toString(),
         nome: userData.nomeCompleto,
         email: userData.email || '',
-        role,
+        role: primaryRole,
+        roles,
       },
     },
   });

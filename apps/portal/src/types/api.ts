@@ -10,6 +10,7 @@ export interface User {
   pessoaId: number;
   username: string;
   role: Role;
+  roles?: Role[];
   isActive: 'S' | 'N';
   lastLogin?: string;
   createdAt: string;

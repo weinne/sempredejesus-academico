@@ -22,7 +22,8 @@
     "db:seed": "ts-node src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
     "migrate:prod": "ts-node src/scripts/migrate-production.ts",
-    "seed:users": "ts-node src/scripts/seed-mock-users.ts"
+    "seed:users": "ts-node src/scripts/seed-mock-users.ts",
+    "seed:user-roles": "ts-node src/scripts/seed-user-roles.ts"
   },
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.1",

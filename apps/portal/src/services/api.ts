@@ -903,22 +903,41 @@ class ApiService {
 
   async createProfessor(professor: CreateProfessorWithUser): Promise<{ professor: Professor; user?: any }> {
     const payload: any = { ...professor };
-    // If backend requires pessoaId, create pessoa first when missing
+
     if (!payload.pessoaId && professor.pessoa) {
-      const p = professor.pessoa as any;
-      // Reuse createPessoa mapping logic
-      const createdPessoa = await this.createPessoa({
-        nome: p.nome,
-        sexo: p.sexo,
-        email: p.email,
-        cpf: p.cpf,
-        data_nascimento: p.data_nascimento,
-        telefone: p.telefone,
-        endereco: p.endereco,
-      });
-      payload.pessoaId = Number(createdPessoa.id);
+      const p = professor.pessoa;
+      const enderecoValue = p.endereco;
+      let enderecoObj: any = undefined;
+
+      if (enderecoValue) {
+        try {
+          enderecoObj = typeof enderecoValue === 'string' ? JSON.parse(enderecoValue) : enderecoValue;
+        } catch {
+          enderecoObj = {
+            logradouro: enderecoValue,
+            numero: '',
+            complemento: '',
+            bairro: '',
+            cidade: 'São Paulo',
+            estado: 'SP',
+            cep: '',
+          };
+        }
+      }
+
+      payload.pessoa = {
+        nomeCompleto: p.nome,
+        sexo: p.sexo || undefined,
+        email: p.email || undefined,
+        cpf: p.cpf ? p.cpf.replace(/\D/g, '') || undefined : undefined,
+        dataNasc: p.data_nascimento || undefined,
+        telefone: p.telefone ? p.telefone.replace(/\D/g, '') || undefined : undefined,
+        endereco: enderecoObj,
+      };
+    } else if (!professor.pessoa) {
       delete payload.pessoa;
     }
+
     const response = await this.api.post('/api/professores', payload);
     return response.data.data;
   }

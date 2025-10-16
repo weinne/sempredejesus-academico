@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, desc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { AnyZodObject } from 'zod';
@@ -15,7 +15,16 @@ export class SimpleCrudFactory {
 
   // GET /resource - List all (simplified)
   getAll = asyncHandler(async (req: Request, res: Response) => {
-    const data = await db.select().from(this.options.table).limit(50); // Simple limit
+    const table: any = this.options.table;
+    const hasNome = !!table?.nomeCompleto;
+    const hasCreatedAt = !!table?.createdAt;
+    const query = db.select().from(table);
+    const ordered = hasNome
+      ? query.orderBy((table as any).nomeCompleto)
+      : hasCreatedAt
+      ? query.orderBy(desc(table.createdAt))
+      : query;
+    const data = await ordered;
 
     res.json({
       success: true,

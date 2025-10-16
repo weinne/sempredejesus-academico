@@ -131,12 +131,18 @@ export default function ProfessorNewPage() {
   const [confirmPessoa, setConfirmPessoa] = useState<Pessoa | null>(null);
   const filteredPessoas = useMemo(() => {
     const term = pessoaSearch.trim().toLowerCase();
-    if (!term) return pessoas.slice(0, 20);
-    return pessoas.filter(p =>
-      p.nome.toLowerCase().includes(term) ||
-      (p.cpf || '').replace(/\D/g, '').includes(term.replace(/\D/g, '')) ||
-      (p.email || '').toLowerCase().includes(term)
-    ).slice(0, 20);
+    if (!term) {
+      return pessoas.slice(0, 20);
+    }
+    return pessoas.filter((p) => {
+      const normalizedCpf = (p.cpf || '').replace(/\D/g, '');
+      const normalizedSearch = term.replace(/\D/g, '');
+      return (
+        p.nome.toLowerCase().includes(term) ||
+        (!!normalizedSearch && normalizedCpf.includes(normalizedSearch)) ||
+        (p.email || '').toLowerCase().includes(term)
+      );
+    }).slice(0, 20);
   }, [pessoas, pessoaSearch]);
 
   // Masks and normalization helpers
@@ -230,6 +236,9 @@ export default function ProfessorNewPage() {
                         </button>
                       </div>
                       {errors.matricula && (<p className="mt-1 text-sm text-red-600">{errors.matricula.message}</p>)}
+                    </div>
+                    <div className="hidden">
+                      <input type="hidden" {...register('pessoaId', { valueAsNumber: true })} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início *</label>

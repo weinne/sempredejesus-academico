@@ -110,7 +110,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const hasRole = (roles: Role | Role[]): boolean => {
     if (!user) return false;
     const allowedRoles = Array.isArray(roles) ? roles : [roles];
-    return allowedRoles.includes(user.role);
+    const userRoles = user.roles && user.roles.length ? user.roles : [user.role];
+    return userRoles.some(r => allowedRoles.includes(r));
   };
 
   const isAuthenticated = !!user;

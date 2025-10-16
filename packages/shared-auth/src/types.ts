@@ -10,6 +10,7 @@ export interface User {
   email: string;
   nome: string;
   role: UserRole;
+  roles?: UserRole[];
   pessoaId: string;
   ativo: boolean;
   createdAt: Date;
@@ -20,6 +21,7 @@ export interface JWTPayload {
   sub: string; // user id
   email: string;
   role: UserRole;
+  roles?: UserRole[];
   pessoaId: string;
   iat: number;
   exp: number;

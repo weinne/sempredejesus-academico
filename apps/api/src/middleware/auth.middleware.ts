@@ -3,7 +3,7 @@ import passport from 'passport';
 import { createJWTStrategy, UserRepository, User, UserRole } from '@seminario/shared-auth';
 import { config, logger } from '@seminario/shared-config';
 import { db } from '../db';
-import { users, pessoas } from '../db/schema';
+import { users, pessoas, userRoles } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { tokenBlacklistService } from '../core/token-blacklist.service';
 
@@ -31,7 +31,7 @@ const userRepository: UserRepository = {
       if (result.length === 0) return null;
 
       const userData = result[0];
-      return {
+      const base: User = {
         id: userData.id.toString(),
         email: userData.email || '',
         nome: userData.nomeCompleto || userData.username,
@@ -41,6 +41,15 @@ const userRepository: UserRepository = {
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt,
       };
+
+      // fetch additional roles
+      const extra = await db
+        .select({ role: userRoles.role })
+        .from(userRoles)
+        .where(eq(userRoles.userId, userData.id));
+      const roles = [base.role, ...extra.map(r => r.role as UserRole)]
+        .filter((v, i, arr) => arr.indexOf(v) === i);
+      return { ...base, roles } as User;
     } catch (error) {
       logger.error('Error finding user by ID:', error);
       return null;
@@ -70,7 +79,7 @@ const userRepository: UserRepository = {
       if (result.length === 0) return null;
 
       const userData = result[0];
-      return {
+      const base: User & { senha: string } = {
         id: userData.id.toString(),
         email: userData.email || '',
         nome: userData.nomeCompleto || userData.username,
@@ -80,7 +89,14 @@ const userRepository: UserRepository = {
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt,
         senha: userData.passwordHash,
-      } as User & { senha: string };
+      };
+      const extra = await db
+        .select({ role: userRoles.role })
+        .from(userRoles)
+        .where(eq(userRoles.userId, userData.id));
+      const roles = [base.role, ...extra.map(r => r.role as UserRole)]
+        .filter((v, i, arr) => arr.indexOf(v) === i);
+      return { ...base, roles } as User & { senha: string };
     } catch (error) {
       logger.error('Error finding user by email:', error);
       return null;
@@ -154,14 +170,16 @@ export const requireRole = (...allowedRoles: string[]) => {
     }
 
     const userRole = user.role as string;
-    if (!allowedRoles.includes(userRole)) {
+    const userRolesList: string[] = Array.isArray(user.roles) ? user.roles : [userRole];
+    const ok = userRolesList.some(r => allowedRoles.includes(r));
+    if (!ok) {
       logger.warn(`Access denied for user ${user.id} with role ${userRole}. Required: ${allowedRoles.join(', ')}`);
       return res.status(403).json({
         success: false,
         message: 'Forbidden - Insufficient permissions',
         data: {
           required: allowedRoles,
-          current: userRole,
+          current: userRolesList,
         },
       });
     }

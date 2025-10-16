@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
-import { professores, pessoas, users } from '../db/schema';
+import { professores, pessoas, users, userRoles } from '../db/schema';
+import type { NewPessoa } from '../db/schema/pessoas';
 import { CreateProfessorSchema, UpdateProfessorSchema, CreateProfessorWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireProfessor } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
@@ -318,31 +319,106 @@ const professoresCrud = new EnhancedCrudFactory({
 // Custom method to create professor with automatic user creation
 const createProfessorWithUser = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = CreateProfessorWithUserSchema.parse(req.body);
-  const { createUser, username, password, ...professorData } = validatedData;
+  const { createUser, username, password, pessoa: pessoaPayload, ...professorData } = validatedData;
+
+  // Ensure matrícula is unique
+  const existingProfessor = await db
+    .select({ matricula: professores.matricula })
+    .from(professores)
+    .where(eq(professores.matricula, professorData.matricula))
+    .limit(1);
+
+  if (existingProfessor.length > 0) {
+    throw createError(`Matrícula ${professorData.matricula} já está em uso`, 400);
+  }
 
   // Start transaction
   const result = await db.transaction(async (tx) => {
-    // Create professor
+    let finalPessoaId = professorData.pessoaId;
+
+    if (!finalPessoaId && pessoaPayload) {
+      const sexoValue = (pessoaPayload.sexo ?? 'O').toString().toUpperCase().slice(0, 1);
+      const pessoaInsertValues: NewPessoa = {
+        nomeCompleto: pessoaPayload.nomeCompleto,
+        sexo: sexoValue,
+        email: pessoaPayload.email ?? null,
+        cpf: pessoaPayload.cpf ?? null,
+        dataNasc: pessoaPayload.dataNasc ?? null,
+        telefone: pessoaPayload.telefone ?? null,
+        endereco: (pessoaPayload.endereco as any) ?? null,
+      };
+
+      const [novaPessoa] = await tx
+        .insert(pessoas)
+        .values(pessoaInsertValues)
+        .returning();
+
+      finalPessoaId = novaPessoa.id;
+    }
+
+    if (!finalPessoaId) {
+      throw createError('pessoaId é obrigatório (ou forneça pessoa inline)', 400);
+    }
+
+    // If a user already exists for this pessoa, ensure the PROFESSOR role is present
+    const existingUserForPessoa = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.pessoaId, finalPessoaId))
+      .limit(1);
+    if (existingUserForPessoa.length > 0) {
+      await tx
+        .insert(userRoles)
+        .values({ userId: existingUserForPessoa[0].id, role: 'PROFESSOR' })
+        .onConflictDoNothing();
+    }
+
+    const professorInsertValues = {
+      ...professorData,
+      pessoaId: finalPessoaId,
+    } as typeof professorData & { pessoaId: number };
+
     const [novoProfessor] = await tx
       .insert(professores)
-      .values(professorData)
+      .values(professorInsertValues)
       .returning();
 
-    // Create user if requested
+    // Create or upsert user + role
     let novoUser = null;
     if (createUser && username && password) {
+      const existingUser = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.pessoaId, finalPessoaId))
+        .limit(1);
+
       const passwordHash = await bcrypt.hash(password, 12);
-      
-      [novoUser] = await tx
-        .insert(users)
-        .values({
-          pessoaId: professorData.pessoaId,
-          username,
-          passwordHash,
-          role: 'PROFESSOR',
-          isActive: 'S',
-        })
-        .returning();
+
+      if (existingUser.length > 0) {
+        const userId = existingUser[0].id;
+        await tx
+          .insert(userRoles)
+          .values({ userId, role: 'PROFESSOR' })
+          .onConflictDoNothing();
+        const [u] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+        novoUser = u || null;
+      } else {
+        [novoUser] = await tx
+          .insert(users)
+          .values({
+            pessoaId: finalPessoaId,
+            username,
+            passwordHash,
+            role: 'PROFESSOR',
+            isActive: 'S',
+          })
+          .returning();
+
+        await tx
+          .insert(userRoles)
+          .values({ userId: novoUser.id, role: 'PROFESSOR' })
+          .onConflictDoNothing();
+      }
     }
 
     return { professor: novoProfessor, user: novoUser };

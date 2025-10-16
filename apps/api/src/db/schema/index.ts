@@ -16,3 +16,4 @@ export * from './calendario';
 export * from './configuracoes';
 export * from './blacklisted-tokens';
 export * from './audit-logs'; 
+export * from './user-roles';

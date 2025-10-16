@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
-import { alunos, pessoas, cursos, users, periodos } from '../db/schema';
+import { alunos, pessoas, cursos, users, periodos, userRoles } from '../db/schema';
 import { UpdateAlunoSchema, CreateAlunoWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
@@ -249,6 +249,19 @@ const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => 
       throw createError('pessoaId é obrigatório (ou forneça pessoa inline)', 400);
     }
 
+    // If a user already exists for this pessoa, ensure the ALUNO role is present
+    const existingUserForPessoa = await tx
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.pessoaId, finalPessoaId))
+      .limit(1);
+    if (existingUserForPessoa.length > 0) {
+      await tx
+        .insert(userRoles)
+        .values({ userId: existingUserForPessoa[0].id, role: 'ALUNO' })
+        .onConflictDoNothing();
+    }
+
     const alunoInsertValues = {
       ...alunoDataForDBBase,
       pessoaId: finalPessoaId,
@@ -261,21 +274,43 @@ const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => 
       .values(alunoInsertValues)
       .returning();
 
-    // Create user if requested
+    // Create or upsert user + role
     let novoUser = null;
     if (createUser && username && password) {
+      const existingUser = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.pessoaId, finalPessoaId))
+        .limit(1);
+
       const passwordHash = await bcrypt.hash(password, 12);
-      
-      [novoUser] = await tx
-        .insert(users)
-        .values({
-          pessoaId: finalPessoaId,
-          username,
-          passwordHash,
-          role: 'ALUNO',
-          isActive: 'S',
-        })
-        .returning();
+
+      if (existingUser.length > 0) {
+        const userId = existingUser[0].id;
+        await tx
+          .insert(userRoles)
+          .values({ userId, role: 'ALUNO' })
+          .onConflictDoNothing();
+        // Optionally update password if desired (skip to avoid surprises)
+        const [u] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+        novoUser = u || null;
+      } else {
+        [novoUser] = await tx
+          .insert(users)
+          .values({
+            pessoaId: finalPessoaId,
+            username,
+            passwordHash,
+            role: 'ALUNO',
+            isActive: 'S',
+          })
+          .returning();
+
+        await tx
+          .insert(userRoles)
+          .values({ userId: novoUser.id, role: 'ALUNO' })
+          .onConflictDoNothing();
+      }
     }
 
     return { aluno: novoAluno, user: novoUser };

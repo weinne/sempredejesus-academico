@@ -226,20 +226,7 @@ export default function AlunoNewPage() {
                         </button>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Pessoa</label>
-                      <div className="flex space-x-2">
-                        <select {...register('pessoaId', { valueAsNumber: true })} className={`flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.pessoaId ? 'border-red-500' : ''}`}>
-                          <option value="">Selecione uma pessoa existente...</option>
-                          {pessoas.map((pessoa) => (
-                            <option key={pessoa.id} value={Number(pessoa.id)}>{pessoa.nome} {pessoa.email ? `(${pessoa.email})` : ''}</option>
-                          ))}
-                        </select>
-                        <Button type="button" variant="outline" size="sm" onClick={() => { setValue('pessoaId', undefined as any); setShowPessoaModal(true); }} className="px-3" title="Cadastrar nova pessoa">+
-                        </Button>
-                      </div>
-                      {!selectedPessoaId && <p className="mt-1 text-sm text-gray-500">Você pode escolher uma pessoa existente ou cadastrar os dados abaixo.</p>}
-                    </div>
+                    <input type="hidden" {...register('pessoaId', { valueAsNumber: true })} />
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
                       <select {...register('cursoId', { valueAsNumber: true })} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.cursoId ? 'border-red-500' : ''}`}>
