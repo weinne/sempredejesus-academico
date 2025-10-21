@@ -275,7 +275,11 @@ export interface Disciplina {
   ementa?: string;
   bibliografia?: string;
   ativo: boolean;
-  periodo?: Periodo;
+  periodo?: {
+    id: number;
+    nome?: string | null;
+    numero?: number | null;
+  };
   curso?: Curso;
 }
 
@@ -291,6 +295,7 @@ export interface Turma {
   secao?: string;
   disciplina?: Disciplina;
   professor?: Professor;
+  coorte?: Coorte;
   inscritos?: TurmaInscrito[];
   totalInscritos?: number;
 }
@@ -312,6 +317,21 @@ export interface TurmaInscrito {
   frequencia?: number;
   status: 'MATRICULADO' | 'CANCELADO' | 'APROVADO' | 'REPROVADO';
   aluno?: Aluno;
+}
+
+export interface CreateTurmaInscricao {
+  alunoId: string;
+  status?: TurmaInscrito['status'];
+}
+
+export interface BulkTurmaInscricao {
+  alunoIds?: string[];
+  coorteId?: number;
+  status?: TurmaInscrito['status'];
+}
+
+export interface UpdateTurmaInscricao {
+  status?: TurmaInscrito['status'];
 }
 
 // Sprint 8: Avaliações, Aulas, Calendário, Relatórios

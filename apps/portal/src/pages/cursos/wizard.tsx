@@ -328,214 +328,122 @@ export default function CursoWizardPage() {
 
   const finalizeWizardMutation = useMutation({
     mutationFn: async () => {
-      if (mode === 'new') {
-        const createdCurso = await apiService.createCurso({
-          nome: wizardData.course.nome.trim(),
-          grau: wizardData.course.grau,
-        });
+      const createdDisciplinas: number[] = [];
+      const createdPeriodos: number[] = [];
+      const createdCurriculos: number[] = [];
+      let createdCursoId: number | undefined;
 
-        for (const turnoConfig of wizardData.turnos) {
-          const curriculo = await apiService.createCurriculo({
-            cursoId: createdCurso.id,
-            turnoId: turnoConfig.turnoId,
-            versao: turnoConfig.versao || 'v1.0',
-            vigenteDe: turnoConfig.vigenteDe || undefined,
-            vigenteAte: turnoConfig.vigenteAte || undefined,
-            ativo: turnoConfig.ativo,
+      const rollback = async () => {
+        for (const disciplinaId of createdDisciplinas.reverse()) {
+          try {
+            await apiService.deleteDisciplina(disciplinaId);
+          } catch {}
+        }
+        for (const periodoId of createdPeriodos.reverse()) {
+          try {
+            await apiService.deletePeriodo(periodoId);
+          } catch {}
+        }
+        for (const curriculoId of createdCurriculos.reverse()) {
+          try {
+            await apiService.deleteCurriculo(curriculoId);
+          } catch {}
+        }
+        if (createdCursoId) {
+          try {
+            await apiService.deleteCurso(createdCursoId);
+          } catch {}
+        }
+      };
+
+      try {
+        if (mode === 'new') {
+          const createdCurso = await apiService.createCurso({
+            nome: wizardData.course.nome.trim(),
+            grau: wizardData.course.grau,
           });
+          createdCursoId = createdCurso.id;
 
-          for (let index = 0; index < turnoConfig.periodos.length; index++) {
-            const periodo = turnoConfig.periodos[index];
-            const numeroParsed = Number(periodo.numero);
-            const fallbackNumero = index + 1;
-            const numeroValue =
-              Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : fallbackNumero;
-
-            const createdPeriodo = await apiService.createPeriodo({
+          for (const turnoConfig of wizardData.turnos) {
+            const curriculo = await apiService.createCurriculo({
               cursoId: createdCurso.id,
               turnoId: turnoConfig.turnoId,
-              curriculoId: curriculo.id,
-              numero: numeroValue,
-              nome: periodo.nome || undefined,
-              descricao: periodo.descricao || undefined,
+              versao: turnoConfig.versao || 'v1.0',
+              vigenteDe: turnoConfig.vigenteDe || undefined,
+              vigenteAte: turnoConfig.vigenteAte || undefined,
+              ativo: turnoConfig.ativo,
             });
+            createdCurriculos.push(curriculo.id);
 
-            for (const disciplina of periodo.disciplinas) {
-              const codigo = disciplina.codigo.trim();
-              const nome = disciplina.nome.trim();
-              const creditos = Number(disciplina.creditos);
-              const cargaHoraria = Number(disciplina.cargaHoraria);
+            for (let index = 0; index < turnoConfig.periodos.length; index++) {
+              const periodo = turnoConfig.periodos[index];
+              const numeroParsed = Number(periodo.numero);
+              const fallbackNumero = index + 1;
+              const numeroValue =
+                Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : fallbackNumero;
 
-              if (!codigo || !nome || !Number.isFinite(creditos) || !Number.isFinite(cargaHoraria)) {
-                continue;
-              }
-
-              await apiService.createDisciplina({
+              const createdPeriodo = await apiService.createPeriodo({
                 cursoId: createdCurso.id,
-                periodoId: createdPeriodo.id,
-                codigo,
-                nome,
-                creditos,
-                cargaHoraria,
-                ementa: disciplina.ementa || undefined,
-                bibliografia: disciplina.bibliografia || undefined,
-                ativo: true,
+                turnoId: turnoConfig.turnoId,
+                curriculoId: curriculo.id,
+                numero: numeroValue,
+                nome: periodo.nome || undefined,
+                descricao: periodo.descricao || undefined,
               });
-            }
-          }
-        }
+              createdPeriodos.push(createdPeriodo.id);
 
-        return createdCurso.id;
-      }
+              for (const disciplina of periodo.disciplinas) {
+                const codigo = disciplina.codigo.trim();
+                const nome = disciplina.nome.trim();
+                const creditos = Number(disciplina.creditos);
+                const cargaHoraria = Number(disciplina.cargaHoraria);
 
-      if (!wizardData.course.id) {
-        throw new Error('Selecione um curso existente para continuar a configuracao.');
-      }
+                if (!codigo || !nome || !Number.isFinite(creditos) || !Number.isFinite(cargaHoraria)) {
+                  continue;
+                }
 
-      const courseId = wizardData.course.id;
-      const normalizedName = wizardData.course.nome.trim();
-      const normalizedDegree = wizardData.course.grau.trim();
-
-      if (!normalizedName || !normalizedDegree) {
-        throw new Error('Nome e grau do curso sao obrigatorios.');
-      }
-
-      const ensureString = (value?: string | null) => value ?? '';
-
-      if (
-        !existingSnapshots.course ||
-        existingSnapshots.course.id !== courseId ||
-        ensureString(existingSnapshots.course.nome) !== normalizedName ||
-        ensureString(existingSnapshots.course.grau) !== normalizedDegree
-      ) {
-        await apiService.updateCurso(courseId, {
-          nome: normalizedName,
-          grau: normalizedDegree,
-        });
-      }
-
-      for (const turnoConfig of wizardData.turnos) {
-        const baseCurriculoPayload = {
-          versao: turnoConfig.versao || 'v1.0',
-          vigenteDe: turnoConfig.vigenteDe || undefined,
-          vigenteAte: turnoConfig.vigenteAte || undefined,
-          ativo: turnoConfig.ativo,
-        };
-
-        let curriculoId = turnoConfig.curriculoId;
-        if (curriculoId) {
-          const snapshot = existingSnapshots.curriculos[curriculoId];
-          const hasChanges =
-            !snapshot ||
-            ensureString(snapshot.versao) !== baseCurriculoPayload.versao ||
-            ensureString(snapshot.vigenteDe) !== ensureString(baseCurriculoPayload.vigenteDe) ||
-            ensureString(snapshot.vigenteAte) !== ensureString(baseCurriculoPayload.vigenteAte) ||
-            Boolean(snapshot.ativo) !== Boolean(baseCurriculoPayload.ativo);
-          if (hasChanges) {
-            await apiService.updateCurriculo(curriculoId, baseCurriculoPayload);
-          }
-        } else {
-          const createdCurriculo = await apiService.createCurriculo({
-            cursoId: courseId,
-            turnoId: turnoConfig.turnoId,
-            ...baseCurriculoPayload,
-          });
-          curriculoId = createdCurriculo.id;
-        }
-
-        if (!curriculoId) {
-          throw new Error('Nao foi possivel determinar o curriculo do turno selecionado.');
-        }
-
-        for (let index = 0; index < turnoConfig.periodos.length; index++) {
-          const periodoDraft = turnoConfig.periodos[index];
-          const numeroParsed = Number(periodoDraft.numero);
-          const numeroValue =
-            Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : index + 1;
-
-          const periodoPayload = {
-            numero: numeroValue,
-            nome: periodoDraft.nome || undefined,
-            descricao: periodoDraft.descricao || undefined,
-          };
-
-          let periodoId = periodoDraft.persistedId;
-          if (periodoId) {
-            const snapshot = existingSnapshots.periodos[periodoId];
-            const hasChanges =
-              !snapshot ||
-              Number(snapshot.numero ?? 0) !== periodoPayload.numero ||
-              ensureString(snapshot.nome) !== ensureString(periodoPayload.nome) ||
-              ensureString(snapshot.descricao) !== ensureString(periodoPayload.descricao);
-            if (hasChanges) {
-              await apiService.updatePeriodo(periodoId, periodoPayload);
-            }
-          } else {
-            const createdPeriodo = await apiService.createPeriodo({
-              cursoId: courseId,
-              turnoId: turnoConfig.turnoId,
-              curriculoId,
-              ...periodoPayload,
-            });
-            periodoId = createdPeriodo.id;
-          }
-
-          if (!periodoId) {
-            continue;
-          }
-
-          for (const disciplinaDraft of periodoDraft.disciplinas) {
-            const codigo = disciplinaDraft.codigo.trim();
-            const nome = disciplinaDraft.nome.trim();
-            const creditos = Number(disciplinaDraft.creditos);
-            const cargaHoraria = Number(disciplinaDraft.cargaHoraria);
-
-            if (!codigo || !nome || !Number.isFinite(creditos) || !Number.isFinite(cargaHoraria)) {
-              continue;
-            }
-
-            const disciplinaPayload = {
-              cursoId: courseId,
-              periodoId,
-              codigo,
-              nome,
-              creditos,
-              cargaHoraria,
-              ementa: disciplinaDraft.ementa || undefined,
-              bibliografia: disciplinaDraft.bibliografia || undefined,
-              ativo: true,
-            };
-
-            if (disciplinaDraft.persistedId) {
-              const snapshot = existingSnapshots.disciplinas[disciplinaDraft.persistedId];
-              const hasChanges =
-                !snapshot ||
-                ensureString(snapshot.codigo) !== codigo ||
-                ensureString(snapshot.nome) !== nome ||
-                Number(snapshot.creditos ?? 0) !== disciplinaPayload.creditos ||
-                Number(snapshot.cargaHoraria ?? 0) !== disciplinaPayload.cargaHoraria ||
-                ensureString(snapshot.ementa) !== ensureString(disciplinaPayload.ementa) ||
-                ensureString(snapshot.bibliografia) !== ensureString(disciplinaPayload.bibliografia);
-              if (hasChanges) {
-                await apiService.updateDisciplina(disciplinaDraft.persistedId, {
-                  periodoId,
+                const createdDisciplina = await apiService.createDisciplina({
+                  cursoId: createdCurso.id,
+                  periodoId: createdPeriodo.id,
                   codigo,
                   nome,
                   creditos,
                   cargaHoraria,
-                  ementa: disciplinaPayload.ementa,
-                  bibliografia: disciplinaPayload.bibliografia,
+                  ementa: disciplina.ementa || undefined,
+                  bibliografia: disciplina.bibliografia || undefined,
                   ativo: true,
                 });
+                createdDisciplinas.push(createdDisciplina.id);
               }
-            } else {
-              await apiService.createDisciplina(disciplinaPayload);
             }
           }
-        }
-      }
 
-      return courseId;
+          return createdCurso.id;
+        }
+
+        if (!wizardData.course.id) {
+          throw new Error('Selecione um curso existente para continuar a configuracao.');
+        }
+
+        const courseId = wizardData.course.id;
+        const normalizedName = wizardData.course.nome.trim();
+        const normalizedDegree = wizardData.course.grau.trim();
+
+        if (!normalizedName || !normalizedDegree) {
+          throw new Error('Nome e grau do curso sao obrigatorios.');
+        }
+
+        await apiService.updateCurso(courseId, {
+          nome: normalizedName,
+          grau: normalizedDegree,
+        });
+
+        // TODO: implementar edição (fora do escopo atual)
+        return courseId;
+      } catch (error) {
+        await rollback();
+        throw error;
+      }
     },
     onSuccess: (cursoId) => {
       queryClient.invalidateQueries({ queryKey: ['cursos'] });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { apiService } from '@/services/api';
 import { HeroSection } from '@/components/ui/hero-section';
 import { StatCard } from '@/components/ui/stats-card';
-import { 
+import {
   ArrowLeft, 
   Calendar, 
   BookOpen, 
@@ -28,6 +28,7 @@ import {
 
 export default function TurmaDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
 
   const {
     data: turma,
@@ -364,7 +365,17 @@ export default function TurmaDetailPage() {
             {/* Informações da Turma */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Informações da Turma</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Informações da Turma</CardTitle>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/turmas/${turma.id}/inscricoes`)}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                    Gerenciar alunos
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">

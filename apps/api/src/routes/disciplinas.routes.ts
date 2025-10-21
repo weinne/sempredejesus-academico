@@ -4,9 +4,10 @@ import { disciplinas, cursos, periodos } from '../db/schema';
 import { CreateDisciplinaSchema, UpdateDisciplinaSchema, IdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
-import { eq } from 'drizzle-orm';
+import { and, eq, or, like, desc, asc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
+import { sql } from 'drizzle-orm';
 
 /**
  * @swagger
@@ -276,7 +277,112 @@ const getDisciplinaComplete = asyncHandler(async (req: Request, res: Response) =
 router.use(requireAuth);
 
 // GET /disciplinas - List all disciplinas with curso information
-router.get('/', disciplinasCrud.getAll);
+router.get(
+  '/',
+  requireAuth,
+  asyncHandler(async (req: Request, res: Response) => {
+    const {
+      cursoId,
+      periodoId,
+      curriculoId,
+      page = '1',
+      limit = '20',
+      search,
+      sortBy,
+      sortOrder,
+    } = req.query;
+
+    const pageNum = Math.max(parseInt(page as string, 10) || 1, 1);
+    const limitNum = Math.min(parseInt(limit as string, 10) || 20, 100);
+    const offset = (pageNum - 1) * limitNum;
+
+    const filterConditions: any[] = [];
+
+    if (cursoId) {
+      filterConditions.push(eq(disciplinas.cursoId, Number(cursoId)));
+    }
+    if (periodoId) {
+      filterConditions.push(eq(disciplinas.periodoId, Number(periodoId)));
+    }
+    if (curriculoId) {
+      filterConditions.push(eq(periodos.curriculoId, Number(curriculoId)));
+    }
+
+    const searchCondition = search && typeof search === 'string' && search.trim().length
+      ? or(
+          like(disciplinas.nome, `%${search.trim()}%`),
+          like(disciplinas.codigo, `%${search.trim()}%`),
+        )
+      : undefined;
+
+    let query = db
+      .select({
+        disciplina: disciplinas,
+        curso: cursos,
+        periodo: periodos,
+      })
+      .from(disciplinas)
+      .leftJoin(cursos, eq(disciplinas.cursoId, cursos.id))
+      .leftJoin(periodos, eq(disciplinas.periodoId, periodos.id));
+
+    const whereConditions = [
+      filterConditions.length ? and(...filterConditions) : undefined,
+      searchCondition,
+    ].filter(Boolean) as any[];
+
+    if (whereConditions.length === 1) {
+      query = query.where(whereConditions[0]);
+    } else if (whereConditions.length > 1) {
+      query = query.where(and(...whereConditions));
+    }
+
+    const sortableColumns: Record<string, any> = {
+      id: disciplinas.id,
+      nome: disciplinas.nome,
+      codigo: disciplinas.codigo,
+      creditos: disciplinas.creditos,
+      cargaHoraria: disciplinas.cargaHoraria,
+      periodoId: disciplinas.periodoId,
+      cursoId: disciplinas.cursoId,
+    };
+    const orderColumn = typeof sortBy === 'string' && sortableColumns[sortBy] ? sortableColumns[sortBy] : disciplinas.nome;
+    const orderExpr = sortOrder === 'desc' ? desc(orderColumn) : asc(orderColumn);
+    query = query.orderBy(orderExpr).limit(limitNum).offset(offset);
+
+    const rows = await query;
+
+    let countQuery = db
+      .select({ value: sql<number>`count(*)` })
+      .from(disciplinas)
+      .leftJoin(periodos, eq(disciplinas.periodoId, periodos.id));
+
+    if (filterConditions.length) {
+      countQuery = countQuery.where(and(...filterConditions));
+    }
+
+    const countResult = await countQuery;
+    const total = countResult[0]?.value ?? 0;
+    const totalPages = Math.ceil(total / limitNum);
+
+    const data = rows.map((row) => ({
+      ...row.disciplina,
+      curso: row.curso,
+      periodo: row.periodo,
+    }));
+
+    res.json({
+      success: true,
+      data,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages,
+      },
+      message: `Found ${data.length} records`,
+    });
+  }),
+);
 
 // GET /disciplinas/:id - Get disciplina by ID with complete information
 router.get('/:id', validateParams(IdParamSchema), getDisciplinaComplete);

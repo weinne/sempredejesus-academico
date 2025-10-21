@@ -1,0 +1,220 @@
+[1mdiff --git a/apps/api/src/routes/turmas.routes.ts b/apps/api/src/routes/turmas.routes.ts[m
+[1mindex 322d5e4..eeac2e5 100644[m
+[1m--- a/apps/api/src/routes/turmas.routes.ts[m
+[1m+++ b/apps/api/src/routes/turmas.routes.ts[m
+[36m@@ -1,8 +1,11 @@[m
+[31m-import { Router } from 'express';[m
+[31m-import { SimpleCrudFactory } from '../core/crud.factory.simple';[m
+[31m-import { turmas } from '../db/schema';[m
+[32m+[m[32mimport { Router, Request, Response } from 'express';[m
+[32m+[m[32mimport { desc, eq, sql } from 'drizzle-orm';[m
+ import { CreateTurmaSchema, UpdateTurmaSchema, IdParamSchema } from '@seminario/shared-dtos';[m
+[31m-import { requireAuth, requireSecretaria, requireProfessor } from '../middleware/auth.middleware';[m
+[32m+[m[32mimport { SimpleCrudFactory } from '../core/crud.factory.simple';[m
+[32m+[m[32mimport { turmas, disciplinas, professores, pessoas, periodos, coortes, turmasInscritos, alunos } from '../db/schema';[m
+[32m+[m[32mimport { db } from '../db';[m
+[32m+[m[32mimport { requireAuth, requireProfessor } from '../middleware/auth.middleware';[m
+[32m+[m[32mimport { asyncHandler } from '../middleware/error.middleware';[m
+ import { validateParams } from '../middleware/validation.middleware';[m
+ [m
+ /**[m
+[36m@@ -154,6 +157,8 @@[m [mimport { validateParams } from '../middleware/validation.middleware';[m
+ [m
+ const router = Router();[m
+ [m
+[32m+[m[32mconst alunoPessoa = pessoas.as('aluno_pessoa');[m
+[32m+[m
+ // Create CRUD factory for turmas (simplified)[m
+ const turmasCrud = new SimpleCrudFactory({[m
+   table: turmas,[m
+[36m@@ -165,10 +170,180 @@[m [mconst turmasCrud = new SimpleCrudFactory({[m
+ router.use(requireAuth);[m
+ [m
+ // GET /turmas - List all turmas (any authenticated user can view)[m
+[31m-router.get('/', turmasCrud.getAll);[m
+[32m+[m[32mrouter.get([m
+[32m+[m[32m  '/',[m
+[32m+[m[32m  asyncHandler(async (req: Request, res: Response) => {[m
+[32m+[m[32m    const turmasRows = await db[m
+[32m+[m[32m      .select({[m
+[32m+[m[32m        id: turmas.id,[m
+[32m+[m[32m        disciplinaId: turmas.disciplinaId,[m
+[32m+[m[32m        professorId: turmas.professorId,[m
+[32m+[m[32m        coorteId: turmas.coorteId,[m
+[32m+[m[32m        sala: turmas.sala,[m
+[32m+[m[32m        horario: turmas.horario,[m
+[32m+[m[32m        secao: turmas.secao,[m
+[32m+[m[32m        disciplina: {[m
+[32m+[m[32m          id: disciplinas.id,[m
+[32m+[m[32m          codigo: disciplinas.codigo,[m
+[32m+[m[32m          nome: disciplinas.nome,[m
+[32m+[m[32m          creditos: disciplinas.creditos,[m
+[32m+[m[32m          cargaHoraria: disciplinas.cargaHoraria,[m
+[32m+[m[32m          periodoId: disciplinas.periodoId,[m
+[32m+[m[32m          cursoId: disciplinas.cursoId,[m
+[32m+[m[32m          periodo: {[m
+[32m+[m[32m            id: periodos.id,[m
+[32m+[m[32m            numero: periodos.numero,[m
+[32m+[m[32m            nome: periodos.nome,[m
+[32m+[m[32m          },[m
+[32m+[m[32m        },[m
+[32m+[m[32m        professor: {[m
+[32m+[m[32m          matricula: professores.matricula,[m
+[32m+[m[32m          pessoaId: professores.pessoaId,[m
+[32m+[m[32m          formacaoAcad: professores.formacaoAcad,[m
+[32m+[m[32m          situacao: professores.situacao,[m
+[32m+[m[32m          pessoa: {[m
+[32m+[m[32m            id: pessoas.id,[m
+[32m+[m[32m            nomeCompleto: pessoas.nomeCompleto,[m
+[32m+[m[32m            email: pessoas.email,[m
+[32m+[m[32m            telefone: pessoas.telefone,[m
+[32m+[m[32m          },[m
+[32m+[m[32m        },[m
+[32m+[m[32m        coorte: {[m
+[32m+[m[32m          id: coortes.id,[m
+[32m+[m[32m          rotulo: coortes.rotulo,[m
+[32m+[m[32m          anoIngresso: coortes.anoIngresso,[m
+[32m+[m[32m          ativo: coortes.ativo,[m
+[32m+[m[32m        },[m
+[32m+[m[32m        totalInscritos: sql<number>`COUNT(${turmasInscritos.id})`,[m
+[32m+[m[32m      })[m
+[32m+[m[32m      .from(turmas)[m
+[32m+[m[32m      .leftJoin(disciplinas, eq(disciplinas.id, turmas.disciplinaId))[m
+[32m+[m[32m      .leftJoin(periodos, eq(periodos.id, disciplinas.periodoId))[m
+[32m+[m[32m      .leftJoin(professores, eq(professores.matricula, turmas.professorId))[m
+[32m+[m[32m      .leftJoin(pessoas, eq(pessoas.id, professores.pessoaId))[m
+[32m+[m[32m      .leftJoin(coortes, eq(coortes.id, turmas.coorteId))[m
+[32m+[m[32m      .leftJoin(turmasInscritos, eq(turmasInscritos.turmaId, turmas.id))[m
+[32m+[m[32m      .groupBy([m
+[32m+[m[32m        turmas.id,[m
+[32m+[m[32m        disciplinas.id,[m
+[32m+[m[32m        periodos.id,[m
+[32m+[m[32m        professores.matricula,[m
+[32m+[m[32m        pessoas.id,[m
+[32m+[m[32m        coortes.id,[m
+[32m+[m[32m      )[m
+[32m+[m[32m      .orderBy(desc(turmas.id));[m
+[32m+[m
+[32m+[m[32m    res.json({[m
+[32m+[m[32m      success: true,[m
+[32m+[m[32m      data: turmasRows,[m
+[32m+[m[32m      message: `Found ${turmasRows.length} records`,[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }),[m
+[32m+[m[32m);[m
+ [m
+ // GET /turmas/:id - Get turma by ID (any authenticated user can view)[m
+[31m-router.get('/:id', validateParams(IdParamSchema), turmasCrud.getById);[m
+[32m+[m[32mrouter.get([m
+[32m+[m[32m  '/:id',[m
+[32m+[m[32m  validateParams(IdParamSchema),[m
+[32m+[m[32m  asyncHandler(async (req: Request, res: Response) => {[m
+[32m+[m[32m    const { id } = IdParamSchema.parse(req.params);[m
+[32m+[m
+[32m+[m[32m    const [turmaRow] = await db[m
+[32m+[m[32m      .select({[m
+[32m+[m[32m        id: turmas.id,[m
+[32m+[m[32m        disciplinaId: turmas.disciplinaId,[m
+[32m+[m[32m        professorId: turmas.professorId,[m
+[32m+[m[32m        coorteId: turmas.coorteId,[m
+[32m+[m[32m        sala: turmas.sala,[m
+[32m+[m[32m        horario: turmas.horario,[m
+[32m+[m[32m        secao: turmas.secao,[m
+[32m+[m[32m        disciplina: {[m
+[32m+[m[32m          id: disciplinas.id,[m
+[32m+[m[32m          codigo: disciplinas.codigo,[m
+[32m+[m[32m          nome: disciplinas.nome,[m
+[32m+[m[32m          creditos: disciplinas.creditos,[m
+[32m+[m[32m          cargaHoraria: disciplinas.cargaHoraria,[m
+[32m+[m[32m          cursoId: disciplinas.cursoId,[m
+[32m+[m[32m          periodoId: disciplinas.periodoId,[m
+[32m+[m[32m          ementa: disciplinas.ementa,[m
+[32m+[m[32m          bibliografia: disciplinas.bibliografia,[m
+[32m+[m[32m          periodo: {[m
+[32m+[m[32m            id: periodos.id,[m
+[32m+[m[32m            numero: periodos.numero,[m
+[32m+[m[32m            nome: periodos.nome,[m
+[32m+[m[32m          },[m
+[32m+[m[32m        },[m
+[32m+[m[32m        professor: {[m
+[32m+[m[32m          matricula: professores.matricula,[m
+[32m+[m[32m          pessoaId: professores.pessoaId,[m
+[32m+[m[32m          formacaoAcad: professores.formacaoAcad,[m
+[32m+[m[32m          situacao: professores.situacao,[m
+[32m+[m[32m          pessoa: {[m
+[32m+[m[32m            id: pessoas.id,[m
+[32m+[m[32m            nomeCompleto: pessoas.nomeCompleto,[m
+[32m+[m[32m            email: pessoas.email,[m
+[32m+[m[32m            telefone: pessoas.telefone,[m
+[32m+[m[32m          },[m
+[32m+[m[32m        },[m
+[32m+[m[32m        coorte: {[m
+[32m+[m[32m          id: coortes.id,[m
+[32m+[m[32m          rotulo: coortes.rotulo,[m
+[32m+[m[32m          anoIngresso: coortes.anoIngresso,[m
+[32m+[m[32m          ativo: coortes.ativo,[m
+[32m+[m[32m        },[m
+[32m+[m[32m        totalInscritos: sql<number>`COUNT(${turmasInscritos.id})`,[m
+[32m+[m[32m      })[m
+[32m+[m[32m      .from(turmas)[m
+[32m+[m[32m      .leftJoin(disciplinas, eq(disciplinas.id, turmas.disciplinaId))[m
+[32m+[m[32m      .leftJoin(periodos, eq(periodos.id, disciplinas.periodoId))[m
+[32m+[m[32m      .leftJoin(professores, eq(professores.matricula, turmas.professorId))[m
+[32m+[m[32m      .leftJoin(pessoas, eq(pessoas.id, professores.pessoaId))[m
+[32m+[m[32m      .leftJoin(coortes, eq(coortes.id, turmas.coorteId))[m
+[32m+[m[32m      .leftJoin(turmasInscritos, eq(turmasInscritos.turmaId, turmas.id))[m
+[32m+[m[32m      .where(eq(turmas.id, id))[m
+[32m+[m[32m      .groupBy([m
+[32m+[m[32m        turmas.id,[m
+[32m+[m[32m        disciplinas.id,[m
+[32m+[m[32m        periodos.id,[m
+[32m+[m[32m        professores.matricula,[m
+[32m+[m[32m        pessoas.id,[m
+[32m+[m[32m        coortes.id,[m
+[32m+[m[32m      );[m
+[32m+[m
+[32m+[m[32m    if (!turmaRow) {[m
+[32m+[m[32m      return res.status(404).json({ success: false, message: 'Turma não encontrada' });[m
+[32m+[m[32m    }[m
+[32m+[m
+[32m+[m[32m    const inscritos = await db[m
+[32m+[m[32m      .select({[m
+[32m+[m[32m        id: turmasInscritos.id,[m
+[32m+[m[32m        turmaId: turmasInscritos.turmaId,[m
+[32m+[m[32m        alunoId: turmasInscritos.alunoId,[m
+[32m+[m[32m        media: turmasInscritos.media,[m
+[32m+[m[32m        frequencia: turmasInscritos.frequencia,[m
+[32m+[m[32m        status: turmasInscritos.status,[m
+[32m+[m[32m        aluno: {[m
+[32m+[m[32m          ra: alunos.ra,[m
+[32m+[m[32m          pessoaId: alunos.pessoaId,[m
+[32m+[m[32m          pessoa: {[m
+[32m+[m[32m            id: alunoPessoa.id,[m
+[32m+[m[32m            nomeCompleto: alunoPessoa.nomeCompleto,[m
+[32m+[m[32m            email: alunoPessoa.email,[m
+[32m+[m[32m            telefone: alunoPessoa.telefone,[m
+[32m+[m[32m          },[m
+[32m+[m[32m        },[m
+[32m+[m[32m      })[m
+[32m+[m[32m      .from(turmasInscritos)[m
+[32m+[m[32m      .leftJoin(alunos, eq(alunos.ra, turmasInscritos.alunoId))[m
+[32m+[m[32m      .leftJoin(alunoPessoa, eq(alunoPessoa.id, alunos.pessoaId))[m
+[32m+[m[32m      .where(eq(turmasInscritos.turmaId, id));[m
+[32m+[m
+[32m+[m[32m    res.json({[m
+[32m+[m[32m      success: true,[m
+[32m+[m[32m      data: { ...turmaRow, inscritos },[m
+[32m+[m[32m    });[m
+[32m+[m[32m  }),[m
+[32m+[m[32m);[m
+ [m
+ // POST /turmas - Create new turma (requires ADMIN, SECRETARIA or PROFESSOR)[m
+ router.post('/', requireProfessor, turmasCrud.create);[m
+[36m@@ -179,4 +354,4 @@[m [mrouter.patch('/:id', validateParams(IdParamSchema), requireProfessor, turmasCrud[m
+ // DELETE /turmas/:id - Delete turma (requires ADMIN, SECRETARIA or PROFESSOR)[m
+ router.delete('/:id', validateParams(IdParamSchema), requireProfessor, turmasCrud.delete);[m
+ [m
+[31m-export default router; [m
+\ No newline at end of file[m
+[32m+[m[32mexport default router;[m
+\ No newline at end of file[m

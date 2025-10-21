@@ -31,25 +31,7 @@ export const FrequenciaCompletaSchema = FrequenciaSchema.extend({
   }),
 });
 
-export const TurmaInscritoSchema = z.object({
-  id: z.number().int().positive(),
-  turmaId: z.number().int().positive(),
-  alunoId: z.string().length(8),
-  media: z.number().min(0).max(10).optional(),
-  frequencia: z.number().min(0).max(100).optional(),
-  status: z.enum(['MATRICULADO', 'CANCELADO', 'APROVADO', 'REPROVADO']),
-});
-
-export const CreateTurmaInscritoSchema = TurmaInscritoSchema.omit({
-  id: true,
-});
-
-export const UpdateTurmaInscritoSchema = CreateTurmaInscritoSchema.partial();
-
 export type Frequencia = z.infer<typeof FrequenciaSchema>;
 export type CreateFrequencia = z.infer<typeof CreateFrequenciaSchema>;
 export type UpdateFrequencia = z.infer<typeof UpdateFrequenciaSchema>;
 export type FrequenciaCompleta = z.infer<typeof FrequenciaCompletaSchema>;
-export type TurmaInscrito = z.infer<typeof TurmaInscritoSchema>;
-export type CreateTurmaInscrito = z.infer<typeof CreateTurmaInscritoSchema>;
-export type UpdateTurmaInscrito = z.infer<typeof UpdateTurmaInscritoSchema>; 

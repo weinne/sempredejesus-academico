@@ -5,9 +5,16 @@
  *     description: Aulas e controle de frequência
  */
 import { Router, Request, Response } from 'express';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, or } from 'drizzle-orm';
 import { db } from '../db';
-import { aulas, frequencias as frequenciasTbl, turmas, turmasInscritos, alunos, pessoas } from '../db/schema';
+import {
+  aulas,
+  frequencias as frequenciasTbl,
+  turmas,
+  turmasInscritos,
+  alunos,
+  pessoas,
+} from '../db/schema';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { requireAuth, requireProfessor } from '../middleware/auth.middleware';
 import { CreateAulaSchema, IdParamSchema } from '@seminario/shared-dtos';
@@ -25,12 +32,17 @@ router.use(requireAuth);
  * /api/aulas:
  *   get:
  *     tags: [Aulas]
- *     summary: Lista aulas por turma
+ *     summary: Lista aulas por turma, disciplina ou professor
  *     parameters:
  *       - in: query
  *         name: turmaId
  *         schema: { type: integer }
- *         required: true
+ *       - in: query
+ *         name: disciplinaId
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: professorId
+ *         schema: { type: string }
  *     responses:
  *       200:
  *         description: Lista de aulas
@@ -38,16 +50,38 @@ router.use(requireAuth);
 router.get(
   '/',
   asyncHandler(async (req: Request, res: Response) => {
-    const turmaId = Number(req.query.turmaId);
-    if (!turmaId || Number.isNaN(turmaId)) {
-      throw createError('turmaId is required', 400);
+    const turmaId = req.query.turmaId ? Number(req.query.turmaId) : undefined;
+    const disciplinaId = req.query.disciplinaId ? Number(req.query.disciplinaId) : undefined;
+    const professorId = req.query.professorId ? String(req.query.professorId) : undefined;
+
+    if (
+      (!turmaId || Number.isNaN(turmaId)) &&
+      (!disciplinaId || Number.isNaN(disciplinaId)) &&
+      (!professorId || professorId.trim().length === 0)
+    ) {
+      throw createError('Informe turmaId, disciplinaId ou professorId', 400);
     }
 
-    const data = await db
-      .select()
-      .from(aulas)
-      .where(eq(aulas.turmaId, turmaId))
-      .orderBy(desc(aulas.data));
+    let query = db.select({ aula: aulas }).from(aulas).orderBy(desc(aulas.data));
+
+    if (turmaId && !Number.isNaN(turmaId)) {
+      query = query.where(eq(aulas.turmaId, turmaId));
+    } else {
+      query = query.leftJoin(turmas, eq(turmas.id, aulas.turmaId));
+
+      const conditions = [] as any[];
+      if (disciplinaId && !Number.isNaN(disciplinaId)) {
+        conditions.push(eq(turmas.disciplinaId, disciplinaId));
+      }
+      if (professorId && professorId.trim().length > 0) {
+        conditions.push(eq(turmas.professorId, professorId));
+      }
+
+      query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
+    }
+
+    const rows = await query;
+    const data = rows.map((row: any) => row.aula ?? row);
 
     res.json({ success: true, data });
   })

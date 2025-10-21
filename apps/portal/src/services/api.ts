@@ -26,7 +26,11 @@ import {
   Turma,
   CreateTurma,
   Role,
-  ApiError 
+  ApiError,
+  TurmaInscrito,
+  CreateTurmaInscricao,
+  BulkTurmaInscricao,
+  UpdateTurmaInscricao
 } from '@/types/api';
 
 class ApiService {
@@ -1291,16 +1295,7 @@ class ApiService {
       const response = await this.api.get(`/api/disciplinas${queryString ? `?${queryString}` : ''}`);
       const payload = response.data;
       const rawData = Array.isArray(payload.data) ? payload.data : payload.data?.data || [];
-      const data = (rawData as any[]).map((disciplina) => ({
-        ...disciplina,
-        periodoId: typeof disciplina.periodoId === 'number' ? disciplina.periodoId : Number(disciplina.periodoId ?? 0),
-        periodo: disciplina.periodo
-          ? {
-              ...disciplina.periodo,
-              numero: Number(disciplina.periodo.numero ?? disciplina.periodoId ?? 0),
-            }
-          : undefined,
-      })) as Disciplina[];
+      const data = (rawData as any[]).map((row) => this.mapDisciplina(row));
 
       return {
         data,
@@ -1317,47 +1312,22 @@ class ApiService {
 
   async getDisciplina(id: number): Promise<Disciplina> {
     const response = await this.api.get(`/api/disciplinas/${id}`);
-    const disciplina = response.data.data || response.data;
-    return {
-      ...disciplina,
-      periodoId: typeof disciplina.periodoId === 'number' ? disciplina.periodoId : Number(disciplina.periodoId ?? 0),
-      periodo: disciplina.periodo
-        ? {
-            ...disciplina.periodo,
-            numero: Number(disciplina.periodo.numero ?? disciplina.periodoId ?? 0),
-          }
-        : undefined,
-    } as Disciplina;
+    return this.mapDisciplina(response.data.data || response.data);
   }
 
   async createDisciplina(disciplina: Omit<Disciplina, 'id'>): Promise<Disciplina> {
     const response = await this.api.post('/api/disciplinas', disciplina);
-    const created = response.data.data || response.data;
-    return {
-      ...created,
-      periodoId: typeof created.periodoId === 'number' ? created.periodoId : Number(created.periodoId ?? 0),
-      periodo: created.periodo
-        ? {
-            ...created.periodo,
-            numero: Number(created.periodo.numero ?? created.periodoId ?? 0),
-          }
-        : undefined,
-    } as Disciplina;
+    const payload = response.data?.data || response.data;
+    return this.mapDisciplina({
+      ...payload,
+      cursoId: disciplina.cursoId,
+      periodoId: disciplina.periodoId,
+    });
   }
 
   async updateDisciplina(id: number, disciplina: Partial<Omit<Disciplina, 'id'>>): Promise<Disciplina> {
     const response = await this.api.patch(`/api/disciplinas/${id}`, disciplina);
-    const updated = response.data.data || response.data;
-    return {
-      ...updated,
-      periodoId: typeof updated.periodoId === 'number' ? updated.periodoId : Number(updated.periodoId ?? 0),
-      periodo: updated.periodo
-        ? {
-            ...updated.periodo,
-            numero: Number(updated.periodo.numero ?? updated.periodoId ?? 0),
-          }
-        : undefined,
-    } as Disciplina;
+    return this.mapDisciplina(response.data.data || response.data);
   }
 
   async deleteDisciplina(id: number): Promise<void> {
@@ -1380,8 +1350,14 @@ class ApiService {
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
 
-      const response = await this.api.get(`/api/turmas?${queryParams.toString()}`);
-      return response.data;
+      const response = await this.api.get(`/api/turmas${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+      const payload = response.data;
+      const rows = Array.isArray(payload.data) ? payload.data : payload.data?.data || [];
+      const data = (rows as any[]).map((row) => this.mapTurma(row));
+      return {
+        data,
+        pagination: payload.pagination || payload.data?.pagination,
+      };
     } catch (error: any) {
       console.warn('API offline - showing empty turmas list');
       return {
@@ -1393,7 +1369,65 @@ class ApiService {
 
   async getTurma(id: number): Promise<Turma> {
     const response = await this.api.get(`/api/turmas/${id}`);
-    return response.data.data;
+    return this.mapTurma(response.data.data);
+  }
+  
+  private mapTurma(row: any): Turma {
+    const turma = row.turmas || row;
+    const disciplina = turma.disciplina || row.disciplina;
+    const professor = turma.professor || row.professor;
+    const coorte = turma.coorte || row.coorte;
+    const inscritos = turma.inscritos || row.inscritos;
+
+    return {
+      id: Number(turma.id),
+      disciplinaId: Number(turma.disciplinaId),
+      professorId: String(turma.professorId),
+      coorteId: turma.coorteId ? Number(turma.coorteId) : undefined,
+      sala: turma.sala || undefined,
+      horario: turma.horario || undefined,
+      secao: turma.secao || undefined,
+      totalInscritos: turma.totalInscritos ? Number(turma.totalInscritos) : turma.totalInscritos,
+      disciplina: disciplina
+        ? {
+            ...disciplina,
+            id: Number(disciplina.id),
+            periodo: disciplina.periodo
+              ? {
+                  ...disciplina.periodo,
+                  id: Number(disciplina.periodo.id),
+                  numero: disciplina.periodo.numero !== undefined && disciplina.periodo.numero !== null
+                    ? Number(disciplina.periodo.numero)
+                    : undefined,
+                }
+              : undefined,
+          }
+        : undefined,
+      professor: professor ? {
+        ...professor,
+        pessoa: professor.pessoa ? {
+          ...professor.pessoa,
+        } : undefined,
+      } : undefined,
+      coorte: coorte ? {
+        ...coorte,
+        id: Number(coorte.id),
+        anoIngresso: Number(coorte.anoIngresso),
+      } : undefined,
+      inscritos: Array.isArray(inscritos) ? inscritos.map((item: any) => this.mapTurmaInscrito(item)) : undefined,
+    };
+  }
+
+  private mapTurmaInscrito(item: any): TurmaInscrito {
+    return {
+      id: Number(item.id),
+      turmaId: Number(item.turmaId),
+      alunoId: String(item.alunoId),
+      media: item.media !== undefined && item.media !== null ? Number(item.media) : undefined,
+      frequencia: item.frequencia !== undefined && item.frequencia !== null ? Number(item.frequencia) : undefined,
+      status: item.status,
+      aluno: item.aluno,
+    };
   }
 
   async createTurma(turma: CreateTurma): Promise<Turma> {
@@ -1410,7 +1444,79 @@ class ApiService {
     await this.api.delete(`/api/turmas/${id}`);
   }
 
+  async getTurmaInscritos(turmaId: number): Promise<TurmaInscrito[]> {
+    const response = await this.api.get(`/api/turmas/${turmaId}/inscritos`);
+    const rows = response.data.data || [];
+    return rows.map((item: any) => this.mapTurmaInscrito(item));
+  }
+
+  async addTurmaInscricao(turmaId: number, payload: CreateTurmaInscricao): Promise<TurmaInscrito> {
+    const response = await this.api.post(`/api/turmas/${turmaId}/inscritos`, payload);
+    return this.mapTurmaInscrito(response.data.data);
+  }
+
+  async addTurmaInscricaoEmLote(turmaId: number, payload: BulkTurmaInscricao): Promise<{ adicionados: number; ignorados: number }> {
+    const response = await this.api.post(`/api/turmas/${turmaId}/inscritos/bulk`, payload);
+    return response.data.data;
+  }
+
+  async updateTurmaInscricao(turmaId: number, inscricaoId: number, payload: UpdateTurmaInscricao): Promise<void> {
+    await this.api.patch(`/api/turmas/${turmaId}/inscritos/${inscricaoId}`, payload);
+  }
+
+  async deleteTurmaInscricao(turmaId: number, inscricaoId: number): Promise<void> {
+    await this.api.delete(`/api/turmas/${turmaId}/inscritos/${inscricaoId}`);
+  }
+
   // Semestres removidos
+  private mapDisciplina(payload: any): Disciplina {
+    if (!payload) {
+      return {
+        id: 0,
+        cursoId: 0,
+        periodoId: 0,
+        codigo: '',
+        nome: '',
+        creditos: 0,
+        cargaHoraria: 0,
+        ativo: true,
+      } as Disciplina;
+    }
+
+    const disciplina = payload.disciplina ?? payload;
+    const curso = payload.curso ?? disciplina.curso ?? null;
+    const periodo = payload.periodo ?? disciplina.periodo ?? null;
+
+    const cursoId = disciplina.cursoId ?? disciplina.curso_id ?? curso?.id ?? null;
+    const periodoId = disciplina.periodoId ?? disciplina.periodo_id ?? periodo?.id ?? null;
+
+    const mapped: Disciplina = {
+      id: Number(disciplina.id ?? disciplina.disciplinaId ?? disciplina.disciplina_id ?? 0),
+      cursoId: cursoId !== null ? Number(cursoId) : 0,
+      periodoId: periodoId !== null ? Number(periodoId) : 0,
+      codigo: disciplina.codigo ?? payload.codigo ?? '',
+      nome: disciplina.nome ?? payload.nome ?? '',
+      creditos: Number(disciplina.creditos ?? payload.creditos ?? 0),
+      cargaHoraria: Number(disciplina.cargaHoraria ?? payload.cargaHoraria ?? 0),
+      ementa: disciplina.ementa ?? payload.ementa ?? undefined,
+      bibliografia: disciplina.bibliografia ?? payload.bibliografia ?? undefined,
+      ativo: disciplina.ativo ?? payload.ativo ?? true,
+      periodo: periodo
+        ? {
+            id: Number(periodo.id ?? periodo.periodoId ?? periodo.periodo_id ?? 0),
+            nome: periodo.nome ?? periodo.periodoNome ?? null,
+            numero:
+              periodo.numero !== undefined && periodo.numero !== null
+                ? Number(periodo.numero)
+                : periodo.periodoNumero !== undefined
+                ? Number(periodo.periodoNumero)
+                : null,
+          }
+        : undefined,
+    } as Disciplina;
+
+    return mapped;
+  }
 }
 
 export const apiService = new ApiService();
