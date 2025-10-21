@@ -27,6 +27,7 @@ import TurmasPage from '@/pages/turmas';
 import TurmaDetailPage from '@/pages/turmas/[id]';
 import TurmaNewPage from '@/pages/turmas/new';
 import TurmaEditPage from '@/pages/turmas/edit/[id]';
+import TurmaInscricoesPage from '@/pages/turmas/inscricoes/[id]';
 import RelatoriosPage from '@/pages/relatorios';
 import AvaliacoesPage from '@/pages/avaliacoes';
 import AulasPage from '@/pages/aulas';
@@ -106,6 +107,7 @@ function App() {
             <Route path="/turmas/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'turmas' }}><TurmaDetailPage /></ProtectedRoute>} />
             <Route path="/turmas/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurmaNewPage /></ProtectedRoute>} />
             <Route path="/turmas/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurmaEditPage /></ProtectedRoute>} />
+            <Route path="/turmas/inscricoes/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><TurmaInscricoesPage /></ProtectedRoute>} />
             <Route path="/disciplinas" element={<DisciplinasPage />} />
             <Route path="/disciplinas/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaNewPage /></ProtectedRoute>} />
             <Route path="/disciplinas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaEditPage /></ProtectedRoute>} />

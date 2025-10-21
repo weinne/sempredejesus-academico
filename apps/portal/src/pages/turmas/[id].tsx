@@ -370,7 +370,7 @@ export default function TurmaDetailPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/turmas/${turma.id}/inscricoes`)}
+                      onClick={() => navigate(`/turmas/inscricoes/${turma.id}`)}
                     >
                       <Users className="h-4 w-4 mr-2" />
                     Gerenciar alunos
@@ -478,21 +478,33 @@ export default function TurmaDetailPage() {
                 <CardTitle className="text-lg">Ações Rápidas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => navigate(`/turmas/inscricoes/${turma.id}`)}
+                >
                   <Users className="h-4 w-4 mr-2" />
                   Gerenciar Alunos
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => navigate(`/avaliacoes?turmaId=${turma.id}`)}
+                >
                   <TrendingUp className="h-4 w-4 mr-2" />
                   Lançar Notas
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => navigate(`/aulas?turmaId=${turma.id}`)}
+                >
                   <Calendar className="h-4 w-4 mr-2" />
                   Frequência
                 </Button>
-                <Link to="/turmas">
+                <Link to={`/turmas/edit/${turma.id}`}>
                   <Button variant="outline" className="w-full justify-start">
-                    <BookOpen className="h-4 w-4 mr-2" />
+                    <Edit className="h-4 w-4 mr-2" />
                     Editar Turma
                   </Button>
                 </Link>

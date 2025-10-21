@@ -216,15 +216,7 @@ export default function TurmasPage() {
 
   // Handle edit
   const handleEdit = (turma: Turma) => {
-    setEditingTurma(turma);
-    setShowForm(true);
-    reset({
-      disciplinaId: turma.disciplinaId,
-      professorId: turma.professorId,
-      sala: turma.sala || '',
-      horario: turma.horario || '',
-      secao: turma.secao || '',
-    });
+    navigate(`/turmas/edit/${turma.id}`);
   };
 
   // Handle delete
@@ -379,6 +371,9 @@ export default function TurmasPage() {
                       <Link to={`/turmas/view/${t.id}`} title="Visualizar">
                         <Button variant="ghost" size="sm"><Eye className="h-4 w-4" /></Button>
                       </Link>
+                      <Link to={`/turmas/inscricoes/${t.id}`} title="Gerenciar alunos">
+                        <Button variant="ghost" size="sm"><Users className="h-4 w-4" /></Button>
+                      </Link>
                       {canEdit && (
                         <>
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(t)} title="Editar">
@@ -407,23 +402,30 @@ export default function TurmasPage() {
                             <p className="text-sm text-gray-500">{turma.secao ? `Seção ${turma.secao}` : 'Turma'}</p>
                           </div>
                         </div>
-                        {canEdit && (
-                          <div className="flex space-x-1">
-                            <Link to={`/turmas/view/${turma.id}`}>
-                              <Button variant="ghost" size="sm" title="Visualizar">
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(turma)} title="Editar">
-                              <Edit className="h-4 w-4" />
+                        <div className="flex space-x-1">
+                          <Link to={`/turmas/view/${turma.id}`}>
+                            <Button variant="ghost" size="sm" title="Visualizar">
+                              <Eye className="h-4 w-4" />
                             </Button>
-                            {canDelete && (
-                              <Button variant="destructive" size="sm" onClick={() => handleDelete(turma.id)} disabled={deleteMutation.isPending} title="Remover">
-                                <Trash2 className="h-4 w-4" />
+                          </Link>
+                          <Link to={`/turmas/inscricoes/${turma.id}`}>
+                            <Button variant="ghost" size="sm" title="Gerenciar alunos">
+                              <Users className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          {canEdit && (
+                            <>
+                              <Button variant="ghost" size="sm" onClick={() => handleEdit(turma)} title="Editar">
+                                <Edit className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                        )}
+                              {canDelete && (
+                                <Button variant="destructive" size="sm" onClick={() => handleDelete(turma.id)} disabled={deleteMutation.isPending} title="Remover">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="space-y-3">
                         <div className="flex items-center space-x-2 text-sm text-gray-600">

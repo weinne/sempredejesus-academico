@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ export default function AulasPage() {
   const { hasRole } = useAuth();
   const { toast } = useToast();
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]);
+  const [searchParams] = useSearchParams();
 
   const [turmaId, setTurmaId] = useState<number | ''>('');
   const [disciplinaId, setDisciplinaId] = useState<number | ''>('');
@@ -25,6 +27,14 @@ export default function AulasPage() {
   const [nova, setNova] = useState<Partial<CreateAula>>({ data: '' });
   const [aulaId, setAulaId] = useState<number | ''>('');
   const [freqText, setFreqText] = useState('');
+
+  // Initialize turmaId from URL params
+  useEffect(() => {
+    const turmaIdParam = searchParams.get('turmaId');
+    if (turmaIdParam) {
+      setTurmaId(Number(turmaIdParam));
+    }
+  }, [searchParams]);
 
   const clearFilters = () => {
     setTurmaId('');

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ export default function AvaliacoesPage() {
   const { toast } = useToast();
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]);
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
 
   const [turmaId, setTurmaId] = useState<number | ''>('');
   const [activeTab, setActiveTab] = useState('avaliacoes');
@@ -31,6 +33,14 @@ export default function AvaliacoesPage() {
   });
   const [avaliacaoSelecionada, setAvaliacaoSelecionada] = useState<number | null>(null);
   const [notasEditadas, setNotasEditadas] = useState<Record<string, { nota: string; obs: string }>>({});
+
+  // Initialize turmaId from URL params
+  useEffect(() => {
+    const turmaIdParam = searchParams.get('turmaId');
+    if (turmaIdParam) {
+      setTurmaId(Number(turmaIdParam));
+    }
+  }, [searchParams]);
 
   // Query for turmas
   const { data: turmasOptions = [] } = useQuery({
