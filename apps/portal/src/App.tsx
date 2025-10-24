@@ -10,6 +10,7 @@ import LoginPage from '@/pages/login';
 import DashboardPage from '@/pages/dashboard';
 import PessoasPage from '@/pages/pessoas';
 import PessoaEditPage from '@/pages/pessoas/edit/[id]';
+import PessoaNewPage from '@/pages/pessoas/new';
 import AlunosPage from '@/pages/alunos';
 import AlunoNewPage from '@/pages/alunos/new';
 import AlunoDetailPage from '@/pages/alunos/[id]';
@@ -84,6 +85,7 @@ function App() {
             <Route path="/users/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'pessoas' }} roles={[Role.ADMIN]}><UserEditPage /></ProtectedRoute>} />
             <Route path="/users/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'pessoas' }} roles={[Role.ADMIN]}><UserViewPage /></ProtectedRoute>} />
             <Route path="/pessoas" element={<PessoasPage />} />
+            <Route path="/pessoas/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PessoaNewPage /></ProtectedRoute>} />
             <Route path="/pessoas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><PessoaEditPage /></ProtectedRoute>} />
             <Route path="/alunos" element={<ProtectedRoute permission={{ action: 'view', resource: 'alunos' }}><AlunosPage /></ProtectedRoute>} />
             <Route path="/alunos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'alunos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><AlunoNewPage /></ProtectedRoute>} />

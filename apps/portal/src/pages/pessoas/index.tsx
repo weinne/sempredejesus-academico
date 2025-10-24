@@ -3,13 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
-import { Pessoa, Role } from '@/types/api';
+import { Pessoa } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
 import { HeroSection } from '@/components/ui/hero-section';
 import { StatCard } from '@/components/ui/stats-card';
@@ -32,45 +30,18 @@ import {
   XCircle,
   Clock
 } from 'lucide-react';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-
-const pessoaSchema = z.object({
-  nome: z.string().min(1, 'Nome é obrigatório'),
-  sexo: z.enum(['M', 'F', 'O']).optional(),
-  email: z.string().email('Email inválido').optional().or(z.literal('')),
-  cpf: z.string().optional(),
-  telefone: z.string().optional(),
-  endereco: z.string().optional(),
-  data_nascimento: z.string().optional(),
-});
-
-type PessoaFormData = z.infer<typeof pessoaSchema>;
 
 export default function PessoasPage() {
-  const { hasRole } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm] = useState(false);
-  const [editingPessoa, setEditingPessoa] = useState<Pessoa | null>(null);
 
 
 
   const canCreate = useCan('create', 'pessoas');
   const canEdit = useCan('edit', 'pessoas');
   const canDelete = useCan('delete', 'pessoas');
-
-  // Form setup
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<PessoaFormData>({
-    resolver: zodResolver(pessoaSchema),
-  });
 
   // Fetch pessoas
   const {
@@ -84,50 +55,6 @@ export default function PessoasPage() {
   });
 
 
-
-  // Create mutation
-  const createMutation = useMutation({
-    mutationFn: (pessoa: Omit<Pessoa, 'id' | 'created_at' | 'updated_at'>) => apiService.createPessoa(pessoa),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pessoas'] });
-      toast({
-        title: 'Pessoa criada',
-        description: 'Pessoa criada com sucesso!',
-      });
-      setShowForm(false);
-      reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Erro ao criar pessoa',
-        description: error.message || 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    },
-  });
-
-  // Update mutation
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Pessoa> }) =>
-      apiService.updatePessoa(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pessoas'] });
-      toast({
-        title: 'Pessoa atualizada',
-        description: 'Pessoa atualizada com sucesso!',
-      });
-      setShowForm(false);
-      setEditingPessoa(null);
-      reset();
-    },
-    onError: (error: any) => {
-      toast({
-        title: 'Erro ao atualizar pessoa',
-        description: error.message || 'Erro desconhecido',
-        variant: 'destructive',
-      });
-    },
-  });
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -168,42 +95,11 @@ export default function PessoasPage() {
     (pessoa.cpf || '').includes(searchTerm)
   );
 
-  // Handle form submission
-  const onSubmit = (data: PessoaFormData) => {
-    if (editingPessoa) {
-      updateMutation.mutate({ id: editingPessoa.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-
-  // Handle edit
-  const handleEdit = (pessoa: Pessoa) => {
-    setEditingPessoa(pessoa);
-    setShowForm(true);
-    reset({
-      nome: pessoa.nome,
-      sexo: pessoa.sexo,
-      email: pessoa.email || '',
-      cpf: pessoa.cpf || '',
-      telefone: pessoa.telefone || '',
-      endereco: pessoa.endereco || '',
-      data_nascimento: pessoa.data_nascimento || '',
-    });
-  };
-
   // Handle delete
   const handleDelete = (id: string) => {
     if (window.confirm('Tem certeza que deseja remover esta pessoa?')) {
       deleteMutation.mutate(id);
     }
-  };
-
-  // Handle new person
-  const handleNew = () => {
-    setEditingPessoa(null);
-    setShowForm(true);
-    reset();
   };
 
   if (error) {
@@ -235,7 +131,7 @@ export default function PessoasPage() {
         description="Cadastro e edição de pessoas"
         backTo="/dashboard"
         actions={canCreate ? (
-          <Button onClick={() => { setEditingPessoa(null); setShowForm(true); reset(); }}>Nova Pessoa</Button>
+          <Button onClick={() => navigate('/pessoas/new')}>Nova Pessoa</Button>
         ) : undefined}
       />
 
@@ -312,67 +208,6 @@ export default function PessoasPage() {
             />
           </div>
 
-          {showForm && (
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>
-                  {editingPessoa ? 'Editar Pessoa' : 'Nova Pessoa'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
-                      <Input {...register('nome')} className={errors.nome ? 'border-red-500' : ''} />
-                      {errors.nome && (<p className="mt-1 text-sm text-red-600">{errors.nome.message}</p>)}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Sexo</label>
-                      <select {...register('sexo')} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.sexo ? 'border-red-500' : ''}`}>
-                        <option value="">Selecione...</option>
-                        <option value="M">Masculino</option>
-                        <option value="F">Feminino</option>
-                        <option value="O">Outro</option>
-                      </select>
-                      {errors.sexo && (<p className="mt-1 text-sm text-red-600">{errors.sexo.message}</p>)}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <Input type="email" {...register('email')} className={errors.email ? 'border-red-500' : ''} />
-                      {errors.email && (<p className="mt-1 text-sm text-red-600">{errors.email.message}</p>)}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">CPF *</label>
-                      <Input {...register('cpf')} placeholder="000.000.000-00" className={errors.cpf ? 'border-red-500' : ''} />
-                      {errors.cpf && (<p className="mt-1 text-sm text-red-600">{errors.cpf.message}</p>)}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                      <Input {...register('telefone')} placeholder="(00) 00000-0000" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-                      <Input {...register('endereco')} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                      <Input type="date" {...register('data_nascimento')} />
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    {editingPessoa ? (
-                      canEdit ? <Button type="submit" disabled={updateMutation.isPending}>Atualizar</Button> : null
-                    ) : (
-                      canCreate ? <Button type="submit" disabled={createMutation.isPending}>Criar</Button> : null
-                    )}
-                    <Button type="button" variant="outline" onClick={() => { setShowForm(false); setEditingPessoa(null); reset(); }}>Fechar</Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle>Pessoas Cadastradas ({filteredPessoas.length})</CardTitle>
@@ -390,7 +225,7 @@ export default function PessoasPage() {
                   { key: 'actions', header: 'Ações', render: (p: any) => (
                     <div className="flex items-center gap-1">
                       {canEdit && (
-                        <Button variant="ghost" size="sm" onClick={() => handleEdit(p)} title="Editar">
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/pessoas/edit/${p.id}`)} title="Editar">
                           <Edit className="h-4 w-4" />
                         </Button>
                       )}
@@ -407,7 +242,7 @@ export default function PessoasPage() {
                         </div>
                         {canEdit && (
                           <div className="flex space-x-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(pessoa)} title="Editar">
+                            <Button variant="ghost" size="sm" onClick={() => navigate(`/pessoas/edit/${pessoa.id}`)} title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>
                           </div>

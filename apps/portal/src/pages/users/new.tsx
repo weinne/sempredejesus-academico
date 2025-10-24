@@ -24,7 +24,9 @@ const schema = z.object({
   pessoaEndereco: z.string().optional(),
   username: z.string().min(3, 'Username deve ter pelo menos 3 caracteres').max(50),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').max(100),
-  role: z.nativeEnum(Role),
+  role: z.enum(['ADMIN', 'SECRETARIA', 'PROFESSOR', 'ALUNO'], {
+    required_error: 'Selecione uma role',
+  }),
   isActive: z.enum(['S', 'N']).default('S'),
 }).refine((data) => {
   return data.createNewPessoa ? !!data.pessoaNome && !!data.pessoaSexo : !!data.pessoaId;
@@ -43,12 +45,18 @@ export default function UserNewPage() {
 
   const { data: pessoas = [] } = useQuery({ queryKey: ['pessoas'], queryFn: apiService.getPessoas });
 
-  const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { createNewPessoa: true, isActive: 'S' },
   });
   const createNewPessoa = watch('createNewPessoa');
-
   const formatCPF = (value: string) => {
     const digits = (value || '').replace(/\D/g, '').slice(0, 11);
     const parts: string[] = [];
@@ -146,7 +154,13 @@ export default function UserNewPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Sexo *</label>
-                        <select {...register('pessoaSexo')} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.pessoaSexo ? 'border-red-500' : ''}`}>
+                        <select
+                          {...register('pessoaSexo', {
+                            setValueAs: (value) => (value === '' ? undefined : (value as FormData['pessoaSexo'])),
+                          })}
+                          className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.pessoaSexo ? 'border-red-500' : ''}`}
+                          defaultValue=""
+                        >
                           <option value="">Selecione...</option>
                           <option value="M">Masculino</option>
                           <option value="F">Feminino</option>
@@ -213,7 +227,13 @@ export default function UserNewPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                    <select {...register('role')} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.role ? 'border-red-500' : ''}`}>
+                    <select
+                      {...register('role', {
+                        setValueAs: (value) => (value === '' ? undefined : (value as FormData['role'])),
+                      })}
+                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.role ? 'border-red-500' : ''}`}
+                      defaultValue=""
+                    >
                       <option value="">Selecione uma role...</option>
                       <option value="ADMIN">Administrador</option>
                       <option value="SECRETARIA">Secretaria</option>

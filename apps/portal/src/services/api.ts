@@ -130,10 +130,21 @@ class ApiService {
       return undefined;
     }
 
-    const enderecoValue =
-      typeof pessoa.endereco === 'object' && pessoa.endereco !== null
-        ? JSON.stringify(pessoa.endereco)
-        : pessoa.endereco || '';
+    const enderecoValue = (() => {
+      if (!pessoa.endereco) {
+        return '';
+      }
+
+      if (typeof pessoa.endereco === 'string') {
+        return pessoa.endereco;
+      }
+
+      try {
+        return JSON.stringify(pessoa.endereco);
+      } catch {
+        return '';
+      }
+    })();
 
     const sexoValue =
       typeof pessoa.sexo === 'string' && pessoa.sexo.trim().length > 0
@@ -505,8 +516,54 @@ class ApiService {
   }
 
   getPessoa = async (id: string): Promise<Pessoa> => {
-    const response: AxiosResponse<Pessoa> = await this.api.get(`/api/pessoas/${id}`);
-    return response.data;
+    const response: AxiosResponse<any> = await this.api.get(`/api/pessoas/${id}`);
+    const data = response.data?.data || response.data;
+    const mapped = this.mapPessoaFromBackend(data);
+    if (!mapped) {
+      throw {
+        message: 'Pessoa não encontrada',
+        statusCode: response.status,
+      } as ApiError;
+    }
+    return mapped;
+  }
+
+  private parseEnderecoString(endereco?: string): any {
+    if (!endereco) {
+      return undefined;
+    }
+
+    const trimmed = endereco.trim();
+    if (!trimmed || trimmed === 'null') {
+      return undefined;
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object') {
+        return parsed;
+      }
+    } catch {
+      return {
+        logradouro: trimmed,
+        numero: '',
+        complemento: '',
+        bairro: '',
+        cidade: '',
+        estado: '',
+        cep: '',
+      };
+    }
+
+    return {
+      logradouro: trimmed,
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: '',
+      cep: '',
+    };
   }
 
   createPessoa = async (pessoa: Omit<Pessoa, 'id' | 'created_at' | 'updated_at'>): Promise<Pessoa> => {
@@ -534,16 +591,9 @@ class ApiService {
         backendData.telefone = pessoa.telefone;
       }
       
-      if (pessoa.endereco && pessoa.endereco.trim()) {
-        backendData.endereco = {
-          logradouro: pessoa.endereco,
-          numero: '',
-          complemento: '',
-          bairro: '',
-          cidade: 'São Paulo',
-          estado: 'SP',
-          cep: ''
-        };
+      const enderecoParsed = this.parseEnderecoString(pessoa.endereco);
+      if (enderecoParsed) {
+        backendData.endereco = enderecoParsed;
       }
       
       const response = await this.api.post('/api/pessoas', backendData);
@@ -599,16 +649,9 @@ class ApiService {
         backendData.telefone = pessoa.telefone;
       }
       
-      if (pessoa.endereco && pessoa.endereco.trim() && pessoa.endereco !== 'null') {
-        backendData.endereco = {
-          logradouro: pessoa.endereco,
-          numero: '',
-          complemento: '',
-          bairro: '',
-          cidade: 'São Paulo',
-          estado: 'SP',
-          cep: ''
-        };
+      const enderecoParsed = this.parseEnderecoString(pessoa.endereco);
+      if (enderecoParsed) {
+        backendData.endereco = enderecoParsed;
       }
 
       const response = await this.api.patch(`/api/pessoas/${id}`, backendData);
