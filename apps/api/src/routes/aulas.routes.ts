@@ -5,7 +5,7 @@
  *     description: Aulas e controle de frequência
  */
 import { Router, Request, Response } from 'express';
-import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, gte, lte, between } from 'drizzle-orm';
 import { db } from '../db';
 import {
   aulas,
@@ -14,10 +14,11 @@ import {
   turmasInscritos,
   alunos,
   pessoas,
+  calendario,
 } from '../db/schema';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { requireAuth, requireProfessor } from '../middleware/auth.middleware';
-import { CreateAulaSchema, IdParamSchema } from '@seminario/shared-dtos';
+import { CreateAulaSchema, UpdateAulaSchema, AulasBatchSchema, FrequenciaBulkUpsertSchema, IdParamSchema } from '@seminario/shared-dtos';
 import { z } from 'zod';
 import { AuditService } from '../services/audit.service';
 import { AttendanceService } from '../services/attendance.service';
@@ -120,6 +121,198 @@ router.post(
     const [created] = await db.insert(aulas).values(payload).returning();
 
     res.status(201).json({ success: true, message: 'Aula criada', data: created });
+  })
+);
+
+// PUT /aulas/:id
+/**
+ * @swagger
+ * /api/aulas/{id}:
+ *   put:
+ *     tags: [Aulas]
+ *     summary: Atualiza uma aula existente
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema: { type: integer }
+ *         required: true
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               data: { type: string, format: date }
+ *               horaInicio: { type: string }
+ *               horaFim: { type: string }
+ *               topico: { type: string }
+ *               materialUrl: { type: string }
+ *               observacao: { type: string }
+ *     responses:
+ *       200:
+ *         description: Aula atualizada
+ */
+router.put(
+  '/:id',
+  requireProfessor,
+  asyncHandler(async (req: Request, res: Response) => {
+    const params = IdParamSchema.parse(req.params);
+    const payload = UpdateAulaSchema.parse(req.body);
+
+    const existing = await db.select().from(aulas).where(eq(aulas.id, params.id)).limit(1);
+    if (existing.length === 0) throw createError('Aula não encontrada', 404);
+
+    const [updated] = await db.update(aulas).set(payload).where(eq(aulas.id, params.id)).returning();
+
+    res.json({ success: true, message: 'Aula atualizada', data: updated });
+  })
+);
+
+// POST /aulas/batch
+/**
+ * @swagger
+ * /api/aulas/batch:
+ *   post:
+ *     tags: [Aulas]
+ *     summary: Cria aulas em lote com recorrência
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [turmaId, diaDaSemana, dataInicio, dataFim, horaInicio, horaFim]
+ *             properties:
+ *               turmaId: { type: integer }
+ *               diaDaSemana: { type: integer, minimum: 0, maximum: 6 }
+ *               dataInicio: { type: string, format: date }
+ *               dataFim: { type: string, format: date }
+ *               horaInicio: { type: string }
+ *               horaFim: { type: string }
+ *               pularFeriados: { type: boolean }
+ *               dryRun: { type: boolean }
+ *     responses:
+ *       201:
+ *         description: Aulas criadas ou preview gerado
+ */
+router.post(
+  '/batch',
+  requireProfessor,
+  asyncHandler(async (req: Request, res: Response) => {
+    const payload = AulasBatchSchema.parse(req.body);
+    
+    // Verify turma exists
+    const turmaExists = await db.select().from(turmas).where(eq(turmas.id, payload.turmaId)).limit(1);
+    if (turmaExists.length === 0) throw createError('Turma não encontrada', 404);
+
+    // Generate dates for the specified day of week
+    const startDate = new Date(payload.dataInicio);
+    const endDate = new Date(payload.dataFim);
+    
+    if (startDate > endDate) {
+      throw createError('Data de início deve ser anterior à data de fim', 400);
+    }
+
+    const generatedDates: string[] = [];
+    const currentDate = new Date(startDate);
+
+    // Find first occurrence of the target day
+    while (currentDate.getDay() !== payload.diaDaSemana && currentDate <= endDate) {
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Generate all dates for the day of week
+    while (currentDate <= endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0];
+      generatedDates.push(dateStr);
+      currentDate.setDate(currentDate.getDate() + 7); // Next week
+    }
+
+    // Filter out holidays if requested
+    let datesToCreate = [...generatedDates];
+    if (payload.pularFeriados) {
+      const holidays = await db
+        .select()
+        .from(calendario)
+        .where(
+          or(
+            ...generatedDates.map(dateStr => 
+              and(
+                lte(calendario.inicio, dateStr),
+                gte(calendario.termino, dateStr)
+              )
+            )
+          )
+        );
+
+      const holidayDates = new Set<string>();
+      holidays.forEach(holiday => {
+        const holidayStart = new Date(holiday.inicio);
+        const holidayEnd = new Date(holiday.termino);
+        
+        generatedDates.forEach(dateStr => {
+          const date = new Date(dateStr);
+          if (date >= holidayStart && date <= holidayEnd) {
+            holidayDates.add(dateStr);
+          }
+        });
+      });
+
+      datesToCreate = generatedDates.filter(dateStr => !holidayDates.has(dateStr));
+    }
+
+    // Check for existing aulas
+    const existingAulas = await db
+      .select()
+      .from(aulas)
+      .where(
+        and(
+          eq(aulas.turmaId, payload.turmaId),
+          inArray(aulas.data, datesToCreate)
+        )
+      );
+
+    const existingDates = new Set(existingAulas.map(a => a.data));
+    const newDates = datesToCreate.filter(dateStr => !existingDates.has(dateStr));
+
+    if (payload.dryRun) {
+      return res.json({
+        success: true,
+        data: {
+          totalGeradas: newDates.length,
+          existentesIgnoradas: existingDates.size,
+          datas: newDates,
+        },
+      });
+    }
+
+    // Create aulas
+    if (newDates.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'Nenhuma aula nova para criar',
+        data: { criadas: [] },
+      });
+    }
+
+    const aulasToInsert = newDates.map(dateStr => ({
+      turmaId: payload.turmaId,
+      data: dateStr,
+      horaInicio: payload.horaInicio,
+      horaFim: payload.horaFim,
+      topico: null,
+      materialUrl: null,
+      observacao: null,
+    }));
+
+    const criadas = await db.insert(aulas).values(aulasToInsert).returning();
+
+    res.status(201).json({
+      success: true,
+      message: `${criadas.length} aula(s) criada(s)`,
+      data: { criadas },
+    });
   })
 );
 
@@ -399,6 +592,175 @@ router.get(
         alertas
       }
     });
+  })
+);
+
+// POST /aulas/frequencias/bulk-upsert
+/**
+ * @swagger
+ * /api/aulas/frequencias/bulk-upsert:
+ *   post:
+ *     tags: [Aulas]
+ *     summary: Upsert de frequências em lote (transacional)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [itens]
+ *             properties:
+ *               itens:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [aulaId, inscricaoId, presente]
+ *                   properties:
+ *                     aulaId: { type: integer }
+ *                     inscricaoId: { type: integer }
+ *                     presente: { type: boolean }
+ *                     justificativa: { type: string }
+ *     responses:
+ *       200:
+ *         description: Frequências atualizadas
+ */
+router.post(
+  '/frequencias/bulk-upsert',
+  requireProfessor,
+  asyncHandler(async (req: Request, res: Response) => {
+    const payload = FrequenciaBulkUpsertSchema.parse(req.body);
+
+    // Group by aula for performance
+    const aulaIds = [...new Set(payload.itens.map(item => item.aulaId))];
+    
+    // Verify all aulas exist and get turmaIds
+    const aulasData = await db.select().from(aulas).where(inArray(aulas.id, aulaIds));
+    if (aulasData.length !== aulaIds.length) {
+      throw createError('Uma ou mais aulas não encontradas', 404);
+    }
+
+    const aulaToTurmaMap = aulasData.reduce((acc, aula) => {
+      acc[aula.id] = aula.turmaId;
+      return acc;
+    }, {} as Record<number, number>);
+
+    // Process in transaction
+    await db.transaction(async (tx) => {
+      // Get existing frequencies for audit
+      const existingFreqs = await tx
+        .select()
+        .from(frequenciasTbl)
+        .where(
+          or(
+            ...payload.itens.map(item => 
+              and(
+                eq(frequenciasTbl.aulaId, item.aulaId),
+                eq(frequenciasTbl.inscricaoId, item.inscricaoId)
+              )
+            )
+          )
+        );
+
+      const existingMap = existingFreqs.reduce((acc, freq) => {
+        const key = `${freq.aulaId}-${freq.inscricaoId}`;
+        acc[key] = freq;
+        return acc;
+      }, {} as Record<string, any>);
+
+      // Delete existing records
+      for (const item of payload.itens) {
+        await tx
+          .delete(frequenciasTbl)
+          .where(
+            and(
+              eq(frequenciasTbl.aulaId, item.aulaId),
+              eq(frequenciasTbl.inscricaoId, item.inscricaoId)
+            )
+          );
+      }
+
+      // Insert new/updated records
+      if (payload.itens.length > 0) {
+        await tx.insert(frequenciasTbl).values(
+          payload.itens.map(item => ({
+            aulaId: item.aulaId,
+            inscricaoId: item.inscricaoId,
+            presente: item.presente,
+            justificativa: item.justificativa || null,
+          }))
+        );
+      }
+
+      // Audit log
+      const userId = (req as any).user?.id || 1;
+      for (const item of payload.itens) {
+        const key = `${item.aulaId}-${item.inscricaoId}`;
+        const existing = existingMap[key];
+        
+        if (!existing || existing.presente !== item.presente) {
+          const inscricao = await tx
+            .select({ alunoId: turmasInscritos.alunoId })
+            .from(turmasInscritos)
+            .where(eq(turmasInscritos.id, item.inscricaoId))
+            .limit(1);
+          
+          if (inscricao.length > 0) {
+            await AuditService.logAttendanceChange({
+              userId,
+              alunoId: inscricao[0].alunoId,
+              aulaId: item.aulaId,
+              oldPresence: existing?.presente,
+              newPresence: item.presente,
+              turmaId: aulaToTurmaMap[item.aulaId],
+            });
+          }
+        }
+      }
+
+      // Recalculate attendance percentages
+      const inscricaoIds = [...new Set(payload.itens.map(item => item.inscricaoId))];
+      
+      for (const inscricaoId of inscricaoIds) {
+        const inscricao = await tx
+          .select()
+          .from(turmasInscritos)
+          .where(eq(turmasInscritos.id, inscricaoId))
+          .limit(1);
+        
+        if (inscricao.length === 0) continue;
+        
+        const turmaId = inscricao[0].turmaId;
+        
+        // Get total aulas for this turma
+        const totalAulas = await tx.select({ c: aulas.id }).from(aulas).where(eq(aulas.turmaId, turmaId));
+        const total = totalAulas.length || 0;
+        
+        if (total > 0) {
+          // Count present
+          const presentes = await tx
+            .select({ c: frequenciasTbl.id })
+            .from(frequenciasTbl)
+            .leftJoin(aulas, eq(frequenciasTbl.aulaId, aulas.id))
+            .where(
+              and(
+                eq(aulas.turmaId, turmaId),
+                eq(frequenciasTbl.inscricaoId, inscricaoId),
+                eq(frequenciasTbl.presente, true)
+              )
+            );
+
+          const ausencias = total - presentes.length;
+          const attendancePercentage = AttendanceService.calculateAttendancePercentage(total, ausencias);
+
+          await tx
+            .update(turmasInscritos)
+            .set({ frequencia: String(attendancePercentage) })
+            .where(eq(turmasInscritos.id, inscricaoId));
+        }
+      }
+    });
+
+    res.json({ success: true, message: 'Frequências atualizadas em lote' });
   })
 );
 

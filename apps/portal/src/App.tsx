@@ -32,8 +32,12 @@ import TurmaInscricoesPage from '@/pages/turmas/inscricoes/[id]';
 import RelatoriosPage from '@/pages/relatorios';
 import AvaliacoesPage from '@/pages/avaliacoes';
 import AulasPage from '@/pages/aulas';
+import AulasListPage from '@/pages/aulas/list';
+import AulaNewPage from '@/pages/aulas/new';
+import AulasBatchPage from '@/pages/aulas/batch';
 import AulaViewPage from '@/pages/aulas/view/[id]';
 import AulaEditPage from '@/pages/aulas/edit/[id]';
+import FrequenciaPage from '@/pages/frequencia';
 import DisciplinasPage from '@/pages/disciplinas';
 import DisciplinaNewPage from '@/pages/disciplinas/new';
 import DisciplinaEditPage from '@/pages/disciplinas/edit/[id]';
@@ -128,8 +132,12 @@ function App() {
             <Route path="/relatorios" element={<RelatoriosPage />} />
             <Route path="/avaliacoes" element={<AvaliacoesPage />} />
             <Route path="/aulas" element={<AulasPage />} />
+            <Route path="/aulas/list" element={<AulasListPage />} />
+            <Route path="/aulas/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><AulaNewPage /></ProtectedRoute>} />
+            <Route path="/aulas/batch" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><AulasBatchPage /></ProtectedRoute>} />
             <Route path="/aulas/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><AulaViewPage /></ProtectedRoute>} />
             <Route path="/aulas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><AulaEditPage /></ProtectedRoute>} />
+            <Route path="/frequencia" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><FrequenciaPage /></ProtectedRoute>} />
             <Route path="/presencas" element={<PresencasPage />} />
             <Route path="/calendario" element={<ProtectedRoute permission={{ action: 'view', resource: 'periodos' }}><CalendarioPage /></ProtectedRoute>} />
             <Route path="/meu-portal" element={<MeuPortalPage />} />

@@ -358,17 +358,48 @@ export interface Aula {
   id: number;
   turmaId: number;
   data: string; // YYYY-MM-DD
-  topico?: string;
-  materialUrl?: string;
-  observacao?: string;
+  horaInicio?: string | null; // HH:mm
+  horaFim?: string | null; // HH:mm
+  topico?: string | null;
+  materialUrl?: string | null;
+  observacao?: string | null;
 }
 
 export interface CreateAula extends Omit<Aula, 'id'> {}
+
+export interface AulasBatch {
+  turmaId: number;
+  diaDaSemana: number; // 0=Dom, 6=Sab
+  dataInicio: string; // YYYY-MM-DD
+  dataFim: string; // YYYY-MM-DD
+  horaInicio: string; // HH:mm
+  horaFim: string; // HH:mm
+  pularFeriados?: boolean;
+  dryRun?: boolean;
+}
+
+export interface AulasBatchResponse {
+  totalGeradas: number;
+  existentesIgnoradas?: number;
+  datas?: string[];
+  criadas?: Aula[];
+}
 
 export interface LancarFrequenciaInput {
   inscricaoId: number;
   presente: boolean;
   justificativa?: string;
+}
+
+export interface FrequenciaUpsertItem {
+  aulaId: number;
+  inscricaoId: number;
+  presente: boolean;
+  justificativa?: string | null;
+}
+
+export interface FrequenciaBulkUpsert {
+  itens: FrequenciaUpsertItem[];
 }
 
 export interface EstudanteAula {

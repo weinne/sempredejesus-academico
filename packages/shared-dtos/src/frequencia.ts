@@ -31,7 +31,21 @@ export const FrequenciaCompletaSchema = FrequenciaSchema.extend({
   }),
 });
 
+// Bulk upsert schema
+export const FrequenciaUpsertItemSchema = z.object({
+  aulaId: z.number().int().positive(),
+  inscricaoId: z.number().int().positive(),
+  presente: z.boolean(),
+  justificativa: z.string().nullable().optional(),
+});
+
+export const FrequenciaBulkUpsertSchema = z.object({
+  itens: z.array(FrequenciaUpsertItemSchema).min(1),
+});
+
 export type Frequencia = z.infer<typeof FrequenciaSchema>;
 export type CreateFrequencia = z.infer<typeof CreateFrequenciaSchema>;
 export type UpdateFrequencia = z.infer<typeof UpdateFrequenciaSchema>;
 export type FrequenciaCompleta = z.infer<typeof FrequenciaCompletaSchema>;
+export type FrequenciaUpsertItem = z.infer<typeof FrequenciaUpsertItemSchema>;
+export type FrequenciaBulkUpsert = z.infer<typeof FrequenciaBulkUpsertSchema>;

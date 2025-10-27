@@ -770,6 +770,26 @@ class ApiService {
     return response.data.data as import('@/types/api').EstudanteAula[];
   }
 
+  async updateAula(id: number, payload: Partial<import('@/types/api').CreateAula>) {
+    const response = await this.api.put(`/api/aulas/${id}`, payload);
+    return response.data.data as import('@/types/api').Aula;
+  }
+
+  async createAulasBatch(payload: import('@/types/api').AulasBatch) {
+    const response = await this.api.post(`/api/aulas/batch`, payload);
+    return response.data.data as import('@/types/api').AulasBatchResponse;
+  }
+
+  async bulkUpsertFrequencias(payload: import('@/types/api').FrequenciaBulkUpsert) {
+    const response = await this.api.post(`/api/aulas/frequencias/bulk-upsert`, payload);
+    return response.data;
+  }
+
+  async getTurmaInscritos(turmaId: number) {
+    const response = await this.api.get(`/api/turmas/${turmaId}/inscritos`);
+    return response.data.data as import('@/types/api').TurmaInscrito[];
+  }
+
   // Enhanced evaluations endpoints
   async getEstudantesAvaliacao(avaliacaoId: number) {
     const response = await this.api.get(`/api/avaliacoes/${avaliacaoId}/estudantes`);
@@ -789,11 +809,6 @@ class ApiService {
   // Aulas - single
   async getAula(id: number) {
     const response = await this.api.get(`/api/aulas/${id}`);
-    return response.data.data as import('@/types/api').Aula;
-  }
-
-  async updateAula(id: number, data: Partial<import('@/types/api').CreateAula>) {
-    const response = await this.api.patch(`/api/aulas/${id}`, data);
     return response.data.data as import('@/types/api').Aula;
   }
 
@@ -1485,12 +1500,6 @@ class ApiService {
 
   async deleteTurma(id: number): Promise<void> {
     await this.api.delete(`/api/turmas/${id}`);
-  }
-
-  async getTurmaInscritos(turmaId: number): Promise<TurmaInscrito[]> {
-    const response = await this.api.get(`/api/turmas/${turmaId}/inscritos`);
-    const rows = response.data.data || [];
-    return rows.map((item: any) => this.mapTurmaInscrito(item));
   }
 
   async addTurmaInscricao(turmaId: number, payload: CreateTurmaInscricao): Promise<TurmaInscrito> {
