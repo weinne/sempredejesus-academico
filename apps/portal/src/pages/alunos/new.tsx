@@ -1,8 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Wand2 } from 'lucide-react';
+import { Wand2, User, GraduationCap, MapPin } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -43,11 +42,10 @@ const alunoSchema = z.object({
   turnoId: z.number().optional(),
   coorteId: z.number().optional(),
   periodoId: z.number().min(1, 'Selecione um período'),
-  anoIngresso: z.number().min(1900).max(2100),
   igreja: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']),
   coeficienteAcad: z.number().min(0).max(10).optional(),
-  createUser: z.boolean().default(false),
+  createUser: z.boolean().default(true),
   username: z.string().min(3).max(50).optional(),
   password: z.string().min(6).max(100).optional(),
 }).superRefine((data, ctx) => {
@@ -71,11 +69,15 @@ export default function AlunoNewPage() {
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<AlunoFormData>({
     resolver: zodResolver(alunoSchema),
-    defaultValues: { situacao: 'ATIVO', anoIngresso: new Date().getFullYear(), createUser: false },
+    defaultValues: { situacao: 'ATIVO', createUser: true },
   });
   const createUser = watch('createUser');
-  const selectedPessoaId = watch('pessoaId');
-  const selectedCursoId = watch('cursoId');
+  const selectedPessoaIdRaw = watch('pessoaId');
+  const selectedCursoIdRaw = watch('cursoId');
+  
+  // Garantir que os IDs sejam números válidos ou undefined
+  const selectedPessoaId = selectedPessoaIdRaw && !isNaN(Number(selectedPessoaIdRaw)) ? Number(selectedPessoaIdRaw) : undefined;
+  const selectedCursoId = selectedCursoIdRaw && !isNaN(Number(selectedCursoIdRaw)) ? Number(selectedCursoIdRaw) : undefined;
 
   // Masks and normalization helpers
   const onlyDigits = (value: string) => value.replace(/\D/g, '');
@@ -93,7 +95,10 @@ export default function AlunoNewPage() {
   };
 
   useEffect(() => {
+    // Limpar período, turno e coorte quando o curso mudar
     setValue('periodoId', undefined as unknown as number, { shouldValidate: false, shouldDirty: false });
+    setValue('turnoId', undefined as unknown as number, { shouldValidate: false, shouldDirty: false });
+    setValue('coorteId', undefined as unknown as number, { shouldValidate: false, shouldDirty: false });
   }, [selectedCursoId, setValue]);
 
   const generateEightDigitId = () => {
@@ -108,8 +113,26 @@ export default function AlunoNewPage() {
   const { data: pessoas = [] } = useQuery({ queryKey: ['pessoas'], queryFn: apiService.getPessoas });
   const { data: cursosResponse } = useQuery({ queryKey: ['cursos'], queryFn: () => apiService.getCursos({ limit: 100 }) });
   const cursos = cursosResponse?.data || [];
-  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
-  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
+  const { data: turnosAll = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
+  const { data: coortesAll = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
+  const { data: curriculosAll = [] } = useQuery({ 
+    queryKey: ['curriculos'], 
+    queryFn: () => apiService.getCurriculos({ ativo: true }) 
+  });
+
+  // Filtrar turnos e coortes pelo curso selecionado
+  const turnosDisponiveis = useMemo(() => {
+    if (!selectedCursoId) return [];
+    // Obter turnos que possuem currículos ativos para o curso
+    const curriculosDoCurso = curriculosAll.filter((c: any) => c.cursoId === selectedCursoId && c.ativo);
+    const turnoIds = [...new Set(curriculosDoCurso.map((c: any) => c.turnoId))];
+    return turnosAll.filter((t: any) => turnoIds.includes(t.id));
+  }, [selectedCursoId, turnosAll, curriculosAll]);
+
+  const coortesDisponiveis = useMemo(() => {
+    if (!selectedCursoId) return [];
+    return coortesAll.filter((c: any) => c.cursoId === selectedCursoId && c.ativo);
+  }, [selectedCursoId, coortesAll]);
 
   const pessoaNomeWatch = watch('pessoa.nome');
   const pessoaCpfWatch = watch('pessoa.cpf');
@@ -193,24 +216,40 @@ export default function AlunoNewPage() {
       };
       setValue('pessoa.endereco', JSON.stringify(enderecoObj), { shouldDirty: true, shouldValidate: false });
     }
-    createMutation.mutate(data);
+    // Adicionar anoIngresso automaticamente (ano atual)
+    const dataWithAnoIngresso = {
+      ...data,
+      anoIngresso: new Date().getFullYear(),
+    };
+    createMutation.mutate(dataWithAnoIngresso as any);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <CrudHeader title="Nova Matrícula" backTo="/alunos" description="Cadastro de aluno" />
-      <main className="max-w-5xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Nova Matrícula</CardTitle>
-              <CardDescription>Complete o formulário para matricular um novo aluno</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Dados da Matrícula</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <main className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          {/* Header */}
+          <div className="px-8 py-6 border-b border-slate-200">
+            <h1 className="text-2xl font-bold text-slate-900">Nova Matrícula</h1>
+            <p className="mt-1 text-sm text-slate-600">Complete o formulário para matricular um novo aluno</p>
+          </div>
+
+          {/* Form Content */}
+          <div className="px-8 py-6">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+                {/* Seção 1: Dados da Matrícula */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <GraduationCap className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">Dados da Matrícula</h2>
+                      <p className="text-sm text-slate-500">Informações acadêmicas do aluno</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">RA (opcional - será gerado automaticamente)</label>
                       <div className="relative">
@@ -256,31 +295,38 @@ export default function AlunoNewPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Turno</label>
                       <select
-                        {...register('turnoId', { valueAsNumber: true })}
+                        {...register('turnoId', { 
+                          setValueAs: (value) => value === '' || value === undefined ? undefined : Number(value)
+                        })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={!selectedCursoId}
                       >
-                        <option value="">Selecione um turno...</option>
-                        {turnos.map((t: Turno) => (
+                        <option value="">{selectedCursoId ? 'Selecione um turno...' : 'Selecione um curso primeiro'}</option>
+                        {turnosDisponiveis.map((t: Turno) => (
                           <option key={t.id} value={t.id}>{t.nome}</option>
                         ))}
                       </select>
+                      {selectedCursoId && turnosDisponiveis.length === 0 && (
+                        <p className="mt-1 text-xs text-amber-600">Nenhum turno disponível para este curso</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Coorte (turma de ingresso)</label>
                       <select
-                        {...register('coorteId', { valueAsNumber: true })}
+                        {...register('coorteId', { 
+                          setValueAs: (value) => value === '' || value === undefined ? undefined : Number(value)
+                        })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={!selectedCursoId}
                       >
-                        <option value="">Selecione uma coorte...</option>
-                        {coortes.map((c: Coorte) => (
+                        <option value="">{selectedCursoId ? 'Selecione uma coorte...' : 'Selecione um curso primeiro'}</option>
+                        {coortesDisponiveis.map((c: Coorte) => (
                           <option key={c.id} value={c.id}>{c.rotulo}</option>
                         ))}
                       </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Ano de Ingresso *</label>
-                      <Input type="number" min="1900" max="2100" {...register('anoIngresso', { valueAsNumber: true })} className={errors.anoIngresso ? 'border-red-500' : ''} />
-                      {errors.anoIngresso && (<p className="mt-1 text-sm text-red-600">{errors.anoIngresso.message}</p>)}
+                      {selectedCursoId && coortesDisponiveis.length === 0 && (
+                        <p className="mt-1 text-xs text-amber-600">Nenhuma coorte disponível para este curso</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Situação *</label>
@@ -297,23 +343,48 @@ export default function AlunoNewPage() {
                     </div>
                   </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Dados Complementares</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* Separador */}
+                <div className="border-t border-slate-200"></div>
+
+                {/* Seção 2: Dados Complementares */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <MapPin className="w-5 h-5 text-purple-600" />
+                    </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Igreja de Origem</label>
-                      <Input {...register('igreja')} placeholder="Nome da igreja" />
+                      <h2 className="text-lg font-semibold text-slate-900">Dados Complementares</h2>
+                      <p className="text-sm text-slate-500">Informações adicionais sobre o aluno</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Igreja de Origem</label>
+                      <Input {...register('igreja')} placeholder="Nome da igreja" className="h-11" />
                     </div>
                   </div>
                 </div>
 
-                {/* Pessoa Inline */}
+                {/* Separador */}
+                <div className="border-t border-slate-200"></div>
+
+                {/* Seção 3: Dados Pessoais */}
                 {!selectedPessoaId && (
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-medium text-gray-900">Dados Pessoais (Inline)</h3>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                          <User className="w-5 h-5 text-green-600" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-semibold text-slate-900">Dados Pessoais</h2>
+                          <p className="text-sm text-slate-500">Informações da pessoa vinculada ao aluno</p>
+                        </div>
+                      </div>
                       <div className="relative">
                         <Button type="button" variant="outline" size="sm" onClick={() => setShowPessoaDropdown(v => !v)}>
+                          <User className="w-4 h-4 mr-2" />
                           Selecionar existente
                         </Button>
                         {showPessoaDropdown && (
@@ -344,7 +415,7 @@ export default function AlunoNewPage() {
                         )}
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
                         <Input
@@ -411,16 +482,32 @@ export default function AlunoNewPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
                         <Input type="date" {...register('pessoa.data_nascimento')} />
                       </div>
-                      <div className="md:col-span-2 lg:col-span-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Endereço</label>
-                        <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                          <Input value={endLogradouro} onChange={(e)=>setEndLogradouro(e.target.value)} placeholder="Logradouro" className="md:col-span-3" />
-                          <Input value={endNumero} onChange={(e)=>setEndNumero(e.target.value)} placeholder="Número" className="md:col-span-1" />
-                          <Input value={endComplemento} onChange={(e)=>setEndComplemento(e.target.value)} placeholder="Complemento" className="md:col-span-2" />
-                          <Input value={endBairro} onChange={(e)=>setEndBairro(e.target.value)} placeholder="Bairro" className="md:col-span-2" />
-                          <Input value={endCidade} onChange={(e)=>setEndCidade(e.target.value)} placeholder="Cidade" className="md:col-span-2" />
-                          <Input value={endEstado} onChange={(e)=>setEndEstado(e.target.value)} placeholder="UF" className="md:col-span-1" />
-                          <Input value={endCep} onChange={(e)=>setEndCep(e.target.value)} placeholder="CEP" className="md:col-span-1" />
+                    </div>
+                    
+                    {/* Subseção de Endereço */}
+                    <div className="pt-4 border-t border-slate-100">
+                      <label className="block text-sm font-semibold text-slate-700 mb-3">Endereço</label>
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                        <div className="md:col-span-3">
+                          <Input value={endLogradouro} onChange={(e)=>setEndLogradouro(e.target.value)} placeholder="Logradouro" className="h-11" />
+                        </div>
+                        <div className="md:col-span-1">
+                          <Input value={endNumero} onChange={(e)=>setEndNumero(e.target.value)} placeholder="Número" className="h-11" />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Input value={endComplemento} onChange={(e)=>setEndComplemento(e.target.value)} placeholder="Complemento" className="h-11" />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Input value={endBairro} onChange={(e)=>setEndBairro(e.target.value)} placeholder="Bairro" className="h-11" />
+                        </div>
+                        <div className="md:col-span-2">
+                          <Input value={endCidade} onChange={(e)=>setEndCidade(e.target.value)} placeholder="Cidade" className="h-11" />
+                        </div>
+                        <div className="md:col-span-1">
+                          <Input value={endEstado} onChange={(e)=>setEndEstado(e.target.value)} placeholder="UF" className="h-11" maxLength={2} />
+                        </div>
+                        <div className="md:col-span-1">
+                          <Input value={endCep} onChange={(e)=>setEndCep(e.target.value)} placeholder="CEP" className="h-11" />
                         </div>
                       </div>
                     </div>
@@ -457,30 +544,82 @@ export default function AlunoNewPage() {
                     })()}
                   </div>
                 )}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Acesso ao Sistema</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center">
-                      <input type="checkbox" {...register('createUser')} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
-                      <label className="ml-2 block text-sm text-gray-900">Criar usuário de acesso para o aluno</label>
+
+                {/* Separador */}
+                <div className="border-t border-slate-200"></div>
+
+                {/* Seção 4: Acesso ao Sistema */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                      <User className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">Acesso ao Sistema</h2>
+                      <p className="text-sm text-slate-500">Configurações de login do aluno</p>
+                    </div>
+                  </div>
+                  <div className="space-y-5">
+                    <div className="flex items-start">
+                      <div className="flex items-center h-5">
+                        <input 
+                          type="checkbox" 
+                          {...register('createUser')} 
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" 
+                        />
+                      </div>
+                      <div className="ml-3">
+                        <label className="text-sm font-medium text-slate-900">Criar usuário de acesso para o aluno</label>
+                        <p className="text-sm text-slate-500">O aluno poderá fazer login no sistema</p>
+                      </div>
                     </div>
                     {createUser && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-l-4 border-blue-500 pl-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 p-5 bg-blue-50 border border-blue-200 rounded-lg">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-                          <Input {...register('username')} placeholder="Ex: joao.silva" className={errors.username ? 'border-red-500' : ''} />
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Username *</label>
+                          <Input 
+                            {...register('username')} 
+                            placeholder="Ex: joao.silva" 
+                            className={`h-11 ${errors.username ? 'border-red-500' : ''}`} 
+                          />
+                          {errors.username && (
+                            <p className="mt-1 text-sm text-red-600">{errors.username.message}</p>
+                          )}
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
-                          <Input type="password" {...register('password')} className={errors.password ? 'border-red-500' : ''} />
+                          <label className="block text-sm font-medium text-slate-700 mb-2">Senha *</label>
+                          <Input 
+                            type="password" 
+                            {...register('password')} 
+                            placeholder="Mínimo 6 caracteres"
+                            className={`h-11 ${errors.password ? 'border-red-500' : ''}`} 
+                          />
+                          {errors.password && (
+                            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={createMutation.isPending}>Matricular</Button>
-                  <Button type="button" variant="outline" onClick={() => navigate('/alunos')}>Cancelar</Button>
+
+                {/* Ações do formulário */}
+                <div className="flex gap-3 pt-6 border-t border-slate-200">
+                  <Button 
+                    type="submit" 
+                    disabled={createMutation.isPending}
+                    className="px-8 h-11"
+                  >
+                    {createMutation.isPending ? 'Matriculando...' : 'Matricular Aluno'}
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => navigate('/alunos')}
+                    className="px-8 h-11"
+                  >
+                    Cancelar
+                  </Button>
                 </div>
 
                 <AlertDialog open={!!confirmPessoa} onOpenChange={(open) => { if (!open) setConfirmPessoa(null); }}>
@@ -509,8 +648,7 @@ export default function AlunoNewPage() {
                   </AlertDialogContent>
                 </AlertDialog>
               </form>
-            </CardContent>
-          </Card>
+          </div>
         </div>
       </main>
       <PessoaFormModal

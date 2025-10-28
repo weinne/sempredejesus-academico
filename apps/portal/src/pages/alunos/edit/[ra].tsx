@@ -95,7 +95,6 @@ const updateAlunoSchema = z.object({
   turnoId: z.number().optional(),
   coorteId: z.number().optional(),
   periodoId: z.number().min(1, 'Selecione um período'),
-  anoIngresso: z.number().min(1900).max(2100),
   igreja: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']),
   coeficienteAcad: z.number().min(0).max(10).optional(),
@@ -161,7 +160,8 @@ export default function EditAlunoPage() {
     resolver: zodResolver(updateAlunoSchema),
   });
 
-  const selectedCursoId = watch('cursoId');
+  const selectedCursoIdRaw = watch('cursoId');
+  const selectedCursoId = selectedCursoIdRaw && !isNaN(Number(selectedCursoIdRaw)) ? Number(selectedCursoIdRaw) : undefined;
   const previousCursoIdRef = React.useRef<number | undefined>(undefined);
 
   useEffect(() => {
@@ -179,14 +179,31 @@ export default function EditAlunoPage() {
   }, [aluno, selectedCursoId, setValue]);
 
   const cursos = cursosResponse?.data || [];
-  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
-  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
+  const { data: turnosAll = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
+  const { data: coortesAll = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
+  const { data: curriculosAll = [] } = useQuery({ 
+    queryKey: ['curriculos'], 
+    queryFn: () => apiService.getCurriculos({ ativo: true }) 
+  });
   const { data: periodosResponse } = useQuery({
     queryKey: ['periodos', selectedCursoId],
     queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
     enabled: !!selectedCursoId,
   });
   const periodos = periodosResponse?.data || [];
+
+  // Filtrar turnos e coortes pelo curso selecionado
+  const turnosDisponiveis = React.useMemo(() => {
+    if (!selectedCursoId) return [];
+    const curriculosDoCurso = curriculosAll.filter((c: any) => c.cursoId === selectedCursoId && c.ativo);
+    const turnoIds = [...new Set(curriculosDoCurso.map((c: any) => c.turnoId))];
+    return turnosAll.filter((t: any) => turnoIds.includes(t.id));
+  }, [selectedCursoId, turnosAll, curriculosAll]);
+
+  const coortesDisponiveis = React.useMemo(() => {
+    if (!selectedCursoId) return [];
+    return coortesAll.filter((c: any) => c.cursoId === selectedCursoId && c.ativo);
+  }, [selectedCursoId, coortesAll]);
 
   // Masks and normalization helpers for Pessoa fields
   const onlyDigits = (value: string) => value.replace(/\D/g, '');
@@ -225,7 +242,6 @@ export default function EditAlunoPage() {
         turnoId: aluno.turnoId || undefined,
         coorteId: aluno.coorteId || undefined,
         periodoId: aluno.periodoId,
-        anoIngresso: aluno.anoIngresso,
         igreja: aluno.igreja || '',
         situacao: aluno.situacao,
         coeficienteAcad: parseFloat(aluno.coeficienteAcad?.toString() || '0') || undefined,
@@ -515,14 +531,20 @@ export default function EditAlunoPage() {
                         Turno
                       </label>
                       <select
-                        {...register('turnoId', { valueAsNumber: true })}
+                        {...register('turnoId', { 
+                          setValueAs: (value) => value === '' || value === undefined ? undefined : Number(value)
+                        })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={!selectedCursoId}
                       >
-                        <option value="">Selecione um turno...</option>
-                        {turnos.map((t: Turno) => (
+                        <option value="">{selectedCursoId ? 'Selecione um turno...' : 'Selecione um curso primeiro'}</option>
+                        {turnosDisponiveis.map((t: Turno) => (
                           <option key={t.id} value={t.id}>{t.nome}</option>
                         ))}
                       </select>
+                      {selectedCursoId && turnosDisponiveis.length === 0 && (
+                        <p className="mt-1 text-xs text-amber-600">Nenhum turno disponível para este curso</p>
+                      )}
                     </div>
 
                     <div>
@@ -530,29 +552,19 @@ export default function EditAlunoPage() {
                         Coorte (turma de ingresso)
                       </label>
                       <select
-                        {...register('coorteId', { valueAsNumber: true })}
+                        {...register('coorteId', { 
+                          setValueAs: (value) => value === '' || value === undefined ? undefined : Number(value)
+                        })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        disabled={!selectedCursoId}
                       >
-                        <option value="">Selecione uma coorte...</option>
-                        {coortes.map((c: Coorte) => (
+                        <option value="">{selectedCursoId ? 'Selecione uma coorte...' : 'Selecione um curso primeiro'}</option>
+                        {coortesDisponiveis.map((c: Coorte) => (
                           <option key={c.id} value={c.id}>{c.rotulo}</option>
                         ))}
                       </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ano de Ingresso *
-                      </label>
-                      <Input
-                        type="number"
-                        min="1900"
-                        max="2100"
-                        {...register('anoIngresso', { valueAsNumber: true })}
-                        className={errors.anoIngresso ? 'border-red-500' : ''}
-                      />
-                      {errors.anoIngresso && (
-                        <p className="mt-1 text-sm text-red-600">{errors.anoIngresso.message}</p>
+                      {selectedCursoId && coortesDisponiveis.length === 0 && (
+                        <p className="mt-1 text-xs text-amber-600">Nenhuma coorte disponível para este curso</p>
                       )}
                     </div>
 
@@ -799,6 +811,113 @@ export default function EditAlunoPage() {
                   </div>
                   <div className="md:col-span-2 flex gap-2">
                     <Button type="submit" disabled={updateUserMutation.isPending}>Atualizar Usuário</Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+          {!relatedUser && aluno && (
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-orange-100 rounded-full">
+                    <User className="h-6 w-6 text-orange-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Criar Acesso ao Sistema</CardTitle>
+                    <CardDescription>Este aluno ainda não possui usuário de acesso. Crie um agora.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget as HTMLFormElement);
+                    const username = String(fd.get('new.username') || '');
+                    const password = String(fd.get('new.password') || '');
+                    
+                    if (!username || !password) {
+                      toast({ 
+                        title: 'Campos obrigatórios', 
+                        description: 'Preencha username e senha para criar o usuário',
+                        variant: 'destructive' 
+                      });
+                      return;
+                    }
+
+                    // Criar usuário via API
+                    const createUserPayload = {
+                      pessoaId: aluno.pessoaId,
+                      username,
+                      password,
+                      role: Role.ALUNO,
+                      isActive: 'S' as const,
+                    };
+
+                    const createUserMutation = {
+                      mutationFn: (payload: any) => apiService.createUser(payload),
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({ queryKey: ['users'] });
+                        queryClient.invalidateQueries({ queryKey: ['aluno', ra] });
+                        toast({ 
+                          title: 'Usuário criado', 
+                          description: `Usuário ${username} criado com sucesso!` 
+                        });
+                      },
+                      onError: (error: any) => {
+                        toast({ 
+                          title: 'Erro ao criar usuário', 
+                          description: error.message || 'Erro desconhecido', 
+                          variant: 'destructive' 
+                        });
+                      },
+                    };
+
+                    apiService.createUser(createUserPayload)
+                      .then(() => {
+                        queryClient.invalidateQueries({ queryKey: ['users'] });
+                        queryClient.invalidateQueries({ queryKey: ['aluno', ra] });
+                        toast({ 
+                          title: 'Usuário criado', 
+                          description: `Usuário ${username} criado com sucesso!` 
+                        });
+                        // Limpar formulário
+                        (e.target as HTMLFormElement).reset();
+                      })
+                      .catch((error: any) => {
+                        toast({ 
+                          title: 'Erro ao criar usuário', 
+                          description: error.message || 'Erro desconhecido', 
+                          variant: 'destructive' 
+                        });
+                      });
+                  }}
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                    <Input 
+                      name="new.username" 
+                      placeholder="Ex: joao.silva" 
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
+                    <Input 
+                      name="new.password" 
+                      type="password" 
+                      placeholder="Mínimo 6 caracteres"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                  <div className="md:col-span-2 flex gap-2">
+                    <Button type="submit">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Criar Usuário
+                    </Button>
                   </div>
                 </form>
               </CardContent>
