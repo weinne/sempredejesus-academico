@@ -179,12 +179,8 @@ export default function EditAlunoPage() {
   }, [aluno, selectedCursoId, setValue]);
 
   const cursos = cursosResponse?.data || [];
-  const { data: turnosAll = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
-  const { data: coortesAll = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
-  const { data: curriculosAll = [] } = useQuery({ 
-    queryKey: ['curriculos'], 
-    queryFn: () => apiService.getCurriculos({ ativo: true }) 
-  });
+  const { data: turnosAll = [] } = useQuery({ queryKey: ['turnos'], queryFn: () => apiService.getTurnos() });
+  const { data: coortesAll = [] } = useQuery({ queryKey: ['coortes'], queryFn: () => apiService.getCoortes() });
   const { data: periodosResponse } = useQuery({
     queryKey: ['periodos', selectedCursoId],
     queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
@@ -192,17 +188,13 @@ export default function EditAlunoPage() {
   });
   const periodos = periodosResponse?.data || [];
 
-  // Filtrar turnos e coortes pelo curso selecionado
-  const turnosDisponiveis = React.useMemo(() => {
-    if (!selectedCursoId) return [];
-    const curriculosDoCurso = curriculosAll.filter((c: any) => c.cursoId === selectedCursoId && c.ativo);
-    const turnoIds = [...new Set(curriculosDoCurso.map((c: any) => c.turnoId))];
-    return turnosAll.filter((t: any) => turnoIds.includes(t.id));
-  }, [selectedCursoId, turnosAll, curriculosAll]);
+  // Filtrar coortes pelo curso selecionado
+  // Turnos são genéricos e não dependem do curso
+  const turnosDisponiveis = turnosAll;
 
   const coortesDisponiveis = React.useMemo(() => {
     if (!selectedCursoId) return [];
-    return coortesAll.filter((c: any) => c.cursoId === selectedCursoId && c.ativo);
+    return coortesAll.filter((c: any) => Number(c.cursoId) === Number(selectedCursoId) && c.ativo);
   }, [selectedCursoId, coortesAll]);
 
   // Masks and normalization helpers for Pessoa fields
@@ -535,16 +527,12 @@ export default function EditAlunoPage() {
                           setValueAs: (value) => value === '' || value === undefined ? undefined : Number(value)
                         })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={!selectedCursoId}
                       >
-                        <option value="">{selectedCursoId ? 'Selecione um turno...' : 'Selecione um curso primeiro'}</option>
+                        <option value="">Selecione um turno...</option>
                         {turnosDisponiveis.map((t: Turno) => (
                           <option key={t.id} value={t.id}>{t.nome}</option>
                         ))}
                       </select>
-                      {selectedCursoId && turnosDisponiveis.length === 0 && (
-                        <p className="mt-1 text-xs text-amber-600">Nenhum turno disponível para este curso</p>
-                      )}
                     </div>
 
                     <div>

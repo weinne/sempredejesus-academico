@@ -24,7 +24,7 @@ export default function TurmaEditPage() {
   const { data: disciplinasResponse } = useQuery({ queryKey: ['disciplinas'], queryFn: () => apiService.getDisciplinas({ limit: 100 }) });
   const disciplinas = disciplinasResponse?.data || [];
   const { data: professoresResponse } = useQuery({ queryKey: ['professores'], queryFn: () => apiService.getProfessores({ limit: 100 }) });
-  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
+  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: () => apiService.getCoortes() });
   const professores = professoresResponse?.data || [];
   // Semestres removidos
 

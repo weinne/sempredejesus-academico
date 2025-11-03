@@ -29,7 +29,9 @@
       "@/hooks/*": ["./src/hooks/*"],
       "@/stores/*": ["./src/stores/*"],
       "@/services/*": ["./src/services/*"],
-      "@/types/*": ["./src/types/*"]
+      "@/types/*": ["./src/types/*"],
+      "@seminario/shared-dtos": ["../../packages/shared-dtos/src/index.ts"],
+      "@seminario/shared-dtos/*": ["../../packages/shared-dtos/src/*"]
     }
   },
   "include": ["src", "src/vite-env.d.ts"],

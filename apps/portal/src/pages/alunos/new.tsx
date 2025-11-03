@@ -16,16 +16,21 @@ import {
 } from '@/components/ui/alert-dialog';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
-import { Aluno, CreateAlunoWithUser, Pessoa, Curso, Periodo, Turno, Coorte } from '@/types/api';
+import { CreateAlunoWithUser, Pessoa, Curso, Periodo, Turno, Coorte } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, type FieldErrors } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 const pessoaInlineSchema = z.object({
-  nome: z.string().min(1, 'Nome é obrigatório'),
-  sexo: z.enum(['M', 'F', 'O']).optional(),
+  nome: z.string({ required_error: 'Nome é obrigatório' }).min(1, 'Nome é obrigatório'),
+  sexo: z
+    .enum(['M', 'F', 'O'], {
+      invalid_type_error: 'Sexo inválido',
+      required_error: 'Sexo inválido',
+    })
+    .optional(),
   email: z.string().email('Email inválido').optional(),
   cpf: z.string().optional(),
   telefone: z.string().optional(),
@@ -38,16 +43,24 @@ const alunoSchema = z.object({
   // Either select existing pessoa or fill inline pessoa
   pessoaId: z.number().optional(),
   pessoa: pessoaInlineSchema.optional(),
-  cursoId: z.number().min(1, 'Selecione um curso'),
+  cursoId: z.number({ required_error: 'Selecione um curso' }).min(1, 'Selecione um curso'),
   turnoId: z.number().optional(),
   coorteId: z.number().optional(),
-  periodoId: z.number().min(1, 'Selecione um período'),
+  periodoId: z.number({ required_error: 'Selecione um período' }).min(1, 'Selecione um período'),
   igreja: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']),
   coeficienteAcad: z.number().min(0).max(10).optional(),
   createUser: z.boolean().default(true),
-  username: z.string().min(3).max(50).optional(),
-  password: z.string().min(6).max(100).optional(),
+  username: z
+    .string({ required_error: 'Username é obrigatório', invalid_type_error: 'Username inválido' })
+    .min(3, 'Username deve ter pelo menos 3 caracteres')
+    .max(50, 'Username deve ter no máximo 50 caracteres')
+    .optional(),
+  password: z
+    .string({ required_error: 'Senha é obrigatória', invalid_type_error: 'Senha inválida' })
+    .min(6, 'Senha deve ter pelo menos 6 caracteres')
+    .max(100, 'Senha deve ter no máximo 100 caracteres')
+    .optional(),
 }).superRefine((data, ctx) => {
   const hasPessoaId = typeof data.pessoaId === 'number' && data.pessoaId > 0;
   const hasPessoa = !!data.pessoa && !!data.pessoa.nome;
@@ -56,6 +69,23 @@ const alunoSchema = z.object({
   }
   if (hasPessoaId && hasPessoa) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use pessoa existente OU cadastre inline, não ambos', path: ['pessoa'] });
+  }
+  // Se for criar usuário, exigir username e senha com tamanhos mínimos
+  if (data.createUser) {
+    if (!data.username || data.username.trim().length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Informe um username com pelo menos 3 caracteres',
+        path: ['username'],
+      });
+    }
+    if (!data.password || data.password.trim().length < 6) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Informe uma senha com pelo menos 6 caracteres',
+        path: ['password'],
+      });
+    }
   }
 });
 
@@ -67,17 +97,19 @@ export default function AlunoNewPage() {
   const queryClient = useQueryClient();
   const [showPessoaModal, setShowPessoaModal] = useState(false);
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<AlunoFormData>({
+  const { register, handleSubmit, watch, setValue, setError, clearErrors, formState: { errors } } = useForm<AlunoFormData>({
     resolver: zodResolver(alunoSchema),
     defaultValues: { situacao: 'ATIVO', createUser: true },
   });
   const createUser = watch('createUser');
   const selectedPessoaIdRaw = watch('pessoaId');
   const selectedCursoIdRaw = watch('cursoId');
+  const selectedTurnoIdRaw = watch('turnoId');
   
   // Garantir que os IDs sejam números válidos ou undefined
   const selectedPessoaId = selectedPessoaIdRaw && !isNaN(Number(selectedPessoaIdRaw)) ? Number(selectedPessoaIdRaw) : undefined;
   const selectedCursoId = selectedCursoIdRaw && !isNaN(Number(selectedCursoIdRaw)) ? Number(selectedCursoIdRaw) : undefined;
+  const selectedTurnoId = selectedTurnoIdRaw && !isNaN(Number(selectedTurnoIdRaw)) ? Number(selectedTurnoIdRaw) : undefined;
 
   // Masks and normalization helpers
   const onlyDigits = (value: string) => value.replace(/\D/g, '');
@@ -113,26 +145,40 @@ export default function AlunoNewPage() {
   const { data: pessoas = [] } = useQuery({ queryKey: ['pessoas'], queryFn: apiService.getPessoas });
   const { data: cursosResponse } = useQuery({ queryKey: ['cursos'], queryFn: () => apiService.getCursos({ limit: 100 }) });
   const cursos = cursosResponse?.data || [];
-  const { data: turnosAll = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
-  const { data: coortesAll = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
-  const { data: curriculosAll = [] } = useQuery({ 
-    queryKey: ['curriculos'], 
-    queryFn: () => apiService.getCurriculos({ ativo: true }) 
+  const { data: turnosAll = [] } = useQuery({ 
+    queryKey: ['turnos', selectedCursoId], 
+    queryFn: () => apiService.getTurnos(selectedCursoId ? { cursoId: selectedCursoId } : undefined),
+    enabled: true,
+  });
+  const { data: coortesAll = [] } = useQuery({ 
+    queryKey: ['coortes', selectedCursoId, selectedTurnoId], 
+    queryFn: () => apiService.getCoortes({ cursoId: selectedCursoId, turnoId: selectedTurnoId }),
+    enabled: !!selectedCursoId,
+  });
+  // Currículos do curso selecionado para mapear os turnos disponíveis
+  const { data: curriculosDoCurso = [] } = useQuery({
+    queryKey: ['curriculos', selectedCursoId],
+    queryFn: () => apiService.getCurriculos({ cursoId: selectedCursoId!, ativo: true }),
+    enabled: !!selectedCursoId,
   });
 
-  // Filtrar turnos e coortes pelo curso selecionado
-  const turnosDisponiveis = useMemo(() => {
-    if (!selectedCursoId) return [];
-    // Obter turnos que possuem currículos ativos para o curso
-    const curriculosDoCurso = curriculosAll.filter((c: any) => c.cursoId === selectedCursoId && c.ativo);
-    const turnoIds = [...new Set(curriculosDoCurso.map((c: any) => c.turnoId))];
-    return turnosAll.filter((t: any) => turnoIds.includes(t.id));
-  }, [selectedCursoId, turnosAll, curriculosAll]);
-
+  // Coortes disponíveis por curso (e opcionalmente por turno selecionado)
   const coortesDisponiveis = useMemo(() => {
     if (!selectedCursoId) return [];
-    return coortesAll.filter((c: any) => c.cursoId === selectedCursoId && c.ativo);
-  }, [selectedCursoId, coortesAll]);
+    const curriculoIds = new Set((curriculosDoCurso as any[]).map(c => Number(c.id)));
+    const base = (coortesAll as any[]).filter(c => curriculoIds.has(Number(c.curriculoId)));
+    if (selectedTurnoId) {
+      return base.filter(c => Number(c.turnoId) === Number(selectedTurnoId));
+    }
+    return base;
+  }, [selectedCursoId, selectedTurnoId, coortesAll, curriculosDoCurso]);
+
+  // Turnos disponíveis: derivados das coortes do curso (mais robusto)
+  const turnosDisponiveis = useMemo(() => {
+    if (!selectedCursoId) return [];
+    const turnoIds = Array.from(new Set((curriculosDoCurso as any[]).map(c => Number(c.turnoId))));
+    return (turnosAll as any[]).filter(t => turnoIds.includes(Number(t.id)));
+  }, [selectedCursoId, curriculosDoCurso, turnosAll]);
 
   const pessoaNomeWatch = watch('pessoa.nome');
   const pessoaCpfWatch = watch('pessoa.cpf');
@@ -194,7 +240,7 @@ export default function AlunoNewPage() {
 
   const createPessoaMutation = useMutation({
     mutationFn: (pessoa: Omit<Pessoa, 'id' | 'created_at' | 'updated_at'>) => apiService.createPessoa(pessoa),
-    onSuccess: (newPessoa) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pessoas'] });
       toast({ title: 'Pessoa criada', description: 'Pessoa criada com sucesso!' });
       setShowPessoaModal(false);
@@ -203,7 +249,56 @@ export default function AlunoNewPage() {
     onError: (error: any) => toast({ title: 'Erro ao criar pessoa', description: error.message || 'Erro desconhecido', variant: 'destructive' }),
   });
 
+  const fieldLabels: Record<string, string> = {
+    'cursoId': 'Curso',
+    'periodoId': 'Período',
+    'turnoId': 'Turno',
+    'coorteId': 'Coorte',
+    'pessoa.nome': 'Nome completo',
+    'pessoa.cpf': 'CPF',
+    'pessoa.email': 'Email',
+    'pessoa.telefone': 'Telefone',
+    'username': 'Username',
+    'password': 'Senha',
+  };
+
+  const getFirstErrorMessage = (errs: FieldErrors<AlunoFormData>): { pathKey: string; message: string } | null => {
+    for (const key of Object.keys(errs)) {
+      const err: any = (errs as any)[key];
+      if (!err) continue;
+      if (typeof err.message === 'string' && err.message) return { pathKey: key, message: err.message };
+      if (err.types) {
+        const first = Object.values(err.types)[0];
+        if (typeof first === 'string') return { pathKey: key, message: first };
+      }
+      if (typeof err === 'object') {
+        const nested = getFirstErrorMessage(err);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  };
+
+  const onInvalid = (errs: FieldErrors<AlunoFormData>) => {
+    const first = getFirstErrorMessage(errs);
+    const msg = first?.message || 'Verifique os campos obrigatórios.';
+    const label = first?.pathKey && fieldLabels[first.pathKey] ? ` (${fieldLabels[first.pathKey]})` : '';
+    toast({ title: 'Formulário incompleto', description: `${msg}${label}`, variant: 'destructive' });
+    // Tentar focar/rolar até o campo correspondente
+    if (first?.pathKey) {
+      const el = document.querySelector(`[data-field="${first.pathKey}"]`) as HTMLElement | null;
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if ('focus' in el && typeof (el as any).focus === 'function') (el as any).focus();
+        }, 50);
+      }
+    }
+  };
+
   const onSubmit = (data: AlunoFormData) => {
+    // Normalizar payload antes de enviar
+    let pessoaPayload = undefined as AlunoFormData['pessoa'] | undefined;
     if (!data.pessoaId && data.pessoa) {
       const enderecoObj = {
         logradouro: endLogradouro,
@@ -214,14 +309,23 @@ export default function AlunoNewPage() {
         estado: endEstado,
         cep: endCep,
       };
-      setValue('pessoa.endereco', JSON.stringify(enderecoObj), { shouldDirty: true, shouldValidate: false });
+      pessoaPayload = {
+        ...data.pessoa,
+        // Enviar dígitos puros para o backend (Zod espera 11 dígitos)
+        cpf: data.pessoa.cpf ? onlyDigits(data.pessoa.cpf) : undefined,
+        telefone: data.pessoa.telefone ? onlyDigits(data.pessoa.telefone) : undefined,
+        endereco: JSON.stringify(enderecoObj),
+      };
     }
+
     // Adicionar anoIngresso automaticamente (ano atual)
-    const dataWithAnoIngresso = {
+    const payload: any = {
       ...data,
+      pessoa: pessoaPayload,
       anoIngresso: new Date().getFullYear(),
     };
-    createMutation.mutate(dataWithAnoIngresso as any);
+
+    createMutation.mutate(payload);
   };
 
   return (
@@ -237,7 +341,7 @@ export default function AlunoNewPage() {
 
           {/* Form Content */}
           <div className="px-8 py-6">
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+              <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="space-y-8">
                 {/* Seção 1: Dados da Matrícula */}
                 <div className="space-y-6">
                   <div className="flex items-center gap-3">
@@ -265,10 +369,20 @@ export default function AlunoNewPage() {
                         </button>
                       </div>
                     </div>
-                    <input type="hidden" {...register('pessoaId', { valueAsNumber: true })} />
+                    <input
+                      type="hidden"
+                      {...register('pessoaId', {
+                        setValueAs: (v) => (v === '' || v === undefined || Number.isNaN(Number(v)) ? undefined : Number(v)),
+                      })}
+                    />
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
-                      <select {...register('cursoId', { valueAsNumber: true })} className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.cursoId ? 'border-red-500' : ''}`}>
+                      <select
+                        {...register('cursoId', {
+                          setValueAs: (v) => (v === '' || v === undefined || Number.isNaN(Number(v)) ? undefined : Number(v)),
+                        })}
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.cursoId ? 'border-red-500' : ''}`}
+                      >
                         <option value="">Selecione um curso...</option>
                         {cursos.map((curso: Curso) => (
                           <option key={curso.id} value={curso.id}>{curso.nome} ({curso.grau})</option>
@@ -279,7 +393,9 @@ export default function AlunoNewPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Período *</label>
                       <select
-                        {...register('periodoId', { valueAsNumber: true })}
+                        {...register('periodoId', {
+                          setValueAs: (v) => (v === '' || v === undefined || Number.isNaN(Number(v)) ? undefined : Number(v)),
+                        })}
                         className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.periodoId ? 'border-red-500' : ''}`}
                         disabled={!selectedCursoId}
                       >
@@ -299,16 +415,12 @@ export default function AlunoNewPage() {
                           setValueAs: (value) => value === '' || value === undefined ? undefined : Number(value)
                         })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={!selectedCursoId}
                       >
-                        <option value="">{selectedCursoId ? 'Selecione um turno...' : 'Selecione um curso primeiro'}</option>
+                        <option value="">Selecione um turno...</option>
                         {turnosDisponiveis.map((t: Turno) => (
                           <option key={t.id} value={t.id}>{t.nome}</option>
                         ))}
                       </select>
-                      {selectedCursoId && turnosDisponiveis.length === 0 && (
-                        <p className="mt-1 text-xs text-amber-600">Nenhum turno disponível para este curso</p>
-                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Coorte (turma de ingresso)</label>
@@ -339,7 +451,16 @@ export default function AlunoNewPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Coeficiente Acadêmico</label>
-                      <Input type="number" step="0.1" min="0" max="10" {...register('coeficienteAcad', { valueAsNumber: true })} placeholder="Ex: 8.5" />
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="10"
+                        {...register('coeficienteAcad', {
+                          setValueAs: (v) => (v === '' || v === undefined ? undefined : Number(v)),
+                        })}
+                        placeholder="Ex: 8.5"
+                      />
                     </div>
                   </div>
                 </div>
@@ -511,6 +632,9 @@ export default function AlunoNewPage() {
                         </div>
                       </div>
                     </div>
+                    {errors?.pessoa && (
+                      <p className="text-sm text-red-600">Selecione uma pessoa ou preencha os dados de Pessoa</p>
+                    )}
                   </div>
                 )}
                 {selectedPessoaId && (

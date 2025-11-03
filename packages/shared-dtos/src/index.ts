@@ -19,4 +19,7 @@ export * from './frequencia';
 export * from './calendario';
 
 // Common DTOs
-export * from './common'; 
+export * from './common';
+
+// Zod PT-BR
+export * from './zod-ptbr'; 

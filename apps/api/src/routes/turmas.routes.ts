@@ -424,7 +424,7 @@ router.get(
                 row.alunoPessoaPk !== null && row.alunoPessoaPk !== undefined
                   ? {
                       id: row.alunoPessoaPk,
-                      nomeCompleto: row.alunoNomeCompleto ?? null,
+                      nome: row.alunoNomeCompleto ?? null, // Map nomeCompleto to nome for frontend
                       email: row.alunoEmail ?? null,
                       telefone: row.alunoTelefone ?? null,
                     }
@@ -553,7 +553,7 @@ router.get(
                 row.alunoPessoaPk !== null && row.alunoPessoaPk !== undefined
                   ? {
                       id: row.alunoPessoaPk,
-                      nomeCompleto: row.alunoNomeCompleto ?? null,
+                      nome: row.alunoNomeCompleto ?? null, // Map nomeCompleto to nome for frontend
                       email: row.alunoEmail ?? null,
                       telefone: row.alunoTelefone ?? null,
                     }
@@ -635,15 +635,15 @@ router.post(
               ? {
                   ra: joined.alunoRa,
                   pessoaId: joined.alunoPessoaId ?? null,
-                  pessoa:
-                    joined.alunoPessoaPk !== null && joined.alunoPessoaPk !== undefined
-                      ? {
-                          id: joined.alunoPessoaPk,
-                          nomeCompleto: joined.alunoNomeCompleto ?? null,
-                          email: joined.alunoEmail ?? null,
-                          telefone: joined.alunoTelefone ?? null,
-                        }
-                      : null,
+                    pessoa:
+                      joined.alunoPessoaPk !== null && joined.alunoPessoaPk !== undefined
+                        ? {
+                            id: joined.alunoPessoaPk,
+                            nome: joined.alunoNomeCompleto ?? null, // Map nomeCompleto to nome for frontend
+                            email: joined.alunoEmail ?? null,
+                            telefone: joined.alunoTelefone ?? null,
+                          }
+                        : null,
                 }
               : null,
         }

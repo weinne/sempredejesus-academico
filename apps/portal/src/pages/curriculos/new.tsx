@@ -34,7 +34,7 @@ export default function CurriculoNewPage() {
   });
   const cursos = cursosResponse?.data || [];
 
-  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
+  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: () => apiService.getTurnos() });
 
   const {
     register,

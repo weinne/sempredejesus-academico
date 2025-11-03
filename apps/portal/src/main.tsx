@@ -3,8 +3,13 @@ import ReactDOM from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { BrowserRouter } from 'react-router-dom';
+import { z } from 'zod';
+import { ptBrErrorMap } from '@seminario/shared-dtos';
 import App from './App.tsx';
 import './globals.css';
+
+// Configurar mensagens de erro do Zod em Português
+z.setErrorMap(ptBrErrorMap);
 
 // Create a client
 const queryClient = new QueryClient({

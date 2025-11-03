@@ -37,7 +37,7 @@ export default function CoorteNewPage() {
 
   const {
     data: turnos = [],
-  } = useQuery({ queryKey: ['turnos'], queryFn: apiService.getTurnos });
+  } = useQuery({ queryKey: ['turnos'], queryFn: () => apiService.getTurnos() });
 
   const { data: curriculosResponse } = useQuery({
     queryKey: ['curriculos'],

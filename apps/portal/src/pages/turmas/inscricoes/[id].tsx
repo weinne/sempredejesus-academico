@@ -29,7 +29,7 @@ export default function TurmaInscricoesPage() {
   });
   const alunos = alunosResponse?.data || [];
 
-  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: apiService.getCoortes });
+  const { data: coortes = [] } = useQuery({ queryKey: ['coortes'], queryFn: () => apiService.getCoortes() });
 
   const { data: inscritos = [], isLoading: loadingInscritos } = useQuery({
     queryKey: ['turma', turmaId, 'inscritos'],

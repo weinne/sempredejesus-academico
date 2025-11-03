@@ -1,29 +1,31 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { User, MapPin } from 'lucide-react';
 
 import CrudHeader from '@/components/crud/crud-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { apiService } from '@/services/api';
+import { FormSection, FieldError, ActionsBar } from '@/components/forms';
+import { useFormErrors } from '@/hooks/use-form-errors';
+import { onlyDigits, maskCPF, maskPhone } from '@/lib/form-utils';
 
 const pessoaSchema = z.object({
-  nome: z.string().min(2, 'Nome é obrigatório'),
-  sexo: z.enum(['M', 'F', 'O'], { required_error: 'Selecione o sexo' }),
+  nome: z.string({ required_error: 'Nome é obrigatório' }).min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  sexo: z.enum(['M', 'F', 'O'], {
+    required_error: 'Selecione o sexo',
+    invalid_type_error: 'Sexo inválido',
+  }),
   email: z
     .string()
     .email('Email inválido')
     .optional()
     .or(z.literal('')),
-  cpf: z
-    .string()
-    .optional()
-    .or(z.literal('')),
+  cpf: z.string().optional().or(z.literal('')),
   telefone: z.string().optional().or(z.literal('')),
   data_nascimento: z.string().optional().or(z.literal('')),
 });
@@ -54,13 +56,14 @@ export default function PessoaNewPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { handleFormError } = useFormErrors();
 
   const [endereco, setEndereco] = useState<EnderecoForm>(emptyEndereco);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<PessoaFormData>({
     resolver: zodResolver(pessoaSchema),
     defaultValues: {
@@ -92,10 +95,7 @@ export default function PessoaNewPage() {
     },
   });
 
-  const hasEndereco = useMemo(
-    () => Object.values(endereco).some((value) => value && value.trim().length > 0),
-    [endereco]
-  );
+  const hasEndereco = Object.values(endereco).some((value) => value && value.trim().length > 0);
 
   const onSubmit = (data: PessoaFormData) => {
     const enderecoPayload = hasEndereco
@@ -114,8 +114,8 @@ export default function PessoaNewPage() {
       nome: data.nome,
       sexo: data.sexo,
       email: data.email?.trim() || '',
-      cpf: (data.cpf || '').replace(/\D/g, ''),
-      telefone: data.telefone?.trim() || '',
+      cpf: onlyDigits(data.cpf || ''),
+      telefone: onlyDigits(data.telefone || ''),
       data_nascimento: data.data_nascimento || '',
       endereco: enderecoPayload,
     } as const;
@@ -131,146 +131,195 @@ export default function PessoaNewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <CrudHeader
         title="Nova Pessoa"
-        description="Cadastre os dados da pessoa"
+        description="Cadastro de pessoa"
         backTo="/pessoas"
       />
 
-      <main className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Dados da Pessoa</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
-                  <Input {...register('nome')} className={errors.nome ? 'border-red-500' : ''} />
-                  {errors.nome && (
-                    <p className="mt-1 text-sm text-red-600">{errors.nome.message}</p>
-                  )}
-                </div>
+      <main className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="px-8 py-6 border-b border-slate-200">
+            <h1 className="text-2xl font-bold text-slate-900">Nova Pessoa</h1>
+            <p className="mt-1 text-sm text-slate-600">Complete o formulário para cadastrar uma nova pessoa</p>
+          </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sexo *</label>
-                  <select
-                    {...register('sexo')}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                      errors.sexo ? 'border-red-500' : ''
-                    }`}
-                  >
-                    <option value="M">Masculino</option>
-                    <option value="F">Feminino</option>
-                    <option value="O">Outro</option>
-                  </select>
-                  {errors.sexo && (
-                    <p className="mt-1 text-sm text-red-600">{errors.sexo.message}</p>
-                  )}
-                </div>
+          <div className="px-8 py-6">
+            <form onSubmit={handleSubmit(onSubmit, handleFormError)} className="space-y-8">
+              {/* Seção 1: Dados Pessoais */}
+              <FormSection
+                icon={User}
+                title="Dados Pessoais"
+                description="Informações básicas da pessoa"
+                iconBgColor="bg-blue-100"
+                iconColor="text-blue-600"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
+                    <Input
+                      data-field="nome"
+                      {...register('nome')}
+                      className={`h-11 ${errors.nome ? 'border-red-500' : ''}`}
+                      placeholder="Nome completo"
+                    />
+                    <FieldError message={errors.nome?.message} />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                  <Input type="date" {...register('data_nascimento')} />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sexo *</label>
+                    <select
+                      data-field="sexo"
+                      {...register('sexo')}
+                      className={`w-full h-11 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
+                        errors.sexo ? 'border-red-500' : ''
+                      }`}
+                    >
+                      <option value="M">Masculino</option>
+                      <option value="F">Feminino</option>
+                      <option value="O">Outro</option>
+                    </select>
+                    <FieldError message={errors.sexo?.message} />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <Input type="email" {...register('email')} className={errors.email ? 'border-red-500' : ''} />
-                  {errors.email && (
-                    <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-                  )}
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
+                    <Input
+                      type="date"
+                      data-field="data_nascimento"
+                      {...register('data_nascimento')}
+                      className="h-11"
+                    />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
-                  <Input {...register('cpf')} placeholder="000.000.000-00" />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <Input
+                      type="email"
+                      data-field="email"
+                      {...register('email')}
+                      className={`h-11 ${errors.email ? 'border-red-500' : ''}`}
+                      placeholder="email@exemplo.com"
+                    />
+                    <FieldError message={errors.email?.message} />
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
-                  <Input {...register('telefone')} placeholder="(00) 00000-0000" />
-                </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">CPF</label>
+                    <Input
+                      data-field="cpf"
+                      {...register('cpf', {
+                        onChange: (e) => {
+                          const digits = onlyDigits(e.target.value || '');
+                          e.target.value = maskCPF(digits);
+                        },
+                      })}
+                      placeholder="000.000.000-00"
+                      className="h-11"
+                    />
+                  </div>
 
-                <div className="md:col-span-2">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Endereço</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                    <div className="md:col-span-3">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Logradouro</label>
-                      <Input
-                        value={endereco.logradouro}
-                        onChange={(e) => handleEnderecoChange('logradouro')(e.target.value)}
-                        placeholder="Rua"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Número</label>
-                      <Input
-                        value={endereco.numero}
-                        onChange={(e) => handleEnderecoChange('numero')(e.target.value)}
-                        placeholder="123"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Complemento</label>
-                      <Input
-                        value={endereco.complemento}
-                        onChange={(e) => handleEnderecoChange('complemento')(e.target.value)}
-                        placeholder="Apto, bloco, etc"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Bairro</label>
-                      <Input
-                        value={endereco.bairro}
-                        onChange={(e) => handleEnderecoChange('bairro')(e.target.value)}
-                        placeholder="Bairro"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Cidade</label>
-                      <Input
-                        value={endereco.cidade}
-                        onChange={(e) => handleEnderecoChange('cidade')(e.target.value)}
-                        placeholder="Cidade"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Estado</label>
-                      <Input
-                        value={endereco.estado}
-                        onChange={(e) => handleEnderecoChange('estado')(e.target.value)}
-                        placeholder="UF"
-                        maxLength={2}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">CEP</label>
-                      <Input
-                        value={endereco.cep}
-                        onChange={(e) => handleEnderecoChange('cep')(e.target.value.replace(/\D/g, ''))}
-                        placeholder="00000000"
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Telefone</label>
+                    <Input
+                      data-field="telefone"
+                      {...register('telefone', {
+                        onChange: (e) => {
+                          const digits = onlyDigits(e.target.value || '');
+                          e.target.value = maskPhone(digits);
+                        },
+                      })}
+                      placeholder="(11) 99999-9999"
+                      className="h-11"
+                    />
                   </div>
                 </div>
+              </FormSection>
 
-                <div className="md:col-span-2 flex gap-2">
-                  <Button type="submit" disabled={isSubmitting || createPessoaMutation.isPending}>
-                    Criar
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => navigate('/pessoas')}>
-                    Cancelar
-                  </Button>
+              {/* Separador */}
+              <div className="border-t border-slate-200"></div>
+
+              {/* Seção 2: Endereço */}
+              <FormSection
+                icon={MapPin}
+                title="Endereço"
+                description="Informações de localização"
+                iconBgColor="bg-purple-100"
+                iconColor="text-purple-600"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                  <div className="md:col-span-3">
+                    <Input
+                      value={endereco.logradouro}
+                      onChange={(e) => handleEnderecoChange('logradouro')(e.target.value)}
+                      placeholder="Logradouro"
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <Input
+                      value={endereco.numero}
+                      onChange={(e) => handleEnderecoChange('numero')(e.target.value)}
+                      placeholder="Número"
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Input
+                      value={endereco.complemento}
+                      onChange={(e) => handleEnderecoChange('complemento')(e.target.value)}
+                      placeholder="Complemento"
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Input
+                      value={endereco.bairro}
+                      onChange={(e) => handleEnderecoChange('bairro')(e.target.value)}
+                      placeholder="Bairro"
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Input
+                      value={endereco.cidade}
+                      onChange={(e) => handleEnderecoChange('cidade')(e.target.value)}
+                      placeholder="Cidade"
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <Input
+                      value={endereco.estado}
+                      onChange={(e) => handleEnderecoChange('estado')(e.target.value)}
+                      placeholder="UF"
+                      maxLength={2}
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="md:col-span-1">
+                    <Input
+                      value={endereco.cep}
+                      onChange={(e) => handleEnderecoChange('cep')(e.target.value.replace(/\D/g, ''))}
+                      placeholder="CEP"
+                      className="h-11"
+                    />
+                  </div>
                 </div>
-              </form>
-            </CardContent>
-          </Card>
+              </FormSection>
+
+              {/* Ações */}
+              <ActionsBar
+                submitLabel="Cadastrar Pessoa"
+                submittingLabel="Cadastrando..."
+                isSubmitting={createPessoaMutation.isPending}
+                cancelTo="/pessoas"
+              />
+            </form>
+          </div>
         </div>
       </main>
     </div>
   );
 }
-

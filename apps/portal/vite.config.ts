@@ -14,6 +14,7 @@ export default defineConfig({
       '@/stores': path.resolve(__dirname, './src/stores'),
       '@/services': path.resolve(__dirname, './src/services'),
       '@/types': path.resolve(__dirname, './src/types'),
+      '@seminario/shared-dtos': path.resolve(__dirname, '../../packages/shared-dtos/src/index.ts'),
     },
   },
   server: {

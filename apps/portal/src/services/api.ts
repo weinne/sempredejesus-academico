@@ -1070,8 +1070,11 @@ class ApiService {
   }
 
   // Turnos CRUD
-  async getTurnos(): Promise<import('@/types/api').Turno[]> {
-    const response = await this.api.get(`/api/turnos`);
+  async getTurnos(params?: { cursoId?: number }): Promise<import('@/types/api').Turno[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.cursoId) queryParams.append('cursoId', String(params.cursoId));
+    const qs = queryParams.toString();
+    const response = await this.api.get(`/api/turnos${qs ? `?${qs}` : ''}`);
     return response.data.data as import('@/types/api').Turno[];
   }
 
@@ -1125,8 +1128,12 @@ class ApiService {
   }
 
   // Coortes CRUD
-  async getCoortes(): Promise<import('@/types/api').Coorte[]> {
-    const response = await this.api.get(`/api/coortes`);
+  async getCoortes(params?: { cursoId?: number; turnoId?: number }): Promise<import('@/types/api').Coorte[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.cursoId) queryParams.append('cursoId', String(params.cursoId));
+    if (params?.turnoId) queryParams.append('turnoId', String(params.turnoId));
+    const qs = queryParams.toString();
+    const response = await this.api.get(`/api/coortes${qs ? `?${qs}` : ''}`);
     return response.data.data as import('@/types/api').Coorte[];
   }
 
