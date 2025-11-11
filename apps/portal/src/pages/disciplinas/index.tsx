@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
-import { Disciplina, Curso, Role, Periodo } from '@/types/api';
+import { Disciplina, DisciplinaPeriodo, Curso, Role, Periodo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
@@ -39,7 +39,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 const disciplinaSchema = z.object({
   cursoId: z.number().min(1, 'Selecione um curso'),
-  periodoId: z.number().min(1, 'Selecione um perodo'),
   codigo: z.string().min(1, 'Cdigo  obrigatrio').max(10),
   nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').max(120),
   creditos: z.number().min(1).max(32767),
@@ -73,7 +72,6 @@ export default function DisciplinasPage() {
     register,
     handleSubmit,
     reset,
-    watch,
     setValue,
     formState: { errors },
   } = useForm<DisciplinaFormData>({
@@ -82,24 +80,6 @@ export default function DisciplinasPage() {
       ativo: true,
     }
   });
-
-  const selectedCursoId = watch('cursoId');
-  const previousCursoIdRef = React.useRef<number | undefined>(undefined);
-
-  useEffect(() => {
-    if (previousCursoIdRef.current === selectedCursoId) {
-      return;
-    }
-    if (!selectedCursoId) {
-      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
-    } else if (editingDisciplina && selectedCursoId === editingDisciplina.cursoId) {
-      setValue('periodoId', editingDisciplina.periodoId, { shouldDirty: false, shouldValidate: false });
-    } else {
-      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
-    }
-    previousCursoIdRef.current = selectedCursoId;
-  }, [editingDisciplina, selectedCursoId, setValue]);
-
   useEffect(() => {
     if (!showForm) {
       return;
@@ -143,7 +123,7 @@ export default function DisciplinasPage() {
     return cursos.find((curso) => curso.id === activeCursoId);
   }, [activeCursoId, cursos]);
 
-  const cursoIdParaListagens = selectedCursoId || (typeof activeCursoId === 'number' ? activeCursoId : undefined);
+  const cursoIdParaListagens = typeof activeCursoId === 'number' ? activeCursoId : undefined;
 
   const { data: periodosResponse } = useQuery({
     queryKey: ['periodos', cursoIdParaListagens],
@@ -193,7 +173,7 @@ export default function DisciplinasPage() {
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (disciplina: Omit<Disciplina, 'id'>) => apiService.createDisciplina(disciplina),
+    mutationFn: (disciplina: DisciplinaPayload) => apiService.createDisciplina(disciplina),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['disciplinas'] });
       toast({
@@ -214,7 +194,7 @@ export default function DisciplinasPage() {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Omit<Disciplina, 'id'>> }) =>
+    mutationFn: ({ id, data }: { id: number; data: DisciplinaPayload }) =>
       apiService.updateDisciplina(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['disciplinas'] });
@@ -287,8 +267,12 @@ export default function DisciplinasPage() {
         if (statusFiltro === 'inactive' && disciplina.ativo) {
           return false;
         }
-        if (typeof periodoFiltro === 'number' && disciplina.periodoId !== periodoFiltro) {
-          return false;
+        if (typeof periodoFiltro === 'number') {
+          const vinculos = Array.isArray(disciplina.periodos) ? disciplina.periodos : [];
+          const possuiVinculo = vinculos.some((vinculo) => Number(vinculo.periodoId) === periodoFiltro);
+          if (!possuiVinculo) {
+            return false;
+          }
         }
         return true;
       })
@@ -300,12 +284,26 @@ export default function DisciplinasPage() {
   const disciplinasAtivasNaPagina = filteredDisciplinas.filter((disciplina) => disciplina.ativo).length;
   const disciplinasInativasNaPagina = disciplinasVisiveis - disciplinasAtivasNaPagina;
 
+  const mapFormToPayload = (data: DisciplinaFormData) => ({
+    cursoId: data.cursoId,
+    codigo: data.codigo.trim(),
+    nome: data.nome.trim(),
+    creditos: data.creditos,
+    cargaHoraria: data.cargaHoraria,
+    ementa: data.ementa?.trim() || undefined,
+    bibliografia: data.bibliografia?.trim() || undefined,
+    ativo: data.ativo,
+  });
+
+  type DisciplinaPayload = ReturnType<typeof mapFormToPayload>;
+
   // Handle form submission
   const onSubmit = (data: DisciplinaFormData) => {
+    const payload = mapFormToPayload(data);
     if (editingDisciplina) {
-      updateMutation.mutate({ id: editingDisciplina.id, data });
+      updateMutation.mutate({ id: editingDisciplina.id, data: payload });
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(payload);
     }
   };
 
@@ -315,7 +313,6 @@ export default function DisciplinasPage() {
     setShowForm(true);
     reset({
       cursoId: disciplina.cursoId,
-      periodoId: disciplina.periodoId,
       codigo: disciplina.codigo || '',
       nome: disciplina.nome,
       creditos: disciplina.creditos,
@@ -339,7 +336,6 @@ export default function DisciplinasPage() {
     setShowForm(true);
     reset({
       ativo: true,
-      periodoId: undefined as unknown as number,
     });
   };
 
@@ -586,8 +582,20 @@ export default function DisciplinasPage() {
                       {
                         key: 'periodo',
                         header: 'Periodo',
-                        render: (d: any) =>
-                          d.periodo ? (d.periodo.nome || `Periodo ${d.periodo.numero}`) : '',
+                        render: (d: Disciplina) =>
+                          d.periodos && d.periodos.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                          {d.periodos.map((vinculo: DisciplinaPeriodo) => (
+                                <Badge key={`${d.id}-${vinculo.periodoId}`} variant="outline" className="text-xs">
+                                  {vinculo.periodo?.nome || `Periodo ${vinculo.periodo?.numero ?? vinculo.periodoId}`}
+                                  {vinculo.obrigatoria === false ? ' · Optativa' : ''}
+                                  {vinculo.ordem ? ` · Ordem ${vinculo.ordem}` : ''}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">Nenhum vínculo</span>
+                          ),
                       },
                       {
                         key: 'ativo',
@@ -666,10 +674,21 @@ export default function DisciplinasPage() {
                                 <span>{disciplina.cargaHoraria}h</span>
                               </div>
                             </div>
-                            {disciplina.periodo && (
-                              <div className="flex items-center space-x-2">
-                                <Layers3 className="h-4 w-4" />
-                                <span>{disciplina.periodo.nome || `Periodo ${disciplina.periodo.numero}`}</span>
+                            {Array.isArray(disciplina.periodos) && disciplina.periodos.length > 0 && (
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                                  <Layers3 className="h-4 w-4" />
+                                  <span>Períodos vinculados</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1 pl-6">
+                                  {disciplina.periodos.map((vinculo: DisciplinaPeriodo) => (
+                                    <Badge key={`${disciplina.id}-${vinculo.periodoId}-card`} variant="outline" className="text-xs">
+                                      {vinculo.periodo?.nome || `Período ${vinculo.periodo?.numero ?? vinculo.periodoId}`}
+                                      {vinculo.obrigatoria === false ? ' · Optativa' : ''}
+                                      {vinculo.ordem ? ` · Ordem ${vinculo.ordem}` : ''}
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
                             )}
                             {disciplina.ementa && (
@@ -734,22 +753,6 @@ export default function DisciplinasPage() {
                     </select>
                     {errors.cursoId && (<p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>)}
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Perodo *</label>
-                    <select
-                      {...register('periodoId', { valueAsNumber: true })}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${errors.periodoId ? 'border-red-500' : ''}`}
-                      disabled={!selectedCursoId}
-                    >
-                      <option value="">{selectedCursoId ? 'Selecione um perodo...' : 'Selecione um curso primeiro'}</option>
-                      {periodos.map((periodo: Periodo) => (
-                        <option key={periodo.id} value={periodo.id}>
-                          {periodo.nome || `Perodo ${periodo.numero}`}
-                        </option>
-                      ))}
-                    </select>
-                    {errors.periodoId && (<p className="mt-1 text-sm text-red-600">{errors.periodoId.message}</p>)}
-                  </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Cdigo *</label>
                       <Input {...register('codigo')} placeholder="Ex: TSI001" />
@@ -778,6 +781,10 @@ export default function DisciplinasPage() {
                       </select>
                       {errors.ativo && (<p className="mt-1 text-sm text-red-600">{errors.ativo.message}</p>)}
                     </div>
+                  <div className="md:col-span-2 text-xs text-slate-500 bg-slate-100/70 border border-slate-200 rounded-md p-3">
+                    Vincule a disciplina aos períodos desejados a partir da visão de detalhes da disciplina ou da página de períodos.
+                    Ali você pode definir ordem e obrigatoriedade para cada currículo.
+                  </div>
                   </div>
                   <div className="space-y-4">
                     <div>

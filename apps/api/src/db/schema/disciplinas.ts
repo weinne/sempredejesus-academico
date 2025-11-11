@@ -1,11 +1,9 @@
 import { pgTable, serial, integer, varchar, smallint, text, boolean } from 'drizzle-orm/pg-core';
 import { cursos } from './cursos';
-import { periodos } from './periodos';
 
 export const disciplinas = pgTable('disciplinas', {
   id: serial('id').primaryKey(),
   cursoId: integer('curso_id').notNull().references(() => cursos.id),
-  periodoId: integer('periodo_id').references(() => periodos.id),
   codigo: varchar('codigo', { length: 10 }).notNull().unique(),
   nome: varchar('nome', { length: 120 }).notNull(),
   creditos: smallint('creditos').notNull(),

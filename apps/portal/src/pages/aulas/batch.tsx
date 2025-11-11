@@ -88,15 +88,6 @@ export default function AulasBatchPage() {
     enabled: !!turmaId,
   });
 
-  useEffect(() => {
-    if (turmaData && turmaData.disciplina?.periodo) {
-      const periodo = turmaData.disciplina.periodo;
-      // Periodo may have dataInicio/dataFim properties if available in the API response
-      if ((periodo as any).dataInicio) setValue('dataInicio', (periodo as any).dataInicio);
-      if ((periodo as any).dataFim) setValue('dataFim', (periodo as any).dataFim);
-    }
-  }, [turmaData, setValue]);
-
   const previewMutation = useMutation({
     mutationFn: (payload: AulasBatch) => apiService.createAulasBatch({ ...payload, dryRun: true }),
     onSuccess: (data) => {

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, Building2, FileText } from 'lucide-react';
@@ -11,14 +11,13 @@ import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { numberOrUndefined } from '@/lib/form-utils';
-import { Curso, Periodo } from '@/types/api';
+import { Curso } from '@/types/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 const disciplinaSchema = z.object({
   cursoId: z.number({ required_error: 'Curso é obrigatório' }).min(1, 'Selecione um curso'),
-  periodoId: z.number({ required_error: 'Período é obrigatório' }).min(1, 'Selecione um período'),
   codigo: z.string().min(1, 'Código é obrigatório').max(10, 'Código deve ter no máximo 10 caracteres'),
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(120, 'Nome deve ter no máximo 120 caracteres'),
   creditos: z.number({ required_error: 'Créditos são obrigatórios' }).min(1, 'Créditos devem ser pelo menos 1').max(32767),
@@ -35,7 +34,7 @@ export default function DisciplinaEditPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { handleFormError } = useFormErrors<DisciplinaFormData>();
+  const { handleFormError } = useFormErrors();
 
   const { data: disciplina, isLoading } = useQuery({
     queryKey: ['disciplina', id],
@@ -55,8 +54,6 @@ export default function DisciplinaEditPage() {
     register,
     handleSubmit,
     reset,
-    watch,
-    setValue,
     formState: { errors },
   } = useForm<DisciplinaFormData>({
     resolver: zodResolver(disciplinaSchema),
@@ -65,35 +62,11 @@ export default function DisciplinaEditPage() {
     }
   });
 
-  const selectedCursoIdRaw = watch('cursoId');
-  const selectedCursoId = isNaN(Number(selectedCursoIdRaw)) || !selectedCursoIdRaw ? undefined : Number(selectedCursoIdRaw);
-
-  // Limpar período quando curso mudar (exceto na carga inicial)
-  useEffect(() => {
-    if (!selectedCursoId) {
-      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
-      return;
-    }
-    if (disciplina && selectedCursoId === disciplina.cursoId) {
-      setValue('periodoId', disciplina.periodoId, { shouldDirty: false, shouldValidate: false });
-    } else {
-      setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
-    }
-  }, [disciplina, selectedCursoId, setValue]);
-
-  const { data: periodosResponse } = useQuery({
-    queryKey: ['periodos', selectedCursoId],
-    queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
-    enabled: !!selectedCursoId,
-  });
-  const periodos = periodosResponse?.data || [];
-
   // Reset form when disciplina data is loaded
   React.useEffect(() => {
     if (disciplina) {
       reset({
         cursoId: disciplina.cursoId,
-        periodoId: disciplina.periodoId,
         codigo: disciplina.codigo || '',
         nome: disciplina.nome,
         creditos: disciplina.creditos,
@@ -163,26 +136,6 @@ export default function DisciplinaEditPage() {
               <FieldError message={errors.cursoId?.message} />
             </div>
 
-            <div data-field="periodoId">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Período *</label>
-              <select
-                {...register('periodoId', { setValueAs: numberOrUndefined })}
-                className={`w-full h-11 px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white ${errors.periodoId ? 'border-red-500' : ''}`}
-                disabled={!selectedCursoId}
-              >
-                <option value="">{selectedCursoId ? 'Selecione um período...' : 'Selecione um curso primeiro'}</option>
-                {periodos.map((periodo: Periodo) => (
-                  <option key={periodo.id} value={periodo.id}>
-                    {periodo.nome || `Período ${periodo.numero}`}
-                  </option>
-                ))}
-              </select>
-              <FieldError message={errors.periodoId?.message} />
-              {!selectedCursoId && (
-                <p className="mt-1 text-xs text-slate-500">Selecione um curso para ver os períodos disponíveis</p>
-              )}
-            </div>
-
             <div data-field="codigo">
               <label className="block text-sm font-medium text-slate-700 mb-2">Código *</label>
               <Input 
@@ -241,6 +194,11 @@ export default function DisciplinaEditPage() {
                 <option value="false">Inativa</option>
               </select>
             </div>
+
+            <div className="md:col-span-2 text-xs text-slate-500 bg-slate-100/70 border border-slate-200 rounded-md p-3">
+              Gerencie os vínculos da disciplina com os períodos na área de detalhes da disciplina ou na página de períodos.
+              Lá é possível ajustar obrigatoriedade e ordem para cada currículo.
+            </div>
           </FormSection>
 
           {/* Plano de Ensino */}
@@ -275,7 +233,8 @@ export default function DisciplinaEditPage() {
           {/* Actions */}
           <ActionsBar 
             isSubmitting={updateMutation.isPending} 
-            submitText="Atualizar Disciplina" 
+            submitLabel="Atualizar Disciplina" 
+            submittingLabel="Atualizando..." 
             cancelTo="/disciplinas"
           />
         </form>

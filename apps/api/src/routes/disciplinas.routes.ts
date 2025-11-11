@@ -1,13 +1,20 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
-import { disciplinas, cursos, periodos } from '../db/schema';
-import { CreateDisciplinaSchema, UpdateDisciplinaSchema, IdParamSchema } from '@seminario/shared-dtos';
-import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
+import { disciplinas, cursos, periodos, disciplinasPeriodos, curriculos } from '../db/schema';
+import {
+  CreateDisciplinaSchema,
+  UpdateDisciplinaSchema,
+  IdParamSchema,
+  CreateDisciplinaPeriodoSchema,
+  UpdateDisciplinaPeriodoSchema,
+} from '@seminario/shared-dtos';
+import { requireAuth, requireSecretaria } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
-import { and, eq, or, like, desc, asc } from 'drizzle-orm';
+import { and, eq, or, like, desc, asc, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { sql } from 'drizzle-orm';
+import { z } from 'zod';
 
 /**
  * @swagger
@@ -149,6 +156,14 @@ import { sql } from 'drizzle-orm';
 
 const router = Router();
 
+const PeriodoParamSchema = z.object({
+  periodoId: z.coerce.number().int().positive(),
+});
+
+const DisciplinaPeriodoParamsSchema = PeriodoParamSchema.extend({
+  disciplinaId: z.coerce.number().int().positive(),
+});
+
 // Create Enhanced CRUD factory for disciplinas with joins
 const disciplinasCrud = new EnhancedCrudFactory({
   table: disciplinas,
@@ -157,34 +172,156 @@ const disciplinasCrud = new EnhancedCrudFactory({
       table: cursos,
       on: eq(disciplinas.cursoId, cursos.id),
     },
-    {
-      table: periodos,
-      on: eq(disciplinas.periodoId, periodos.id),
-    },
   ],
   searchFields: ['nome', 'codigo'], // Search by discipline name or code
   orderBy: [{ field: 'nome', direction: 'asc' }],
 });
 
-const assertPeriodoBelongsToCurso = async (cursoId: number, periodoId: number | null) => {
-  if (periodoId === null) {
-    return; // Skip validation if periodoId is null
+const findDisciplinaById = async (id: number) => {
+  const rows = await db
+    .select({
+      id: disciplinas.id,
+      cursoId: disciplinas.cursoId,
+    })
+    .from(disciplinas)
+    .where(eq(disciplinas.id, id))
+    .limit(1);
+
+  if (rows.length === 0) {
+    throw createError('Disciplina informada não existe', 404);
   }
 
-  const periodo = await db.select().from(periodos).where(eq(periodos.id, periodoId)).limit(1);
-  if (periodo.length === 0) {
+  return rows[0];
+};
+
+const findPeriodoById = async (id: number) => {
+  const rows = await db
+    .select({
+      id: periodos.id,
+      cursoId: curriculos.cursoId,
+      curriculoId: periodos.curriculoId,
+      numero: periodos.numero,
+    })
+    .from(periodos)
+    .leftJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
+    .where(eq(periodos.id, id))
+    .limit(1);
+
+  if (rows.length === 0) {
     throw createError('Período informado não existe', 404);
   }
 
-  if (periodo[0].cursoId !== cursoId) {
-    throw createError('O período selecionado não pertence ao curso informado', 400);
-  }
+  return rows[0];
 };
+
+const ensureDisciplinaPeriodoSameCurso = async (disciplinaId: number, periodoId: number) => {
+  const disciplina = await findDisciplinaById(disciplinaId);
+  const periodo = await findPeriodoById(periodoId);
+
+  if (disciplina.cursoId !== periodo.cursoId) {
+    throw createError('Disciplina e período pertencem a cursos diferentes', 400);
+  }
+
+  return { disciplina, periodo };
+};
+
+const attachDisciplinaToPeriodo = asyncHandler(async (req: Request, res: Response) => {
+  const { periodoId } = PeriodoParamSchema.parse(req.params);
+  const payload = CreateDisciplinaPeriodoSchema.parse({ ...req.body, periodoId });
+
+  await ensureDisciplinaPeriodoSameCurso(payload.disciplinaId, periodoId);
+
+  try {
+    const [created] = await db
+      .insert(disciplinasPeriodos)
+      .values({
+        disciplinaId: payload.disciplinaId,
+        periodoId,
+        ordem: payload.ordem,
+        obrigatoria: payload.obrigatoria ?? true,
+      })
+      .returning();
+
+    res.status(201).json({
+      success: true,
+      message: 'Disciplina vinculada ao período com sucesso',
+      data: created,
+    });
+  } catch (error: any) {
+    if (error?.code === '23505') {
+      throw createError('Disciplina já está vinculada a este período', 409);
+    }
+    throw error;
+  }
+});
+
+const updateDisciplinaPeriodo = asyncHandler(async (req: Request, res: Response) => {
+  const { periodoId, disciplinaId } = DisciplinaPeriodoParamsSchema.parse(req.params);
+  const payload = UpdateDisciplinaPeriodoSchema.parse(req.body);
+
+  await ensureDisciplinaPeriodoSameCurso(Number(disciplinaId), Number(periodoId));
+
+  const existing = await db
+    .select({ id: disciplinasPeriodos.id })
+    .from(disciplinasPeriodos)
+    .where(
+      and(
+        eq(disciplinasPeriodos.disciplinaId, Number(disciplinaId)),
+        eq(disciplinasPeriodos.periodoId, Number(periodoId))
+      ),
+    )
+    .limit(1);
+
+  if (existing.length === 0) {
+    throw createError('Vínculo disciplina/período não encontrado', 404);
+  }
+
+  const [updated] = await db
+    .update(disciplinasPeriodos)
+    .set(payload)
+    .where(
+      and(
+        eq(disciplinasPeriodos.disciplinaId, Number(disciplinaId)),
+        eq(disciplinasPeriodos.periodoId, Number(periodoId))
+      ),
+    )
+    .returning();
+
+  res.json({
+    success: true,
+    message: 'Vínculo atualizado com sucesso',
+    data: updated,
+  });
+});
+
+const detachDisciplinaFromPeriodo = asyncHandler(async (req: Request, res: Response) => {
+  const { periodoId, disciplinaId } = DisciplinaPeriodoParamsSchema.parse(req.params);
+
+  await ensureDisciplinaPeriodoSameCurso(Number(disciplinaId), Number(periodoId));
+
+  const deleted = await db
+    .delete(disciplinasPeriodos)
+    .where(
+      and(
+        eq(disciplinasPeriodos.disciplinaId, Number(disciplinaId)),
+        eq(disciplinasPeriodos.periodoId, Number(periodoId))
+      ),
+    )
+    .returning();
+
+  if (deleted.length === 0) {
+    throw createError('Vínculo disciplina/período não encontrado', 404);
+  }
+
+  res.json({
+    success: true,
+    message: 'Disciplina desvinculada do período com sucesso',
+    data: deleted[0],
+  });
+});
 
 const createDisciplinaHandler = asyncHandler(async (req: Request, res: Response) => {
   const payload = CreateDisciplinaSchema.parse(req.body);
-
-  await assertPeriodoBelongsToCurso(payload.cursoId, payload.periodoId);
 
   const [disciplina] = await db.insert(disciplinas).values(payload).returning();
 
@@ -208,11 +345,6 @@ const updateDisciplinaHandler = asyncHandler(async (req: Request, res: Response)
     Object.entries(payload).filter(([_, value]) => value !== undefined)
   );
 
-  const cursoId = (dataToUpdate.cursoId as number | undefined) ?? existing[0].cursoId;
-  const periodoId = (dataToUpdate.periodoId as number | undefined) ?? existing[0].periodoId;
-
-  await assertPeriodoBelongsToCurso(cursoId, periodoId);
-
   if (Object.keys(dataToUpdate).length === 0) {
     throw createError('No valid fields to update', 400);
   }
@@ -230,15 +362,14 @@ const updateDisciplinaHandler = asyncHandler(async (req: Request, res: Response)
   });
 });
 
-// Custom method to get disciplina with complete information  
+// Custom method to get disciplina with complete information
 const getDisciplinaComplete = asyncHandler(async (req: Request, res: Response) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(req.params.id, 10);
 
-  const result = await db
+  const disciplina = await db
     .select({
       id: disciplinas.id,
       cursoId: disciplinas.cursoId,
-      periodoId: disciplinas.periodoId,
       codigo: disciplinas.codigo,
       nome: disciplinas.nome,
       creditos: disciplinas.creditos,
@@ -251,25 +382,40 @@ const getDisciplinaComplete = asyncHandler(async (req: Request, res: Response) =
         nome: cursos.nome,
         grau: cursos.grau,
       },
+    })
+    .from(disciplinas)
+    .leftJoin(cursos, eq(disciplinas.cursoId, cursos.id))
+    .where(eq(disciplinas.id, id))
+    .limit(1);
+
+  if (disciplina.length === 0) {
+    throw createError('Disciplina not found', 404);
+  }
+
+  const periodosVinculados = await db
+    .select({
+      disciplinaId: disciplinasPeriodos.disciplinaId,
+      periodoId: disciplinasPeriodos.periodoId,
+      ordem: disciplinasPeriodos.ordem,
+      obrigatoria: disciplinasPeriodos.obrigatoria,
       periodo: {
         id: periodos.id,
         numero: periodos.numero,
         nome: periodos.nome,
+        curriculoId: periodos.curriculoId,
       },
     })
-    .from(disciplinas)
-    .leftJoin(cursos, eq(disciplinas.cursoId, cursos.id))
-    .leftJoin(periodos, eq(disciplinas.periodoId, periodos.id))
-    .where(eq(disciplinas.id, id))
-    .limit(1);
-
-  if (result.length === 0) {
-    throw createError('Disciplina not found', 404);
-  }
+    .from(disciplinasPeriodos)
+    .innerJoin(periodos, eq(disciplinasPeriodos.periodoId, periodos.id))
+    .where(eq(disciplinasPeriodos.disciplinaId, id))
+    .orderBy(asc(periodos.numero));
 
   res.json({
     success: true,
-    data: result[0],
+    data: {
+      ...disciplina[0],
+      periodos: periodosVinculados,
+    },
   });
 });
 
@@ -296,44 +442,61 @@ router.get(
     const limitNum = Math.min(parseInt(limit as string, 10) || 20, 100);
     const offset = (pageNum - 1) * limitNum;
 
-    const filterConditions: any[] = [];
+    const conditions: any[] = [];
 
     if (cursoId) {
-      filterConditions.push(eq(disciplinas.cursoId, Number(cursoId)));
-    }
-    if (periodoId) {
-      filterConditions.push(eq(disciplinas.periodoId, Number(periodoId)));
-    }
-    if (curriculoId) {
-      filterConditions.push(eq(periodos.curriculoId, Number(curriculoId)));
+      conditions.push(eq(disciplinas.cursoId, Number(cursoId)));
     }
 
-    const searchCondition = search && typeof search === 'string' && search.trim().length
-      ? or(
-          like(disciplinas.nome, `%${search.trim()}%`),
-          like(disciplinas.codigo, `%${search.trim()}%`),
-        )
-      : undefined;
+    if (search && typeof search === 'string' && search.trim().length) {
+      const term = `%${search.trim()}%`;
+      conditions.push(or(like(disciplinas.nome, term), like(disciplinas.codigo, term)));
+    }
+
+    if (periodoId) {
+      conditions.push(
+        sql`EXISTS (SELECT 1 FROM disciplinas_periodos dp WHERE dp.disciplina_id = ${disciplinas.id} AND dp.periodo_id = ${Number(
+          periodoId,
+        )})`,
+      );
+    }
+
+    if (curriculoId) {
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1
+          FROM disciplinas_periodos dp
+          INNER JOIN periodos p ON p.id = dp.periodo_id
+          WHERE dp.disciplina_id = ${disciplinas.id}
+            AND p.curriculo_id = ${Number(curriculoId)}
+        )`,
+      );
+    }
 
     let query = db
       .select({
-        disciplina: disciplinas,
-        curso: cursos,
-        periodo: periodos,
+        id: disciplinas.id,
+        cursoId: disciplinas.cursoId,
+        codigo: disciplinas.codigo,
+        nome: disciplinas.nome,
+        creditos: disciplinas.creditos,
+        cargaHoraria: disciplinas.cargaHoraria,
+        ementa: disciplinas.ementa,
+        bibliografia: disciplinas.bibliografia,
+        ativo: disciplinas.ativo,
+        curso: {
+          id: cursos.id,
+          nome: cursos.nome,
+          grau: cursos.grau,
+        },
       })
       .from(disciplinas)
-      .leftJoin(cursos, eq(disciplinas.cursoId, cursos.id))
-      .leftJoin(periodos, eq(disciplinas.periodoId, periodos.id));
+      .leftJoin(cursos, eq(disciplinas.cursoId, cursos.id));
 
-    const whereConditions = [
-      filterConditions.length ? and(...filterConditions) : undefined,
-      searchCondition,
-    ].filter(Boolean) as any[];
-
-    if (whereConditions.length === 1) {
-      query = query.where(whereConditions[0]);
-    } else if (whereConditions.length > 1) {
-      query = query.where(and(...whereConditions));
+    if (conditions.length === 1) {
+      query = query.where(conditions[0]);
+    } else if (conditions.length > 1) {
+      query = query.where(and(...conditions));
     }
 
     const sortableColumns: Record<string, any> = {
@@ -342,7 +505,6 @@ router.get(
       codigo: disciplinas.codigo,
       creditos: disciplinas.creditos,
       cargaHoraria: disciplinas.cargaHoraria,
-      periodoId: disciplinas.periodoId,
       cursoId: disciplinas.cursoId,
     };
     const orderColumn = typeof sortBy === 'string' && sortableColumns[sortBy] ? sortableColumns[sortBy] : disciplinas.nome;
@@ -350,24 +512,55 @@ router.get(
     query = query.orderBy(orderExpr).limit(limitNum).offset(offset);
 
     const rows = await query;
+    const disciplinaIds = rows.map((row) => row.id);
 
-    let countQuery = db
-      .select({ value: sql<number>`count(*)` })
-      .from(disciplinas)
-      .leftJoin(periodos, eq(disciplinas.periodoId, periodos.id));
+    const periodosMap = new Map<number, any[]>();
+    if (disciplinaIds.length > 0) {
+      const vinculos = await db
+        .select({
+          disciplinaId: disciplinasPeriodos.disciplinaId,
+          periodoId: disciplinasPeriodos.periodoId,
+          ordem: disciplinasPeriodos.ordem,
+          obrigatoria: disciplinasPeriodos.obrigatoria,
+          periodo: {
+            id: periodos.id,
+            numero: periodos.numero,
+            nome: periodos.nome,
+            curriculoId: periodos.curriculoId,
+          },
+        })
+        .from(disciplinasPeriodos)
+        .innerJoin(periodos, eq(disciplinasPeriodos.periodoId, periodos.id))
+        .where(inArray(disciplinasPeriodos.disciplinaId, disciplinaIds))
+        .orderBy(disciplinasPeriodos.disciplinaId, asc(periodos.numero));
 
-    if (filterConditions.length) {
-      countQuery = countQuery.where(and(...filterConditions));
+      for (const vinculo of vinculos) {
+        const list = periodosMap.get(vinculo.disciplinaId) ?? [];
+        list.push({
+          periodoId: vinculo.periodoId,
+          ordem: vinculo.ordem ?? undefined,
+          obrigatoria: vinculo.obrigatoria,
+          periodo: vinculo.periodo,
+        });
+        periodosMap.set(vinculo.disciplinaId, list);
+      }
+    }
+
+    let countQuery = db.select({ value: sql<number>`count(*)` }).from(disciplinas);
+
+    if (conditions.length === 1) {
+      countQuery = countQuery.where(conditions[0]);
+    } else if (conditions.length > 1) {
+      countQuery = countQuery.where(and(...conditions));
     }
 
     const countResult = await countQuery;
     const total = countResult[0]?.value ?? 0;
-    const totalPages = Math.ceil(total / limitNum);
+    const totalPages = Math.ceil(total / limitNum) || 1;
 
     const data = rows.map((row) => ({
-      ...row.disciplina,
-      curso: row.curso,
-      periodo: row.periodo,
+      ...row,
+      periodos: periodosMap.get(row.id) ?? [],
     }));
 
     res.json({
@@ -401,5 +594,31 @@ router.patch(
 
 // DELETE /disciplinas/:id - Delete disciplina (requires ADMIN or SECRETARIA)
 router.delete('/:id', validateParams(IdParamSchema), requireSecretaria, disciplinasCrud.delete);
+
+// POST /periodos/:periodoId/disciplinas - vincula disciplina a um período
+router.post(
+  '/periodos/:periodoId/disciplinas',
+  validateParams(PeriodoParamSchema),
+  requireSecretaria,
+  validateBody(CreateDisciplinaPeriodoSchema.omit({ periodoId: true })),
+  attachDisciplinaToPeriodo,
+);
+
+// PATCH /periodos/:periodoId/disciplinas/:disciplinaId - atualiza vínculo
+router.patch(
+  '/periodos/:periodoId/disciplinas/:disciplinaId',
+  validateParams(DisciplinaPeriodoParamsSchema),
+  requireSecretaria,
+  validateBody(UpdateDisciplinaPeriodoSchema),
+  updateDisciplinaPeriodo,
+);
+
+// DELETE /periodos/:periodoId/disciplinas/:disciplinaId - remove vínculo
+router.delete(
+  '/periodos/:periodoId/disciplinas/:disciplinaId',
+  validateParams(DisciplinaPeriodoParamsSchema),
+  requireSecretaria,
+  detachDisciplinaFromPeriodo,
+);
 
 export default router; 

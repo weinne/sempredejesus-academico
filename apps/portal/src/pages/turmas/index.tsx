@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
-import { Turma, CreateTurma, Disciplina, Professor, Role } from '@/types/api';
+import { Turma, CreateTurma, Disciplina, DisciplinaPeriodo, Professor, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import CrudHeader from '@/components/crud/crud-header';
@@ -49,6 +49,17 @@ const turmaSchema = z.object({
 type TurmaFormData = z.infer<typeof turmaSchema>;
 
 export default function TurmasPage() {
+  const getDisciplinaPeriodoLabel = (disciplina?: Disciplina) => {
+    if (!disciplina || !Array.isArray(disciplina.periodos) || disciplina.periodos.length === 0) {
+      return 'N/A';
+    }
+    const vinculo = disciplina.periodos[0];
+    const periodo = vinculo.periodo;
+    if (periodo) {
+      return periodo.nome || (periodo.numero !== undefined ? `Período ${periodo.numero}` : `Período ${vinculo.periodoId}`);
+    }
+    return `Período ${vinculo.periodoId}`;
+  };
   const { hasRole, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -361,7 +372,26 @@ export default function TurmasPage() {
                 columns={[
                   { key: 'disciplina', header: 'Disciplina', render: (t: any) => t?.disciplina?.nome || 'N/A' },
                   { key: 'professor', header: 'Professor', render: (t: any) => t?.professor?.pessoa?.nome || 'N/A' },
-                  { key: 'periodo', header: 'Período (disciplina)', render: (t: any) => t?.disciplina?.periodo?.nome || t?.disciplina?.periodo?.numero || 'N/A' },
+                  {
+                    key: 'periodo',
+                    header: 'Período (disciplina)',
+                    render: (t: Turma) => {
+                      const disciplinaRelacionada = t.disciplina;
+                      const periodos = disciplinaRelacionada?.periodos;
+                      if (!Array.isArray(periodos) || periodos.length === 0) {
+                        return 'Nenhum vínculo';
+                      }
+                      return periodos
+                        .map((vinculo: DisciplinaPeriodo) => {
+                          const periodo = vinculo.periodo;
+                          if (periodo) {
+                            return periodo.nome || (periodo.numero !== undefined ? `Período ${periodo.numero}` : `Período ${vinculo.periodoId}`);
+                          }
+                          return `Período ${vinculo.periodoId}`;
+                        })
+                        .join(', ');
+                    },
+                  },
                   { key: 'coorte', header: 'Coorte', render: (t: any) => t?.coorte?.rotulo || '-' },
                   { key: 'sala', header: 'Sala', render: (t: any) => t?.sala || '-' },
                   { key: 'horario', header: 'Horário', render: (t: any) => t?.horario || '-' },
@@ -438,7 +468,7 @@ export default function TurmasPage() {
                         </div>
                         <div className="flex items-center space-x-2 text-sm text-gray-600">
                           <Calendar className="h-4 w-4" />
-                          <span>Período: {turma.disciplina?.periodo?.nome || turma.disciplina?.periodo?.numero || 'N/A'}</span>
+                          <span>Período: {getDisciplinaPeriodoLabel(turma.disciplina)}</span>
                         </div>
                         {turma.sala && (
                           <div className="flex items-center space-x-2 text-sm text-gray-600">

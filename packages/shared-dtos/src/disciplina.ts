@@ -1,9 +1,9 @@
 import { z } from 'zod';
+import { DisciplinaPeriodoSchema } from './disciplina-periodo';
 
 export const DisciplinaSchema = z.object({
   id: z.number().int().positive(),
   cursoId: z.number().int().positive(),
-  periodoId: z.number().int().positive().nullable(),
   codigo: z.string().max(10),
   nome: z.string().max(120),
   creditos: z.number().int().min(1).max(32767),
@@ -25,11 +25,20 @@ export const DisciplinaComCursoSchema = DisciplinaSchema.extend({
     nome: z.string(),
     grau: z.string(),
   }),
-  periodo: z.object({
-    id: z.number(),
-    numero: z.number(),
-    nome: z.string().nullable(),
-  }).optional(),
+  periodos: z
+    .array(
+      DisciplinaPeriodoSchema.pick({ periodoId: true, ordem: true, obrigatoria: true }).extend({
+        periodo: z
+          .object({
+            id: z.number().int().positive(),
+            numero: z.number().int().positive().optional(),
+            nome: z.string().nullable().optional(),
+            curriculoId: z.number().int().positive().optional(),
+          })
+          .optional(),
+      })
+    )
+    .optional(),
 });
 
 export type Disciplina = z.infer<typeof DisciplinaSchema>;

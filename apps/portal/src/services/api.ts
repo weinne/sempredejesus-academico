@@ -23,6 +23,7 @@ import {
   CreatePeriodo,
   UpdatePeriodo,
   Disciplina,
+  DisciplinaPeriodo,
   Turma,
   CreateTurma,
   Role,
@@ -232,7 +233,6 @@ class ApiService {
           {
             id: 1,
             cursoId: 1,
-            periodoId: 1,
             codigo: 'TSI001',
             nome: 'Teologia Sistemática I',
             creditos: 4,
@@ -240,13 +240,18 @@ class ApiService {
             ementa: 'Introdução à Teologia Sistemática',
             bibliografia: 'Bibliografia básica de Teologia',
             ativo: true,
+            periodos: [
+              {
+                periodoId: 1,
+                obrigatoria: true,
+              },
+            ],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           },
           {
             id: 2,
             cursoId: 1,
-            periodoId: 1,
             codigo: 'TSI002',
             nome: 'Teologia Sistemática II',
             creditos: 4,
@@ -254,6 +259,12 @@ class ApiService {
             ementa: 'Aprofundamento em Teologia Sistemática',
             bibliografia: 'Bibliografia avançada de Teologia',
             ativo: true,
+            periodos: [
+              {
+                periodoId: 1,
+                obrigatoria: true,
+              },
+            ],
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }
@@ -1380,23 +1391,53 @@ class ApiService {
     return this.mapDisciplina(response.data.data || response.data);
   }
 
-  async createDisciplina(disciplina: Omit<Disciplina, 'id'>): Promise<Disciplina> {
+  async createDisciplina(disciplina: Omit<Disciplina, 'id' | 'periodos' | 'curso'>): Promise<Disciplina> {
     const response = await this.api.post('/api/disciplinas', disciplina);
-    const payload = response.data?.data || response.data;
-    return this.mapDisciplina({
-      ...payload,
-      cursoId: disciplina.cursoId,
-      periodoId: disciplina.periodoId,
-    });
+    return this.mapDisciplina(response.data?.data || response.data);
   }
 
-  async updateDisciplina(id: number, disciplina: Partial<Omit<Disciplina, 'id'>>): Promise<Disciplina> {
+  async updateDisciplina(
+    id: number,
+    disciplina: Partial<Omit<Disciplina, 'id' | 'periodos' | 'curso'>>,
+  ): Promise<Disciplina> {
     const response = await this.api.patch(`/api/disciplinas/${id}`, disciplina);
     return this.mapDisciplina(response.data.data || response.data);
   }
 
   async deleteDisciplina(id: number): Promise<void> {
     await this.api.delete(`/api/disciplinas/${id}`);
+  }
+
+  async addDisciplinaAoPeriodo(
+    periodoId: number,
+    payload: { disciplinaId: number; ordem?: number; obrigatoria?: boolean },
+  ): Promise<DisciplinaPeriodo> {
+    const response = await this.api.post(`/api/periodos/${periodoId}/disciplinas`, payload);
+    const mapped = this.mapDisciplinaPeriodo(response.data.data || response.data);
+    if (!mapped) {
+      throw new Error('Falha ao vincular disciplina ao período');
+    }
+    return mapped;
+  }
+
+  async updateDisciplinaPeriodo(
+    periodoId: number,
+    disciplinaId: number,
+    payload: { ordem?: number; obrigatoria?: boolean },
+  ): Promise<DisciplinaPeriodo> {
+    const response = await this.api.patch(
+      `/api/periodos/${periodoId}/disciplinas/${disciplinaId}`,
+      payload,
+    );
+    const mapped = this.mapDisciplinaPeriodo(response.data.data || response.data);
+    if (!mapped) {
+      throw new Error('Falha ao atualizar vínculo disciplina/período');
+    }
+    return mapped;
+  }
+
+  async removeDisciplinaDoPeriodo(periodoId: number, disciplinaId: number): Promise<void> {
+    await this.api.delete(`/api/periodos/${periodoId}/disciplinas/${disciplinaId}`);
   }
 
   // Turmas CRUD
@@ -1453,21 +1494,7 @@ class ApiService {
       horario: turma.horario || undefined,
       secao: turma.secao || undefined,
       totalInscritos: turma.totalInscritos ? Number(turma.totalInscritos) : turma.totalInscritos,
-      disciplina: disciplina
-        ? {
-            ...disciplina,
-            id: Number(disciplina.id),
-            periodo: disciplina.periodo
-              ? {
-                  ...disciplina.periodo,
-                  id: Number(disciplina.periodo.id),
-                  numero: disciplina.periodo.numero !== undefined && disciplina.periodo.numero !== null
-                    ? Number(disciplina.periodo.numero)
-                    : undefined,
-                }
-              : undefined,
-          }
-        : undefined,
+      disciplina: disciplina ? this.mapDisciplina(disciplina) : undefined,
       professor: professor ? {
         ...professor,
         pessoa: professor.pessoa ? {
@@ -1528,31 +1555,89 @@ class ApiService {
   }
 
   // Semestres removidos
+  private mapDisciplinaPeriodo(row: any): DisciplinaPeriodo | null {
+    if (!row) {
+      return null;
+    }
+
+    const periodoData = row.periodo ?? row;
+    const periodoIdValue =
+      row.periodoId ??
+      row.periodo_id ??
+      periodoData?.id ??
+      periodoData?.periodoId ??
+      periodoData?.periodo_id;
+
+    if (!periodoIdValue) {
+      return null;
+    }
+
+    const numeroValor =
+      periodoData?.numero !== undefined && periodoData.numero !== null
+        ? Number(periodoData.numero)
+        : periodoData?.periodoNumero !== undefined && periodoData.periodoNumero !== null
+        ? Number(periodoData.periodoNumero)
+        : undefined;
+
+    return {
+      periodoId: Number(periodoIdValue),
+      ordem:
+        row.ordem !== undefined && row.ordem !== null
+          ? Number(row.ordem)
+          : periodoData?.ordem !== undefined && periodoData.ordem !== null
+          ? Number(periodoData.ordem)
+          : undefined,
+      obrigatoria:
+        row.obrigatoria !== undefined
+          ? Boolean(row.obrigatoria)
+          : periodoData?.obrigatoria !== undefined
+          ? Boolean(periodoData.obrigatoria)
+          : true,
+      periodo: periodoData
+        ? {
+            id: Number(periodoData.id ?? periodoData.periodoId ?? periodoData.periodo_id ?? periodoIdValue),
+            numero: numeroValor,
+            nome: periodoData.nome ?? periodoData.periodoNome ?? undefined,
+            curriculoId:
+              periodoData.curriculoId !== undefined && periodoData.curriculoId !== null
+                ? Number(periodoData.curriculoId)
+                : undefined,
+          }
+        : undefined,
+    };
+  }
+
   private mapDisciplina(payload: any): Disciplina {
     if (!payload) {
       return {
         id: 0,
         cursoId: 0,
-        periodoId: 0,
         codigo: '',
         nome: '',
         creditos: 0,
         cargaHoraria: 0,
         ativo: true,
-      } as Disciplina;
+        periodos: [],
+      };
     }
 
     const disciplina = payload.disciplina ?? payload;
     const curso = payload.curso ?? disciplina.curso ?? null;
-    const periodo = payload.periodo ?? disciplina.periodo ?? null;
-
     const cursoId = disciplina.cursoId ?? disciplina.curso_id ?? curso?.id ?? null;
-    const periodoId = disciplina.periodoId ?? disciplina.periodo_id ?? periodo?.id ?? null;
+
+    const rawPeriodos = Array.isArray(disciplina.periodos)
+      ? disciplina.periodos
+      : Array.isArray(payload.periodos)
+      ? payload.periodos
+      : [];
+
+    const periodos: DisciplinaPeriodo[] = (rawPeriodos as any[])
+      .map((item) => this.mapDisciplinaPeriodo(item))
+      .filter((item): item is DisciplinaPeriodo => item !== null);
 
     const mapped: Disciplina = {
       id: Number(disciplina.id ?? disciplina.disciplinaId ?? disciplina.disciplina_id ?? 0),
       cursoId: cursoId !== null ? Number(cursoId) : 0,
-      periodoId: periodoId !== null ? Number(periodoId) : 0,
       codigo: disciplina.codigo ?? payload.codigo ?? '',
       nome: disciplina.nome ?? payload.nome ?? '',
       creditos: Number(disciplina.creditos ?? payload.creditos ?? 0),
@@ -1560,19 +1645,14 @@ class ApiService {
       ementa: disciplina.ementa ?? payload.ementa ?? undefined,
       bibliografia: disciplina.bibliografia ?? payload.bibliografia ?? undefined,
       ativo: disciplina.ativo ?? payload.ativo ?? true,
-      periodo: periodo
+      periodos,
+      curso: curso
         ? {
-            id: Number(periodo.id ?? periodo.periodoId ?? periodo.periodo_id ?? 0),
-            nome: periodo.nome ?? periodo.periodoNome ?? null,
-            numero:
-              periodo.numero !== undefined && periodo.numero !== null
-                ? Number(periodo.numero)
-                : periodo.periodoNumero !== undefined
-                ? Number(periodo.periodoNumero)
-                : null,
+            ...curso,
+            id: Number(curso.id ?? curso.cursoId ?? curso.curso_id ?? 0),
           }
         : undefined,
-    } as Disciplina;
+    };
 
     return mapped;
   }

@@ -72,7 +72,7 @@ export default function ProfessorNewPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { handleFormError } = useFormErrors<ProfessorFormData>();
+  const { handleFormError } = useFormErrors();
   const today = new Date().toISOString().split('T')[0];
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<ProfessorFormData>({
@@ -599,7 +599,8 @@ export default function ProfessorNewPage() {
           {/* Actions */}
           <ActionsBar 
             isSubmitting={createMutation.isPending} 
-            submitText="Cadastrar Professor" 
+            submitLabel="Cadastrar Professor" 
+            submittingLabel="Cadastrando..." 
             cancelTo="/professores"
           />
         </form>

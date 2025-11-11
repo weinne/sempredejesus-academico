@@ -2,10 +2,10 @@ import { Router, Request, Response } from 'express';
 import { requireAuth, requireSecretaria } from '../middleware/auth.middleware';
 import { validateBody, validateParams } from '../middleware/validation.middleware';
 import { CreatePeriodoSchema, UpdatePeriodoSchema, IdParamSchema } from '@seminario/shared-dtos';
-import { periodos, cursos, disciplinas, alunos, turnos } from '../db/schema';
+import { periodos, cursos, disciplinas, alunos, turnos, curriculos, disciplinasPeriodos } from '../db/schema';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-import { and, eq, like, not, or, sql } from 'drizzle-orm';
+import { and, asc, eq, like, not, or, sql } from 'drizzle-orm';
 
 const router = Router();
 
@@ -13,11 +13,11 @@ const buildWhereCondition = (cursoId?: number, turnoId?: number, curriculoId?: n
   const conditions = [] as any[];
 
   if (cursoId) {
-    conditions.push(eq(periodos.cursoId, cursoId));
+    conditions.push(eq(curriculos.cursoId, cursoId));
   }
 
   if (turnoId) {
-    conditions.push(eq(periodos.turnoId, turnoId));
+    conditions.push(eq(curriculos.turnoId, turnoId));
   }
 
   if (curriculoId) {
@@ -64,19 +64,26 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
   let query = db
     .select({
       id: periodos.id,
-      cursoId: periodos.cursoId,
-      turnoId: periodos.turnoId,
       curriculoId: periodos.curriculoId,
       numero: periodos.numero,
       nome: periodos.nome,
       descricao: periodos.descricao,
       dataInicio: periodos.dataInicio,
       dataFim: periodos.dataFim,
-      totalDisciplinas: sql<number>`COUNT(${disciplinas.id})`,
+      totalDisciplinas: sql<number>`COUNT(DISTINCT ${disciplinasPeriodos.disciplinaId})`,
       curso: {
         id: cursos.id,
         nome: cursos.nome,
         grau: cursos.grau,
+      },
+      curriculo: {
+        id: curriculos.id,
+        cursoId: curriculos.cursoId,
+        turnoId: curriculos.turnoId,
+        versao: curriculos.versao,
+        vigenteDe: curriculos.vigenteDe,
+        vigenteAte: curriculos.vigenteAte,
+        ativo: curriculos.ativo,
       },
       turno: {
         id: turnos.id,
@@ -84,9 +91,10 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
       },
     })
     .from(periodos)
-    .leftJoin(cursos, eq(periodos.cursoId, cursos.id))
-    .leftJoin(turnos, eq(periodos.turnoId, turnos.id))
-    .leftJoin(disciplinas, eq(disciplinas.periodoId, periodos.id));
+    .leftJoin(curriculos, eq(periodos.curriculoId, curriculos.id))
+    .leftJoin(cursos, eq(curriculos.cursoId, cursos.id))
+    .leftJoin(turnos, eq(curriculos.turnoId, turnos.id))
+    .leftJoin(disciplinasPeriodos, eq(disciplinasPeriodos.periodoId, periodos.id));
 
   if (whereCondition) {
     query = query.where(whereCondition);
@@ -95,8 +103,6 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
   const rows = await query
     .groupBy(
       periodos.id,
-      periodos.cursoId,
-      periodos.turnoId,
       periodos.curriculoId,
       periodos.numero,
       periodos.nome,
@@ -104,17 +110,25 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
       cursos.id,
       cursos.nome,
       cursos.grau,
+      curriculos.id,
+      curriculos.cursoId,
+      curriculos.turnoId,
+      curriculos.versao,
+      curriculos.vigenteDe,
+      curriculos.vigenteAte,
+      curriculos.ativo,
       turnos.id,
       turnos.nome
     )
-    .orderBy(periodos.numero)
+    .orderBy(asc(periodos.numero))
     .limit(limitNum)
     .offset(offset);
 
   const countQuery = db
     .select({ count: sql<number>`COUNT(*)` })
     .from(periodos)
-    .leftJoin(cursos, eq(periodos.cursoId, cursos.id));
+    .leftJoin(curriculos, eq(periodos.curriculoId, curriculos.id))
+    .leftJoin(cursos, eq(curriculos.cursoId, cursos.id));
 
   const countRows = whereCondition ? await countQuery.where(whereCondition) : await countQuery;
   const total = Number(countRows[0]?.count ?? 0);
@@ -122,23 +136,32 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
 
   const data = rows.map((row) => ({
     id: row.id,
-    cursoId: row.cursoId,
-    turnoId: row.turnoId,
     curriculoId: row.curriculoId,
     numero: row.numero,
     nome: row.nome,
-      descricao: row.descricao,
-      dataInicio: row.dataInicio as any,
-      dataFim: row.dataFim as any,
+    descricao: row.descricao,
+    dataInicio: row.dataInicio as any,
+    dataFim: row.dataFim as any,
     totalDisciplinas: Number(row.totalDisciplinas ?? 0),
-      curso: row.curso?.id
+    curso: row.curso?.id
       ? {
           id: row.curso.id,
           nome: row.curso.nome,
           grau: row.curso.grau,
         }
       : null,
-      turno: row.turno?.id ? { id: row.turno.id, nome: row.turno.nome } : null,
+    curriculo: row.curriculo?.id
+      ? {
+          id: row.curriculo.id,
+          cursoId: row.curriculo.cursoId,
+          turnoId: row.curriculo.turnoId,
+          versao: row.curriculo.versao,
+          vigenteDe: row.curriculo.vigenteDe,
+          vigenteAte: row.curriculo.vigenteAte,
+          ativo: Boolean(row.curriculo.ativo),
+        }
+      : null,
+    turno: row.turno?.id ? { id: row.turno.id, nome: row.turno.nome } : null,
   }));
 
   res.json({
@@ -159,8 +182,7 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
   const rows = await db
     .select({
       id: periodos.id,
-      cursoId: periodos.cursoId,
-      turnoId: periodos.turnoId,
+      curriculoId: periodos.curriculoId,
       numero: periodos.numero,
       nome: periodos.nome,
       descricao: periodos.descricao,
@@ -171,28 +193,45 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
         nome: cursos.nome,
         grau: cursos.grau,
       },
+      curriculo: {
+        id: curriculos.id,
+        cursoId: curriculos.cursoId,
+        turnoId: curriculos.turnoId,
+        versao: curriculos.versao,
+        vigenteDe: curriculos.vigenteDe,
+        vigenteAte: curriculos.vigenteAte,
+        ativo: curriculos.ativo,
+      },
       turno: {
         id: turnos.id,
         nome: turnos.nome,
       },
-      totalDisciplinas: sql<number>`COUNT(DISTINCT ${disciplinas.id})`,
+      totalDisciplinas: sql<number>`COUNT(DISTINCT ${disciplinasPeriodos.disciplinaId})`,
       totalAlunos: sql<number>`COUNT(DISTINCT ${alunos.ra})`,
     })
     .from(periodos)
-    .leftJoin(cursos, eq(periodos.cursoId, cursos.id))
-    .leftJoin(turnos, eq(periodos.turnoId, turnos.id))
-    .leftJoin(disciplinas, eq(disciplinas.periodoId, periodos.id))
+    .leftJoin(curriculos, eq(periodos.curriculoId, curriculos.id))
+    .leftJoin(cursos, eq(curriculos.cursoId, cursos.id))
+    .leftJoin(turnos, eq(curriculos.turnoId, turnos.id))
+    .leftJoin(disciplinasPeriodos, eq(disciplinasPeriodos.periodoId, periodos.id))
+    .leftJoin(disciplinas, eq(disciplinas.id, disciplinasPeriodos.disciplinaId))
     .leftJoin(alunos, eq(alunos.periodoId, periodos.id))
     .where(eq(periodos.id, id))
     .groupBy(
       periodos.id,
-      periodos.cursoId,
       periodos.numero,
       periodos.nome,
       periodos.descricao,
       cursos.id,
       cursos.nome,
       cursos.grau,
+      curriculos.id,
+      curriculos.cursoId,
+      curriculos.turnoId,
+      curriculos.versao,
+      curriculos.vigenteDe,
+      curriculos.vigenteAte,
+      curriculos.ativo,
       turnos.id,
       turnos.nome
     );
@@ -203,17 +242,33 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
 
   const row = rows[0];
 
+  const disciplinasDoPeriodo = await db
+    .select({
+      id: disciplinas.id,
+      codigo: disciplinas.codigo,
+      nome: disciplinas.nome,
+      creditos: disciplinas.creditos,
+      cargaHoraria: disciplinas.cargaHoraria,
+      ativo: disciplinas.ativo,
+      ordem: disciplinasPeriodos.ordem,
+      obrigatoria: disciplinasPeriodos.obrigatoria,
+    })
+    .from(disciplinasPeriodos)
+    .innerJoin(disciplinas, eq(disciplinas.id, disciplinasPeriodos.disciplinaId))
+    .where(eq(disciplinasPeriodos.periodoId, id))
+    .orderBy(asc(disciplinasPeriodos.ordem), asc(disciplinas.nome));
+
   res.json({
     success: true,
     data: {
       id: row.id,
-      cursoId: row.cursoId,
+      curriculoId: row.curriculoId,
       numero: row.numero,
       nome: row.nome,
       descricao: row.descricao,
       dataInicio: row.dataInicio as any,
       dataFim: row.dataFim as any,
-      totalDisciplinas: Number(row.totalDisciplinas ?? 0),
+      totalDisciplinas: disciplinasDoPeriodo.length,
       totalAlunos: Number(row.totalAlunos ?? 0),
       curso: row.curso?.id
         ? {
@@ -222,36 +277,75 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
             grau: row.curso.grau,
           }
         : null,
+      curriculo: row.curriculo?.id
+        ? {
+            id: row.curriculo.id,
+            cursoId: row.curriculo.cursoId,
+            turnoId: row.curriculo.turnoId,
+            versao: row.curriculo.versao,
+            vigenteDe: row.curriculo.vigenteDe,
+            vigenteAte: row.curriculo.vigenteAte,
+            ativo: Boolean(row.curriculo.ativo),
+          }
+        : null,
       turno: row.turno?.id ? { id: row.turno.id, nome: row.turno.nome } : null,
+      disciplinas: disciplinasDoPeriodo.map((disciplina) => ({
+        id: disciplina.id,
+        codigo: disciplina.codigo,
+        nome: disciplina.nome,
+        creditos: disciplina.creditos,
+        cargaHoraria: disciplina.cargaHoraria,
+        ativo: disciplina.ativo,
+        ordem: disciplina.ordem ?? undefined,
+        obrigatoria: disciplina.obrigatoria,
+      })),
     },
   });
 });
 
-const ensureCursoExists = async (cursoId: number) => {
-  const exists = await db.select({ id: cursos.id }).from(cursos).where(eq(cursos.id, cursoId)).limit(1);
-  if (exists.length === 0) {
-    throw createError('Curso informado não existe', 404);
+const loadCurriculoOrFail = async (curriculoId: number) => {
+  const rows = await db
+    .select({
+      id: curriculos.id,
+      cursoId: curriculos.cursoId,
+      turnoId: curriculos.turnoId,
+      versao: curriculos.versao,
+    })
+    .from(curriculos)
+    .where(eq(curriculos.id, curriculoId))
+    .limit(1);
+
+  if (rows.length === 0) {
+    throw createError('Currículo informado não existe', 404);
   }
+
+  return rows[0];
 };
 
-const ensureUniquePeriodo = async (cursoId: number, numero: number, ignoreId?: number) => {
+const ensureUniquePeriodo = async (curriculoId: number, numero: number, ignoreId?: number) => {
   const condition = ignoreId
-    ? and(eq(periodos.cursoId, cursoId), eq(periodos.numero, numero), not(eq(periodos.id, ignoreId)))
-    : and(eq(periodos.cursoId, cursoId), eq(periodos.numero, numero));
+    ? and(eq(periodos.curriculoId, curriculoId), eq(periodos.numero, numero), not(eq(periodos.id, ignoreId)))
+    : and(eq(periodos.curriculoId, curriculoId), eq(periodos.numero, numero));
 
   const existing = await db.select({ id: periodos.id }).from(periodos).where(condition).limit(1);
   if (existing.length > 0) {
-    throw createError('Já existe um período com este número para o curso selecionado', 409);
+    throw createError('Já existe um período com este número para o currículo selecionado', 409);
   }
 };
 
 const createPeriodo = asyncHandler(async (req: Request, res: Response) => {
   const payload = CreatePeriodoSchema.parse(req.body);
 
-  await ensureCursoExists(payload.cursoId);
-  await ensureUniquePeriodo(payload.cursoId, payload.numero);
+  const curriculo = await loadCurriculoOrFail(payload.curriculoId);
+  await ensureUniquePeriodo(curriculo.id, payload.numero);
 
-  const [novoPeriodo] = await db.insert(periodos).values(payload).returning();
+  const [novoPeriodo] = await db
+    .insert(periodos)
+    .values({
+      ...payload,
+      curriculoId: curriculo.id,
+    })
+    .returning();
 
   res.status(201).json({
     success: true,
@@ -272,18 +366,22 @@ const updatePeriodo = asyncHandler(async (req: Request, res: Response) => {
   const existing = existingRows[0];
 
   const dataToUpdate = Object.fromEntries(
-    Object.entries(payload).filter(([_, value]) => value !== undefined)
+    Object.entries(payload).filter(([, value]) => value !== undefined)
   );
 
   if (Object.keys(dataToUpdate).length === 0) {
     throw createError('Nenhum campo válido informado para atualização', 400);
   }
 
-  const cursoId = (dataToUpdate.cursoId as number | undefined) ?? existing.cursoId;
+  const curriculoId = (dataToUpdate.curriculoId as number | undefined) ?? existing.curriculoId;
   const numero = (dataToUpdate.numero as number | undefined) ?? existing.numero;
 
-  await ensureCursoExists(cursoId);
-  await ensureUniquePeriodo(cursoId, numero, id);
+  const curriculo = await loadCurriculoOrFail(curriculoId);
+  await ensureUniquePeriodo(curriculo.id, numero, id);
+
+  Object.assign(dataToUpdate, {
+    curriculoId: curriculo.id,
+  });
 
   const [updated] = await db
     .update(periodos)
@@ -308,8 +406,8 @@ const deletePeriodo = asyncHandler(async (req: Request, res: Response) => {
 
   const [{ count: disciplinasCount }] = await db
     .select({ count: sql<number>`COUNT(*)` })
-    .from(disciplinas)
-    .where(eq(disciplinas.periodoId, id));
+    .from(disciplinasPeriodos)
+    .where(eq(disciplinasPeriodos.periodoId, id));
 
   if (Number(disciplinasCount ?? 0) > 0) {
     throw createError('Não é possível remover um período com disciplinas associadas', 409);

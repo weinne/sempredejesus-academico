@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
-import { Curso, Curriculo, Disciplina, Periodo, Turno } from '@/types/api';
+import { Curso, Curriculo, Disciplina, DisciplinaPeriodo, Periodo, Turno } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import {
   ArrowLeft,
@@ -33,6 +33,8 @@ interface DisciplineDraft {
   cargaHoraria: string;
   ementa: string;
   bibliografia: string;
+  ordem: string;
+  obrigatoria: boolean;
 }
 
 interface PeriodDraft {
@@ -67,13 +69,6 @@ interface WizardState {
 
 type WizardMode = 'new' | 'existing';
 
-interface ExistingSnapshots {
-  course?: Curso;
-  curriculos: Record<number, Curriculo>;
-  periodos: Record<number, Periodo>;
-  disciplinas: Record<number, Disciplina>;
-}
-
 const createInitialWizardState = (): WizardState => ({
   course: {
     id: undefined,
@@ -101,6 +96,8 @@ const emptyDiscipline = (): DisciplineDraft => ({
   cargaHoraria: '',
   ementa: '',
   bibliografia: '',
+  ordem: '',
+  obrigatoria: true,
 });
 
 const emptyPeriod = (numero: number): PeriodDraft => ({
@@ -155,16 +152,8 @@ export default function CursoWizardPage() {
 
   const [mode, setMode] = React.useState<WizardMode>('new');
   const [selectedExistingCourseId, setSelectedExistingCourseId] = React.useState<number | null>(null);
-  const [existingSnapshots, setExistingSnapshots] = React.useState<ExistingSnapshots>({
-    course: undefined,
-    curriculos: {},
-    periodos: {},
-    disciplinas: {},
-  });
-
   const resetWizardToInitialState = React.useCallback(() => {
     setWizardData(() => createInitialWizardState());
-    setExistingSnapshots({ course: undefined, curriculos: {}, periodos: {}, disciplinas: {} });
   }, []);
 
   const handleModeChange = (value: WizardMode) => {
@@ -234,17 +223,24 @@ export default function CursoWizardPage() {
     }
 
     const { course, curriculos, periodos, disciplinas } = existingCourseStructure;
-    const disciplinasByPeriodo = new Map<number, Disciplina[]>();
+    const disciplinasByPeriodo = new Map<number, { disciplina: Disciplina; vinculo: DisciplinaPeriodo }[]>();
     for (const disciplina of disciplinas) {
-      const list = disciplinasByPeriodo.get(disciplina.periodoId) || [];
-      list.push(disciplina);
-      disciplinasByPeriodo.set(disciplina.periodoId, list);
+      const vinculos = Array.isArray(disciplina.periodos) ? disciplina.periodos : [];
+      for (const vinculo of vinculos) {
+        const periodoId = Number(vinculo.periodoId);
+        if (!Number.isFinite(periodoId)) {
+          continue;
+        }
+        const list = disciplinasByPeriodo.get(periodoId) || [];
+        list.push({ disciplina, vinculo });
+        disciplinasByPeriodo.set(periodoId, list);
+      }
     }
 
     const periodosByCurriculo = new Map<number, PeriodDraft[]>();
     const sortedPeriodos = [...periodos].sort((a, b) => Number(a.numero ?? 0) - Number(b.numero ?? 0));
     for (const periodo of sortedPeriodos) {
-      const disciplinaDrafts = (disciplinasByPeriodo.get(periodo.id) || []).map((disciplina) => ({
+      const disciplinaDrafts = (disciplinasByPeriodo.get(periodo.id) || []).map(({ disciplina, vinculo }) => ({
         id: `disciplina-${disciplina.id}`,
         persistedId: disciplina.id,
         codigo: disciplina.codigo || '',
@@ -259,6 +255,9 @@ export default function CursoWizardPage() {
             : '',
         ementa: disciplina.ementa || '',
         bibliografia: disciplina.bibliografia || '',
+        ordem:
+          vinculo && vinculo.ordem !== undefined && vinculo.ordem !== null ? String(vinculo.ordem) : '',
+        obrigatoria: vinculo ? vinculo.obrigatoria !== false : true,
       }));
 
       const periodDraft: PeriodDraft = {
@@ -288,24 +287,16 @@ export default function CursoWizardPage() {
       };
     });
 
-    const maxPeriodCount = Math.max(
-      1,
-      ...turnoDrafts.map((turno) => turno.periodos.length),
-    );
+    const periodosCountPerTurno = turnoDrafts.map((turno) => turno.periodos.length);
+    const defaultPeriodCount = periodosCountPerTurno.length > 0 ? Math.max(...periodosCountPerTurno) : 1;
 
-    const normalizedTurnos = turnoDrafts
-      .map((turno) => {
-        if (turno.periodos.length >= maxPeriodCount) {
-          return turno;
-        }
-        const additions = Array.from({ length: maxPeriodCount - turno.periodos.length }, (_, idx) =>
-          emptyPeriod(turno.periodos.length + idx + 1),
-        );
-        return {
-          ...turno,
-          periodos: [...turno.periodos, ...additions],
-        };
-      })
+    const orderedTurnos = turnoDrafts
+      .map((turno) => ({
+        ...turno,
+        periodos: [...turno.periodos].sort(
+          (a, b) => Number(a.numero || 0) - Number(b.numero || 0),
+        ),
+      }))
       .sort((a, b) => a.turnoId - b.turnoId);
 
     setWizardData({
@@ -314,16 +305,10 @@ export default function CursoWizardPage() {
         nome: course.nome,
         grau: course.grau,
       },
-      periodCount: maxPeriodCount,
-      turnos: normalizedTurnos,
+      periodCount: defaultPeriodCount,
+      turnos: orderedTurnos,
     });
 
-    setExistingSnapshots({
-      course,
-      curriculos: Object.fromEntries(curriculos.map((curriculo) => [curriculo.id, curriculo])),
-      periodos: Object.fromEntries(periodos.map((periodo) => [periodo.id, periodo])),
-      disciplinas: Object.fromEntries(disciplinas.map((disciplina) => [disciplina.id, disciplina])),
-    });
   }, [existingCourseStructure, mode, searchParams, selectedExistingCourseId]);
 
   const finalizeWizardMutation = useMutation({
@@ -364,6 +349,8 @@ export default function CursoWizardPage() {
           });
           createdCursoId = createdCurso.id;
 
+          const disciplinaCodigoMap = new Map<string, number>();
+
           for (const turnoConfig of wizardData.turnos) {
             const curriculo = await apiService.createCurriculo({
               cursoId: createdCurso.id,
@@ -383,8 +370,6 @@ export default function CursoWizardPage() {
                 Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : fallbackNumero;
 
               const createdPeriodo = await apiService.createPeriodo({
-                cursoId: createdCurso.id,
-                turnoId: turnoConfig.turnoId,
                 curriculoId: curriculo.id,
                 numero: numeroValue,
                 nome: periodo.nome || undefined,
@@ -392,6 +377,7 @@ export default function CursoWizardPage() {
               });
               createdPeriodos.push(createdPeriodo.id);
 
+              const seenCodigos = new Set<string>();
               for (const disciplina of periodo.disciplinas) {
                 const codigo = disciplina.codigo.trim();
                 const nome = disciplina.nome.trim();
@@ -402,18 +388,42 @@ export default function CursoWizardPage() {
                   continue;
                 }
 
-                const createdDisciplina = await apiService.createDisciplina({
-                  cursoId: createdCurso.id,
-                  periodoId: createdPeriodo.id,
-                  codigo,
-                  nome,
-                  creditos,
-                  cargaHoraria,
-                  ementa: disciplina.ementa || undefined,
-                  bibliografia: disciplina.bibliografia || undefined,
-                  ativo: true,
+                const codigoKey = codigo.toUpperCase();
+                if (seenCodigos.has(codigoKey)) {
+                  continue;
+                }
+                seenCodigos.add(codigoKey);
+
+                let disciplinaId = disciplina.persistedId ?? disciplinaCodigoMap.get(codigoKey);
+
+                if (!disciplinaId) {
+                  const createdDisciplina = await apiService.createDisciplina({
+                    cursoId: createdCurso.id,
+                    codigo,
+                    nome,
+                    creditos,
+                    cargaHoraria,
+                    ementa: disciplina.ementa || undefined,
+                    bibliografia: disciplina.bibliografia || undefined,
+                    ativo: true,
+                  });
+                  disciplinaId = createdDisciplina.id;
+                  disciplinaCodigoMap.set(codigoKey, disciplinaId);
+                  createdDisciplinas.push(createdDisciplina.id);
+                }
+
+                if (!disciplinaId) {
+                  continue;
+                }
+
+                const ordemParsed = Number(disciplina.ordem);
+                const ordemValue = Number.isFinite(ordemParsed) && ordemParsed > 0 ? Math.floor(ordemParsed) : undefined;
+
+                await apiService.addDisciplinaAoPeriodo(createdPeriodo.id, {
+                  disciplinaId,
+                  ordem: ordemValue,
+                  obrigatoria: disciplina.obrigatoria !== false,
                 });
-                createdDisciplinas.push(createdDisciplina.id);
               }
             }
           }
@@ -488,23 +498,9 @@ export default function CursoWizardPage() {
         0,
       );
       const periodCount = Math.max(requested, maxPersisted);
-      const turnos = prev.turnos.map((turno) => {
-        let periodos = turno.periodos.slice(0, periodCount);
-        if (periodos.length < periodCount) {
-          const additions = Array.from({ length: periodCount - periodos.length }, (_, idx) =>
-            emptyPeriod(periodos.length + idx + 1),
-          );
-          periodos = [...periodos, ...additions];
-        }
-        return {
-          ...turno,
-          periodos,
-        };
-      });
       return {
         ...prev,
         periodCount,
-        turnos,
       };
     });
   };
@@ -585,6 +581,76 @@ export default function CursoWizardPage() {
     }));
   };
 
+const addPeriod = (turnoId: number) => {
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+
+      const highestNumero = turno.periodos.reduce((acc, periodo) => {
+        const parsed = Number(periodo.numero);
+        return Number.isFinite(parsed) ? Math.max(acc, parsed) : acc;
+      }, 0);
+
+      const nextNumero = highestNumero + 1;
+      const newPeriod = emptyPeriod(nextNumero);
+
+      return {
+        ...turno,
+        periodos: [...turno.periodos, newPeriod].sort(
+          (a, b) => Number(a.numero || 0) - Number(b.numero || 0),
+        ),
+      };
+    }),
+  }));
+};
+
+const removePeriod = (turnoId: number, periodId: string) => {
+  let removalBlocked: 'persisted' | 'min' | null = null;
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+
+      if (turno.periodos.length <= 1) {
+        removalBlocked = 'min';
+        return turno;
+      }
+
+      const target = turno.periodos.find((periodo) => periodo.id === periodId);
+      if (target?.persistedId) {
+        removalBlocked = 'persisted';
+        return turno;
+      }
+
+      return {
+        ...turno,
+        periodos: turno.periodos.filter((periodo) => periodo.id !== periodId),
+      };
+    }),
+  }));
+
+  if (removalBlocked === 'persisted') {
+    toast({
+      title: 'Periodo existente',
+      description: 'Remova periodos ja cadastrados na tela de periodos.',
+      variant: 'destructive',
+    });
+  }
+
+  if (removalBlocked === 'min') {
+    toast({
+      title: 'Estrutura invalida',
+      description: 'Cada turno precisa manter pelo menos um periodo configurado.',
+      variant: 'destructive',
+    });
+  }
+};
+
   const addDiscipline = (turnoId: number, periodId: string) => {
     setWizardData((prev) => ({
       ...prev,
@@ -612,7 +678,7 @@ export default function CursoWizardPage() {
     periodId: string,
     disciplineId: string,
     field: keyof DisciplineDraft,
-    value: string,
+    value: string | boolean,
   ) => {
     setWizardData((prev) => ({
       ...prev,
@@ -688,6 +754,12 @@ export default function CursoWizardPage() {
     ),
   );
 
+const hasInvalidPeriod = wizardData.turnos.some(
+  (turno) =>
+    turno.periodos.length === 0 ||
+    turno.periodos.some((periodo) => !isPositiveNumber(periodo.numero)),
+);
+
   const canProceed = () => {
     switch (currentStep) {
       case 0:
@@ -707,7 +779,7 @@ export default function CursoWizardPage() {
       case 2:
         return wizardData.turnos.length > 0;
       case 3:
-        return !hasIncompleteDiscipline;
+    return !hasIncompleteDiscipline && !hasInvalidPeriod;
       case 4:
         return true;
       default:
@@ -735,6 +807,15 @@ export default function CursoWizardPage() {
       });
       return;
     }
+
+  if (hasInvalidPeriod) {
+    toast({
+      title: 'Periodos invalidos',
+      description: 'Verifique se cada turno possui ao menos um periodo e se os numeros sao validos.',
+      variant: 'destructive',
+    });
+    return;
+  }
 
     if (mode === 'existing' && (!selectedExistingCourseId || isFetchingCourseStructure)) {
       toast({
@@ -815,7 +896,6 @@ export default function CursoWizardPage() {
                             ...createInitialWizardState(),
                             course: { id: nextId, nome: '', grau: '' },
                           }));
-                          setExistingSnapshots({ course: undefined, curriculos: {}, periodos: {}, disciplinas: {} });
                           setCurrentStep(0);
                         }}
                       >
@@ -881,7 +961,7 @@ export default function CursoWizardPage() {
           <Card>
             <CardHeader>
               <CardTitle>Estrutura do curso</CardTitle>
-              <CardDescription>Defina quantos periodos compoem o curso.</CardDescription>
+              <CardDescription>Defina o numero padrao de periodos para novos turnos. Voce podera ajustar cada turno individualmente depois.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -1015,13 +1095,37 @@ export default function CursoWizardPage() {
                         const numeroFieldId = `periodo-${periodo.id}-numero` as const;
                         const nomeFieldId = `periodo-${periodo.id}-nome` as const;
                         const descricaoFieldId = `periodo-${periodo.id}-descricao` as const;
+                        const removalDisabledReason = periodo.persistedId
+                          ? 'persisted'
+                          : turno.periodos.length <= 1
+                          ? 'min'
+                          : null;
+                        const canRemovePeriod = removalDisabledReason === null;
+                        const removalTitle = removalDisabledReason === 'persisted'
+                          ? 'Remova periodos existentes pela tela de periodos.'
+                          : removalDisabledReason === 'min'
+                            ? 'Mantenha pelo menos um periodo por turno.'
+                            : 'Remover periodo';
 
                         return (
                           <div key={periodo.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
                             <div className="space-y-3">
-                              <div className="flex flex-col gap-1">
-                                <h4 className="text-sm font-semibold text-gray-800">Configuracao do periodo</h4>
-                                <p className="text-xs text-gray-500">Cadastre as disciplinas que compoem este periodo no turno selecionado.</p>
+                              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <h4 className="text-sm font-semibold text-gray-800">Configuracao do periodo</h4>
+                                  <p className="text-xs text-gray-500">Cadastre as disciplinas que compoem este periodo no turno selecionado.</p>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removePeriod(turno.turnoId, periodo.id)}
+                                  disabled={!canRemovePeriod}
+                                  className={`text-red-600 hover:text-red-700 ${!canRemovePeriod ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  title={removalTitle}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" /> Remover periodo
+                                </Button>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-3">
                                 <div>
@@ -1079,7 +1183,7 @@ export default function CursoWizardPage() {
                                         <Trash2 className="h-4 w-4 mr-1" /> Remover
                                       </Button>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                                       <div>
                                         <label htmlFor={disciplinaCodigoFieldId} className="block text-xs font-medium text-gray-600 mb-1">Codigo *</label>
                                         <Input
@@ -1098,6 +1202,30 @@ export default function CursoWizardPage() {
                                           placeholder="Nome da disciplina"
                                         />
                                       </div>
+                                      <div>
+                                        <label htmlFor={`${disciplinaPrefix}-ordem`} className="block text-xs font-medium text-gray-600 mb-1">Ordem</label>
+                                        <Input
+                                          id={`${disciplinaPrefix}-ordem`}
+                                          type="number"
+                                          min={1}
+                                          value={disciplina.ordem}
+                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'ordem', event.target.value)}
+                                          placeholder="Ex: 1"
+                                        />
+                                        <p className="text-[11px] text-gray-500 mt-1">Opcional. Use para definir a sequencia da disciplina.</p>
+                                      </div>
+                                      <div className="flex items-center gap-2 pt-6 md:pt-0">
+                                        <input
+                                          id={`${disciplinaPrefix}-obrigatoria`}
+                                          type="checkbox"
+                                          className="h-4 w-4"
+                                          checked={disciplina.obrigatoria}
+                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'obrigatoria', event.target.checked)}
+                                        />
+                                        <label htmlFor={`${disciplinaPrefix}-obrigatoria`} className="text-xs text-gray-600">Disciplina obrigatoria</label>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                       <div>
                                         <label htmlFor={disciplinaCreditosFieldId} className="block text-xs font-medium text-gray-600 mb-1">Creditos *</label>
                                         <Input
@@ -1146,6 +1274,11 @@ export default function CursoWizardPage() {
                           </div>
                         );
                       })}
+                      <div className="flex justify-end">
+                        <Button type="button" variant="outline" size="sm" onClick={() => addPeriod(turno.turnoId)}>
+                          <Plus className="h-4 w-4 mr-2" /> Adicionar periodo
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -1170,7 +1303,7 @@ export default function CursoWizardPage() {
                 <h4 className="text-sm font-semibold text-gray-800">Curso</h4>
                 <p><strong>Nome:</strong> {wizardData.course.nome}</p>
                 <p><strong>Grau:</strong> {wizardData.course.grau}</p>
-                <p><strong>Periodos:</strong> {wizardData.periodCount}</p>
+                <p><strong>Periodos padrao (novos turnos):</strong> {wizardData.periodCount}</p>
               </div>
               {wizardData.turnos.map((turno) => {
                 const turnoInfo = availableTurnos.find((item) => item.id === turno.turnoId);
@@ -1192,6 +1325,10 @@ export default function CursoWizardPage() {
                             {periodo.disciplinas.map((disciplina) => (
                               <li key={disciplina.id}>
                                 <strong>{disciplina.codigo}</strong> - {disciplina.nome} ({disciplina.cargaHoraria}h / {disciplina.creditos} cred.)
+                                <span className="ml-2 text-[11px] text-gray-500 uppercase tracking-wide">
+                                  {disciplina.obrigatoria ? 'Obrigatoria' : 'Optativa'}
+                                  {disciplina.ordem ? ` • Ordem ${disciplina.ordem}` : ''}
+                                </span>
                               </li>
                             ))}
                           </ul>

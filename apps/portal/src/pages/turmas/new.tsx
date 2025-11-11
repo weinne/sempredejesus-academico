@@ -83,7 +83,15 @@ export default function TurmaNewPage() {
                   <div className="text-sm text-gray-600">{(() => {
                     const selectedId = (document.querySelector('select[name="disciplinaId"]') as HTMLSelectElement)?.value;
                     const d = disciplinas.find((x:any)=> String(x.id) === String(selectedId));
-                    return d?.periodo?.nome || d?.periodo?.numero || 'Selecione a disciplina';
+                    if (!d || !Array.isArray(d.periodos) || d.periodos.length === 0) {
+                      return 'Selecione a disciplina';
+                    }
+                    const vinculo = d.periodos[0];
+                    const periodo = vinculo.periodo;
+                    if (periodo) {
+                      return periodo.nome || (periodo.numero !== undefined ? `Período ${periodo.numero}` : `Período ${vinculo.periodoId}`);
+                    }
+                    return `Período ${vinculo.periodoId}`;
                   })()}</div>
                 </div>
                 <div>

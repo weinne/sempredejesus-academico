@@ -7,6 +7,7 @@ export * from './turnos';
 export * from './curriculos';
 export * from './coortes';
 export * from './disciplinas';
+export * from './disciplinas-periodos';
 export * from './periodos';
 export * from './turmas';
 export * from './aulas';

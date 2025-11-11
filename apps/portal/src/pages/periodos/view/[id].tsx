@@ -151,6 +151,28 @@ export default function PeriodoViewPage() {
                   <div className="text-sm text-muted-foreground">Nome</div>
                   <div className="font-medium">{periodo.nome || '—'}</div>
                 </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Currículo</div>
+                  {periodo.curriculo ? (
+                    <div className="flex items-center gap-2 font-medium">
+                      <Layers3 className="h-4 w-4 text-primary" />
+                      <span>{periodo.curriculo.versao}</span>
+                    </div>
+                  ) : (
+                    <div className="font-medium">—</div>
+                  )}
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Turno</div>
+                  {periodo.turno ? (
+                    <div className="flex items-center gap-2 font-medium">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <span>{periodo.turno.nome}</span>
+                    </div>
+                  ) : (
+                    <div className="font-medium">—</div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -187,6 +209,44 @@ export default function PeriodoViewPage() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Disciplinas Vinculadas
+              </CardTitle>
+              <CardDescription>Disciplinas alocadas neste período, com ordem e obrigatoriedade.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {periodo.disciplinas && periodo.disciplinas.length > 0 ? (
+                periodo.disciplinas.map((disciplina) => (
+                  <div
+                    key={disciplina.id}
+                    className="border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                  >
+                    <div>
+                      <div className="text-sm uppercase text-slate-500">{disciplina.codigo}</div>
+                      <div className="text-base font-semibold text-slate-800">{disciplina.nome}</div>
+                      <div className="text-xs text-slate-500">
+                        {disciplina.cargaHoraria}h · {disciplina.creditos} créditos
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={disciplina.obrigatoria !== false ? 'default' : 'secondary'}>
+                        {disciplina.obrigatoria !== false ? 'Obrigatoria' : 'Optativa'}
+                      </Badge>
+                      {disciplina.ordem ? (
+                        <Badge variant="outline">Ordem {disciplina.ordem}</Badge>
+                      ) : null}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">Nenhuma disciplina vinculada a este período.</p>
+              )}
             </CardContent>
           </Card>
 

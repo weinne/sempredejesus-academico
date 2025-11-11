@@ -14,6 +14,7 @@ import { SimpleCrudFactory } from '../core/crud.factory.simple';
 import {
   turmas,
   disciplinas,
+  disciplinasPeriodos,
   professores,
   pessoas,
   periodos,
@@ -175,6 +176,74 @@ import { validateParams } from '../middleware/validation.middleware';
 
 const router = Router();
 
+type DisciplinaPeriodoWithPeriod = {
+  disciplinaId: number;
+  periodoId: number;
+  ordem: number | null;
+  obrigatoria: boolean;
+  periodo?: {
+    id: number;
+    numero: number | null;
+    nome: string | null;
+    curriculoId: number | null;
+  };
+};
+
+async function loadDisciplinaPeriodosMap(disciplinaIds: number[]): Promise<Map<number, DisciplinaPeriodoWithPeriod[]>> {
+  const map = new Map<number, DisciplinaPeriodoWithPeriod[]>();
+  if (disciplinaIds.length === 0) {
+    return map;
+  }
+
+  const rows = await db
+    .select({
+      disciplinaId: disciplinasPeriodos.disciplinaId,
+      periodoId: disciplinasPeriodos.periodoId,
+      ordem: disciplinasPeriodos.ordem,
+      obrigatoria: disciplinasPeriodos.obrigatoria,
+      periodoIdRef: periodos.id,
+      periodoNumero: periodos.numero,
+      periodoNome: periodos.nome,
+      periodoCurriculoId: periodos.curriculoId,
+    })
+    .from(disciplinasPeriodos)
+    .innerJoin(periodos, eq(periodos.id, disciplinasPeriodos.periodoId))
+    .where(inArray(disciplinasPeriodos.disciplinaId, disciplinaIds));
+
+  for (const row of rows) {
+    const list = map.get(row.disciplinaId) || [];
+    list.push({
+      disciplinaId: row.disciplinaId,
+      periodoId: row.periodoId,
+      ordem: row.ordem,
+      obrigatoria: row.obrigatoria,
+      periodo: {
+        id: row.periodoIdRef,
+        numero: row.periodoNumero,
+        nome: row.periodoNome,
+        curriculoId: row.periodoCurriculoId,
+      },
+    });
+    map.set(row.disciplinaId, list);
+  }
+
+  for (const [key, list] of map.entries()) {
+    list.sort((a, b) => {
+      const ordemA = a.ordem ?? Number.MAX_SAFE_INTEGER;
+      const ordemB = b.ordem ?? Number.MAX_SAFE_INTEGER;
+      if (ordemA !== ordemB) {
+        return ordemA - ordemB;
+      }
+      const nomeA = a.periodo?.nome ?? '';
+      const nomeB = b.periodo?.nome ?? '';
+      return nomeA.localeCompare(nomeB);
+    });
+    map.set(key, list);
+  }
+
+  return map;
+}
+
 const alunoPessoa = alias(pessoas, 'aluno_pessoa');
 const TurmaInscricaoParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
@@ -209,11 +278,9 @@ router.get(
         disciplinaNome: disciplinas.nome,
         disciplinaCreditos: disciplinas.creditos,
         disciplinaCargaHoraria: disciplinas.cargaHoraria,
-        disciplinaPeriodoId: disciplinas.periodoId,
         disciplinaCursoId: disciplinas.cursoId,
-        periodoId: periodos.id,
-        periodoNumero: periodos.numero,
-        periodoNome: periodos.nome,
+        disciplinaEmenta: disciplinas.ementa,
+        disciplinaBibliografia: disciplinas.bibliografia,
         professorMatricula: professores.matricula,
         professorPessoaId: professores.pessoaId,
         professorFormacaoAcad: professores.formacaoAcad,
@@ -230,7 +297,6 @@ router.get(
       })
       .from(turmas)
       .leftJoin(disciplinas, eq(disciplinas.id, turmas.disciplinaId))
-      .leftJoin(periodos, eq(periodos.id, disciplinas.periodoId))
       .leftJoin(professores, eq(professores.matricula, turmas.professorId))
       .leftJoin(pessoas, eq(pessoas.id, professores.pessoaId))
       .leftJoin(coortes, eq(coortes.id, turmas.coorteId))
@@ -238,14 +304,26 @@ router.get(
       .groupBy(
         turmas.id,
         disciplinas.id,
-        periodos.id,
         professores.matricula,
         pessoas.id,
-        coortes.id,
+        coortes.id
       )
       .orderBy(desc(turmas.id));
 
+    const disciplinaIds = Array.from(
+      new Set(
+        turmasRows
+          .map((row) => (typeof row.disciplinaPk === 'number' ? Number(row.disciplinaPk) : null))
+          .filter((id): id is number => id !== null),
+      ),
+    );
+
+    const periodosMap = await loadDisciplinaPeriodosMap(disciplinaIds);
+
     const data = turmasRows.map((row) => {
+      const periodosDisciplina =
+        typeof row.disciplinaPk === 'number' ? periodosMap.get(Number(row.disciplinaPk)) ?? [] : [];
+
       const disciplina = row.disciplinaPk
         ? {
             id: row.disciplinaPk,
@@ -259,19 +337,10 @@ router.get(
               row.disciplinaCargaHoraria !== null && row.disciplinaCargaHoraria !== undefined
                 ? Number(row.disciplinaCargaHoraria)
                 : null,
-            periodoId: row.disciplinaPeriodoId ?? null,
             cursoId: row.disciplinaCursoId ?? null,
-            periodo:
-              row.periodoId !== null && row.periodoId !== undefined
-                ? {
-                    id: row.periodoId,
-                    numero:
-                      row.periodoNumero !== null && row.periodoNumero !== undefined
-                        ? Number(row.periodoNumero)
-                        : null,
-                    nome: row.periodoNome ?? null,
-                  }
-                : null,
+            ementa: row.disciplinaEmenta ?? null,
+            bibliografia: row.disciplinaBibliografia ?? null,
+            periodos: periodosDisciplina,
           }
         : null;
 
@@ -347,12 +416,8 @@ router.get(
         disciplinaCreditos: disciplinas.creditos,
         disciplinaCargaHoraria: disciplinas.cargaHoraria,
         disciplinaCursoId: disciplinas.cursoId,
-        disciplinaPeriodoId: disciplinas.periodoId,
         disciplinaEmenta: disciplinas.ementa,
         disciplinaBibliografia: disciplinas.bibliografia,
-        periodoId: periodos.id,
-        periodoNumero: periodos.numero,
-        periodoNome: periodos.nome,
         professorMatricula: professores.matricula,
         professorPessoaId: professores.pessoaId,
         professorFormacaoAcad: professores.formacaoAcad,
@@ -369,7 +434,6 @@ router.get(
       })
       .from(turmas)
       .leftJoin(disciplinas, eq(disciplinas.id, turmas.disciplinaId))
-      .leftJoin(periodos, eq(periodos.id, disciplinas.periodoId))
       .leftJoin(professores, eq(professores.matricula, turmas.professorId))
       .leftJoin(pessoas, eq(pessoas.id, professores.pessoaId))
       .leftJoin(coortes, eq(coortes.id, turmas.coorteId))
@@ -378,7 +442,6 @@ router.get(
       .groupBy(
         turmas.id,
         disciplinas.id,
-        periodos.id,
         professores.matricula,
         pessoas.id,
         coortes.id,
@@ -387,6 +450,13 @@ router.get(
     if (!turmaRow) {
       return res.status(404).json({ success: false, message: 'Turma não encontrada' });
     }
+
+    const periodosMap = await loadDisciplinaPeriodosMap(
+      turmaRow.disciplinaPk ? [Number(turmaRow.disciplinaPk)] : [],
+    );
+    const periodosDisciplina = turmaRow.disciplinaPk
+      ? periodosMap.get(Number(turmaRow.disciplinaPk)) ?? []
+      : [];
 
     const inscritosRows = await db
       .select({
@@ -456,20 +526,9 @@ router.get(
                 ? Number(turmaRow.disciplinaCargaHoraria)
                 : null,
             cursoId: turmaRow.disciplinaCursoId ?? null,
-            periodoId: turmaRow.disciplinaPeriodoId ?? null,
             ementa: turmaRow.disciplinaEmenta ?? null,
             bibliografia: turmaRow.disciplinaBibliografia ?? null,
-            periodo:
-              turmaRow.periodoId !== null && turmaRow.periodoId !== undefined
-                ? {
-                    id: turmaRow.periodoId,
-                    numero:
-                      turmaRow.periodoNumero !== null && turmaRow.periodoNumero !== undefined
-                        ? Number(turmaRow.periodoNumero)
-                        : null,
-                    nome: turmaRow.periodoNome ?? null,
-                  }
-                : null,
+            periodos: periodosDisciplina,
           }
         : null,
       professor: turmaRow.professorMatricula

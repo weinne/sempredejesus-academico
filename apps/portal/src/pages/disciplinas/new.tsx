@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Building2, FileText } from 'lucide-react';
@@ -11,14 +11,13 @@ import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { numberOrUndefined } from '@/lib/form-utils';
-import { Curso, Periodo } from '@/types/api';
+import { Curso } from '@/types/api';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 const schema = z.object({
   cursoId: z.number({ required_error: 'Curso é obrigatório' }).min(1, 'Selecione um curso'),
-  periodoId: z.number({ required_error: 'Período é obrigatório' }).min(1, 'Selecione um período'),
   codigo: z.string().min(1, 'Código é obrigatório').max(10, 'Código deve ter no máximo 10 caracteres'),
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(120, 'Nome deve ter no máximo 120 caracteres'),
   creditos: z.number({ required_error: 'Créditos são obrigatórios' }).min(1, 'Créditos devem ser pelo menos 1').max(32767),
@@ -34,7 +33,7 @@ export default function DisciplinaNewPage() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { handleFormError } = useFormErrors<FormData>();
+  const { handleFormError } = useFormErrors();
 
   const { data: cursosResponse } = useQuery({ 
     queryKey: ['cursos'], 
@@ -42,25 +41,10 @@ export default function DisciplinaNewPage() {
   });
   const cursos = cursosResponse?.data || [];
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { ativo: true },
   });
-  
-  const selectedCursoIdRaw = watch('cursoId');
-  const selectedCursoId = isNaN(Number(selectedCursoIdRaw)) || !selectedCursoIdRaw ? undefined : Number(selectedCursoIdRaw);
-
-  // Limpar período quando curso mudar
-  useEffect(() => {
-    setValue('periodoId', undefined as unknown as number, { shouldValidate: false, shouldDirty: false });
-  }, [selectedCursoId, setValue]);
-
-  const { data: periodosResponse } = useQuery({
-    queryKey: ['periodos', selectedCursoId],
-    queryFn: () => apiService.getPeriodos({ cursoId: selectedCursoId!, limit: 100 }),
-    enabled: !!selectedCursoId,
-  });
-  const periodos = periodosResponse?.data || [];
 
   const createMutation = useMutation({
     mutationFn: (payload: any) => apiService.createDisciplina(payload),
@@ -108,26 +92,6 @@ export default function DisciplinaNewPage() {
                 ))}
               </select>
               <FieldError message={errors.cursoId?.message} />
-            </div>
-
-            <div data-field="periodoId">
-              <label className="block text-sm font-medium text-slate-700 mb-2">Período *</label>
-              <select
-                {...register('periodoId', { setValueAs: numberOrUndefined })}
-                className={`w-full h-11 px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white ${errors.periodoId ? 'border-red-500' : ''}`}
-                disabled={!selectedCursoId}
-              >
-                <option value="">{selectedCursoId ? 'Selecione um período...' : 'Selecione um curso primeiro'}</option>
-                {periodos.map((periodo: Periodo) => (
-                  <option key={periodo.id} value={periodo.id}>
-                    {periodo.nome || `Período ${periodo.numero}`}
-                  </option>
-                ))}
-              </select>
-              <FieldError message={errors.periodoId?.message} />
-              {!selectedCursoId && (
-                <p className="mt-1 text-xs text-slate-500">Selecione um curso para ver os períodos disponíveis</p>
-              )}
             </div>
 
             <div data-field="codigo">
@@ -188,6 +152,11 @@ export default function DisciplinaNewPage() {
                 <option value="false">Inativa</option>
               </select>
             </div>
+
+            <div className="md:col-span-2 text-xs text-slate-500 bg-slate-100/70 border border-slate-200 rounded-md p-3">
+              Após salvar a disciplina, vincule-a aos períodos desejados na página da própria disciplina ou na visão de períodos.
+              Lá você poderá definir ordem e obrigatoriedade para cada currículo.
+            </div>
           </FormSection>
 
           {/* Plano de Ensino */}
@@ -222,7 +191,8 @@ export default function DisciplinaNewPage() {
           {/* Actions */}
           <ActionsBar 
             isSubmitting={createMutation.isPending} 
-            submitText="Cadastrar Disciplina" 
+            submitLabel="Cadastrar Disciplina" 
+            submittingLabel="Cadastrando..." 
             cancelTo="/disciplinas"
           />
         </form>

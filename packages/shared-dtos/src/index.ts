@@ -11,6 +11,7 @@ export * from './turno';
 export * from './curriculo';
 export * from './coorte';
 export * from './periodo';
+export * from './disciplina-periodo';
 export * from './disciplina';
 export * from './turma';
 export * from './aula';

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
-import { alunos, pessoas, cursos, users, periodos, userRoles } from '../db/schema';
+import { alunos, pessoas, cursos, users, periodos, userRoles, curriculos } from '../db/schema';
 import { UpdateAlunoSchema, CreateAlunoWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
@@ -169,8 +169,18 @@ const assertPeriodoBelongsToCurso = async (cursoId: number, periodoId: number | 
     return; // Skip validation if periodoId is null
   }
 
-  const periodo = await db.select().from(periodos).where(eq(periodos.id, periodoId)).limit(1);
-  if (periodo.length === 0) {
+  const periodo = await db
+    .select({
+      id: periodos.id,
+      curriculoId: periodos.curriculoId,
+      cursoId: curriculos.cursoId,
+    })
+    .from(periodos)
+    .leftJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
+    .where(eq(periodos.id, periodoId))
+    .limit(1);
+
+  if (periodo.length === 0 || !periodo[0].cursoId) {
     throw createError('Período informado não existe', 404);
   }
 

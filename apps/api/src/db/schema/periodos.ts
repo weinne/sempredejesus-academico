@@ -1,18 +1,10 @@
 import { pgTable, serial, integer, smallint, varchar, text, uniqueIndex, date } from 'drizzle-orm/pg-core';
-import { cursos } from './cursos';
-import { turnos } from './turnos';
 import { curriculos } from './curriculos';
 
 export const periodos = pgTable(
   'periodos',
   {
     id: serial('id').primaryKey(),
-    cursoId: integer('curso_id')
-      .notNull()
-      .references(() => cursos.id, { onDelete: 'cascade' }),
-    turnoId: integer('turno_id')
-      .notNull()
-      .references(() => turnos.id, { onDelete: 'restrict' }),
     curriculoId: integer('curriculo_id')
       .notNull()
       .references(() => curriculos.id, { onDelete: 'restrict' }),
@@ -23,7 +15,7 @@ export const periodos = pgTable(
     dataFim: date('data_fim'),
   },
   (table) => ({
-    cursoNumeroIdx: uniqueIndex('periodos_curso_numero_unique').on(table.cursoId, table.numero),
+    curriculoNumeroIdx: uniqueIndex('periodos_curriculo_numero_unique').on(table.curriculoId, table.numero),
   })
 );
 

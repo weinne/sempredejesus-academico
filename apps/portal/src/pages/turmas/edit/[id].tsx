@@ -97,7 +97,20 @@ export default function TurmaEditPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Período (da disciplina)</label>
-                  <div className="text-sm text-gray-600">{turma?.disciplina?.periodo?.nome || turma?.disciplina?.periodo?.numero || 'N/A'}</div>
+                  <div className="text-sm text-gray-600">
+                    {(() => {
+                      const disciplinaRelacionada = turma.disciplina;
+                      if (!disciplinaRelacionada || !Array.isArray(disciplinaRelacionada.periodos) || disciplinaRelacionada.periodos.length === 0) {
+                        return 'Nenhum período vinculado';
+                      }
+                      const vinculo = disciplinaRelacionada.periodos[0];
+                      const periodo = vinculo.periodo;
+                      if (periodo) {
+                        return periodo.nome || (periodo.numero !== undefined ? `Período ${periodo.numero}` : `Período ${vinculo.periodoId}`);
+                      }
+                      return `Período ${vinculo.periodoId}`;
+                    })()}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Turma (coorte) — opcional</label>

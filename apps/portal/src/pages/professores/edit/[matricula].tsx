@@ -112,8 +112,8 @@ export default function ProfessorEditPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { handleFormError } = useFormErrors<EditFormData>();
-  const { handleFormError: handleUserFormError } = useFormErrors<CreateUserFormData>();
+  const { handleFormError } = useFormErrors();
+  const { handleFormError: handleUserFormError } = useFormErrors();
 
   const { data: professor, isLoading } = useQuery({
     queryKey: ['professor', matricula],
@@ -489,7 +489,8 @@ export default function ProfessorEditPage() {
           {/* Actions */}
           <ActionsBar 
             isSubmitting={updateMutation.isPending} 
-            submitText="Atualizar Professor" 
+            submitLabel="Atualizar Professor" 
+            submittingLabel="Atualizando..." 
             cancelTo="/professores"
           />
         </form>

@@ -1,23 +1,22 @@
-import React, { useEffect, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Layers3, ListOrdered, CalendarRange } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import CrudHeader from '@/components/crud/crud-header';
-import { apiService } from '@/services/api';
-import { Curso, CreatePeriodo, Turno, Curriculo } from '@/types/api';
-import { useToast } from '@/hooks/use-toast';
-import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+
+import CrudHeader from '@/components/crud/crud-header';
+import { FormSection, FieldError, ActionsBar } from '@/components/forms';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { apiService } from '@/services/api';
+import { Curso, Curriculo, CreatePeriodo, Turno } from '@/types/api';
+import { useToast } from '@/hooks/use-toast';
 
 const schema = z.object({
-  cursoId: z.number().min(1, 'Selecione um curso'),
-  turnoId: z.number().min(1, 'Selecione um turno'),
-  curriculoId: z.number().min(1, 'Selecione um curriculo'),
-  numero: z.number().min(1, 'Informe o numero do periodo').max(255),
+  curriculoId: z.number().int().positive('Selecione um currículo'),
+  numero: z.number().int().min(1, 'Informe o número do período').max(255),
   nome: z.string().max(80).optional(),
   descricao: z.string().max(500).optional(),
   dataInicio: z.string().optional(),
@@ -26,7 +25,15 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function PeriodoNewPage() {
+const parseNumber = (value: unknown) => {
+  if (value === '' || value === null || value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const PeriodoNewPage: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -36,8 +43,16 @@ export default function PeriodoNewPage() {
     queryFn: () => apiService.getCursos({ limit: 200 }),
   });
   const cursos = cursosResponse?.data || [];
-  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: () => apiService.getTurnos() });
-  const { data: curriculos = [] } = useQuery({ queryKey: ['curriculos'], queryFn: () => apiService.getCurriculos() });
+
+  const { data: turnos = [] } = useQuery({
+    queryKey: ['turnos'],
+    queryFn: () => apiService.getTurnos(),
+  });
+
+  const { data: curriculos = [] } = useQuery({
+    queryKey: ['curriculos'],
+    queryFn: () => apiService.getCurriculos(),
+  });
 
   const {
     register,
@@ -49,221 +64,275 @@ export default function PeriodoNewPage() {
     resolver: zodResolver(schema),
   });
 
-  const selectedCursoId = watch('cursoId');
-  const selectedTurnoId = watch('turnoId');
+  const [cursoFiltro, setCursoFiltro] = useState<number | ''>('');
   const selectedCurriculoId = watch('curriculoId');
 
-  const curriculosDisponiveis = useMemo(() => {
-    if (!selectedCursoId) {
-      return [] as Curriculo[];
-    }
-    return curriculos.filter((curriculo) => curriculo.cursoId === selectedCursoId);
-  }, [curriculos, selectedCursoId]);
+  const cursosMap = useMemo(
+    () => new Map(cursos.map((curso: Curso) => [curso.id, curso])),
+    [cursos]
+  );
+  const turnosMap = useMemo(
+    () => new Map(turnos.map((turno: Turno) => [turno.id, turno])),
+    [turnos]
+  );
 
-  const turnosDisponiveis = useMemo(() => {
-    if (!selectedCursoId) {
-      return turnos;
+  const curriculosFiltrados = useMemo(() => {
+    if (cursoFiltro === '') {
+      return curriculos;
     }
-    const turnoIds = new Set(curriculosDisponiveis.map((curriculo) => curriculo.turnoId));
-    return turnos.filter((turno) => turnoIds.has(turno.id));
-  }, [selectedCursoId, curriculosDisponiveis, turnos]);
+    return curriculos.filter((curriculo) => curriculo.cursoId === Number(cursoFiltro));
+  }, [curriculos, cursoFiltro]);
 
   useEffect(() => {
-    if (!selectedCursoId) {
-      if (selectedTurnoId) {
-        setValue('turnoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
-      }
-      if (selectedCurriculoId) {
-        setValue('curriculoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
-      }
-      return;
+    if (
+      selectedCurriculoId &&
+      !curriculosFiltrados.some((curriculo) => curriculo.id === selectedCurriculoId)
+    ) {
+      setValue('curriculoId', undefined as unknown as number, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    } else if (!selectedCurriculoId && curriculosFiltrados.length === 1) {
+      setValue('curriculoId', curriculosFiltrados[0].id, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
     }
+  }, [curriculosFiltrados, selectedCurriculoId, setValue]);
 
-    if (selectedTurnoId && !turnosDisponiveis.some((turno) => turno.id === selectedTurnoId)) {
-      setValue('turnoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
-    } else if (!selectedTurnoId && turnosDisponiveis.length === 1) {
-      setValue('turnoId', turnosDisponiveis[0].id, { shouldDirty: false, shouldValidate: false });
+  const selectedCurriculo = useMemo(() => {
+    if (typeof selectedCurriculoId !== 'number') {
+      return undefined;
     }
-
-    if (selectedCurriculoId && !curriculosDisponiveis.some((curriculo) => curriculo.id === selectedCurriculoId)) {
-      setValue('curriculoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
-    } else if (!selectedCurriculoId && curriculosDisponiveis.length === 1) {
-      setValue('curriculoId', curriculosDisponiveis[0].id, { shouldDirty: false, shouldValidate: false });
-    }
-  }, [selectedCursoId, selectedTurnoId, selectedCurriculoId, turnosDisponiveis, curriculosDisponiveis, setValue]);
-
-
+    return curriculos.find((curriculo) => curriculo.id === selectedCurriculoId);
+  }, [curriculos, selectedCurriculoId]);
 
   const createMutation = useMutation({
     mutationFn: (payload: CreatePeriodo) => apiService.createPeriodo(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['periodos'] });
-      toast({ title: 'Periodo criado', description: 'Periodo criado com sucesso!' });
+      toast({
+        title: 'Período cadastrado',
+        description: 'O período foi criado com sucesso.',
+      });
       navigate('/periodos');
     },
     onError: (error: any) =>
       toast({
-        title: 'Erro ao criar periodo',
-        description: error.message || 'Erro desconhecido',
+        title: 'Erro ao criar período',
+        description: error.message || 'Não foi possível criar o período.',
         variant: 'destructive',
       }),
   });
+
+  const handleFormError = () => {
+    toast({
+      title: 'Revise os campos destacados',
+      description: 'Algumas informações obrigatórias não foram preenchidas corretamente.',
+      variant: 'destructive',
+    });
+  };
+
+  const formatCurriculoLabel = (curriculo: Curriculo) => {
+    const curso = cursosMap.get(curriculo.cursoId);
+    const turno = turnosMap.get(curriculo.turnoId);
+    const cursoNome = curso?.nome ?? 'Curso não informado';
+    const turnoNome = turno?.nome ?? 'Turno não informado';
+    return `${cursoNome} • ${turnoNome} • Versão ${curriculo.versao}`;
+  };
 
   const onSubmit = (data: FormData) => {
     const nome = data.nome?.trim();
     const descricao = data.descricao?.trim();
     const payload: CreatePeriodo = {
-      ...data,
-      nome: nome ? nome : undefined,
-      descricao: descricao ? descricao : undefined,
+      curriculoId: data.curriculoId,
+      numero: data.numero,
+      nome: nome || undefined,
+      descricao: descricao || undefined,
+      dataInicio: data.dataInicio || undefined,
+      dataFim: data.dataFim || undefined,
     };
     createMutation.mutate(payload);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <CrudHeader title="Novo periodo" backTo="/periodos" description="Cadastro de periodo" />
-      <main className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <Card>
-            <CardHeader>
-              <CardTitle>Dados do periodo</CardTitle>
-              <CardDescription>Informe curso, turno, curriculo e os detalhes do periodo</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
-                    <select
-                      {...register('cursoId', { valueAsNumber: true })}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                        errors.cursoId ? 'border-red-500' : ''
-                      }`}
-                      disabled={loadingCursos}
-                    >
-                      <option value="">Selecione um curso...</option>
-                      {cursos.map((curso: Curso) => (
-                        <option key={curso.id} value={curso.id}>
-                          {curso.nome} ({curso.grau})
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {selectedCursoId ? 'Curso selecionado. Ajuste turno e curriculo logo abaixo.' : 'Escolha um curso para liberar as demais opcoes.'}
-                    </p>
-                    {errors.cursoId && (
-                      <p className="mt-1 text-sm text-red-600">{errors.cursoId.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">numero do periodo *</label>
-                    <Input
-                      type="number"
-                      min="1"
-                      max="255"
-                      {...register('numero', { valueAsNumber: true })}
-                      placeholder="Ex: 1"
-                      className={errors.numero ? 'border-red-500' : ''}
-                    />
-                    {errors.numero && (
-                      <p className="mt-1 text-sm text-red-600">{errors.numero.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Turno *</label>
-                    <select
-                      {...register('turnoId', { valueAsNumber: true })}
-                      disabled={!selectedCursoId || turnosDisponiveis.length === 0}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                        (errors as any).turnoId ? 'border-red-500' : ''
-                      }`}
-                    >
-                      <option value="">{selectedCursoId ? (turnosDisponiveis.length ? 'Selecione um turno...' : 'Nenhum turno disponivel') : 'Selecione um curso primeiro'}</option>
-                      {turnosDisponiveis.map((turno: Turno) => (
-                        <option key={turno.id} value={turno.id}>{turno.nome}</option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {selectedCursoId ? (turnosDisponiveis.length ? `${turnosDisponiveis.length} turno(s) disponiveis.` : 'Nenhum turno associado ao curso selecionado.') : 'Selecione um curso para habilitar os turnos.'}
-                    </p>
-                  </div>
-                </div>
+    <div className="min-h-screen bg-slate-50">
+      <CrudHeader
+        title="Cadastrar Período"
+        description="Cadastre um novo período vinculado ao currículo correto."
+        backTo="/periodos"
+      />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Curriculo *</label>
-                    <select
-                      {...register('curriculoId', { valueAsNumber: true })}
-                      disabled={!selectedCursoId || curriculosDisponiveis.length === 0}
-                      className={`w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 ${
-                        (errors as any).curriculoId ? 'border-red-500' : ''
-                      }`}
-                    >
-                      <option value="">{selectedCursoId ? (curriculosDisponiveis.length ? 'Selecione um curriculo...' : 'Nenhum curriculo cadastrado') : 'Selecione um curso primeiro'}</option>
-                      {curriculosDisponiveis.map((curriculo: Curriculo) => (
-                        <option key={curriculo.id} value={curriculo.id}>{curriculo.versao} ({curriculo.ativo ? 'Ativo' : 'Inativo'})</option>
-                      ))}
-                    </select>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {selectedCursoId ? (curriculosDisponiveis.length ? `${curriculosDisponiveis.length} curriculo(s) encontrados.` : 'Nenhum curriculo cadastrado para este curso.') : 'Escolha um curso para listar os curriculos.'}
-                    </p>
-                  </div>
-                </div>
+      <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <form onSubmit={handleSubmit(onSubmit, handleFormError)} className="space-y-8">
+          <FormSection
+            icon={Layers3}
+            title="Seleção de currículo"
+            description="Escolha o currículo ao qual este período pertence. O curso e o turno serão definidos automaticamente."
+          >
+            <div data-field="cursoFiltro" className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Filtrar por curso
+              </label>
+              <select
+                value={cursoFiltro === '' ? '' : String(cursoFiltro)}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setCursoFiltro(value ? Number(value) : '');
+                }}
+                disabled={loadingCursos}
+                className="w-full h-11 px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Todos os cursos</option>
+                {cursos.map((curso: Curso) => (
+                  <option key={curso.id} value={curso.id}>
+                    {curso.nome} ({curso.grau})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs text-slate-500">
+                {cursoFiltro === ''
+                  ? 'Exibindo currículos de todos os cursos disponíveis.'
+                  : 'Filtrando currículos pelo curso selecionado.'}
+              </p>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nome do periodo (opcional)</label>
-                    <Input
-                      {...register('nome')}
-                      placeholder="Ex: Fundamentos"
-                      className={errors.nome ? 'border-red-500' : ''}
-                    />
-                    {errors.nome && (
-                      <p className="mt-1 text-sm text-red-600">{errors.nome.message}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Descricao (opcional)</label>
-                    <Textarea
-                      {...register('descricao')}
-                      rows={4}
-                      placeholder="Detalhes adicionais sobre este periodo"
-                      className={errors.descricao ? 'border-red-500' : ''}
-                    />
-                    {errors.descricao && (
-                      <p className="mt-1 text-sm text-red-600">{errors.descricao.message}</p>
-                    )}
-                  </div>
-                </div>
+            <div data-field="curriculoId" className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Currículo *
+              </label>
+              <select
+                {...register('curriculoId', { setValueAs: parseNumber })}
+                className={`w-full h-11 px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white ${
+                  errors.curriculoId ? 'border-red-500' : ''
+                }`}
+                disabled={curriculosFiltrados.length === 0}
+              >
+                <option value="">
+                  {curriculosFiltrados.length
+                    ? 'Selecione um currículo...'
+                    : cursoFiltro === ''
+                      ? 'Nenhum currículo cadastrado até o momento.'
+                      : 'Este curso ainda não possui currículos.'}
+                </option>
+                {curriculosFiltrados.map((curriculo: Curriculo) => (
+                  <option key={curriculo.id} value={curriculo.id}>
+                    {formatCurriculoLabel(curriculo)}
+                  </option>
+                ))}
+              </select>
+              <FieldError message={errors.curriculoId?.message} />
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de início (opcional)</label>
-                    <Input type="date" {...register('dataInicio')} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de término (opcional)</label>
-                    <Input type="date" {...register('dataFim')} />
-                  </div>
-                </div>
+            {selectedCurriculo && (
+              <div className="md:col-span-2 rounded-md border border-slate-200 bg-slate-100/80 px-4 py-3 text-xs text-slate-600">
+                <p className="font-medium text-slate-700">Resumo do currículo selecionado</p>
+                <p>
+                  Curso:{' '}
+                  <span className="font-semibold">
+                    {cursosMap.get(selectedCurriculo.cursoId)?.nome ?? '—'}
+                  </span>
+                </p>
+                <p>
+                  Turno:{' '}
+                  <span className="font-semibold">
+                    {turnosMap.get(selectedCurriculo.turnoId)?.nome ?? '—'}
+                  </span>
+                </p>
+                <p>Versão: {selectedCurriculo.versao}</p>
+                <p>Status: {selectedCurriculo.ativo ? 'Ativo' : 'Inativo'}</p>
+              </div>
+            )}
+          </FormSection>
 
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={createMutation.isPending}>
-                    Criar
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => navigate('/periodos')}>
-                    Cancelar
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+          <FormSection
+            icon={ListOrdered}
+            title="Informações do período"
+            description="Defina os dados principais e identifique o período corretamente."
+          >
+            <div data-field="numero">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Número *
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={255}
+                {...register('numero', { setValueAs: parseNumber })}
+                placeholder="Ex: 1"
+                className={`h-11 ${errors.numero ? 'border-red-500' : ''}`}
+              />
+              <FieldError message={errors.numero?.message} />
+            </div>
+
+            <div className="md:col-span-2" data-field="nome">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Nome do período (opcional)
+              </label>
+              <Input
+                {...register('nome')}
+                placeholder="Ex: Fundamentos"
+                maxLength={80}
+                className={errors.nome ? 'border-red-500 h-11' : 'h-11'}
+              />
+              <FieldError message={errors.nome?.message} />
+            </div>
+
+            <div className="md:col-span-2" data-field="descricao">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Descrição (opcional)
+              </label>
+              <Textarea
+                {...register('descricao')}
+                rows={5}
+                placeholder="Adicione observações relevantes sobre este período."
+                className={errors.descricao ? 'border-red-500' : ''}
+              />
+              <FieldError message={errors.descricao?.message} />
+            </div>
+          </FormSection>
+
+          <FormSection
+            icon={CalendarRange}
+            title="Datas do período"
+            description="Informe as datas para fins de cronograma acadêmico (opcional)."
+          >
+            <div data-field="dataInicio">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Data de início
+              </label>
+              <Input
+                type="date"
+                {...register('dataInicio')}
+                className="h-11"
+              />
+            </div>
+
+            <div data-field="dataFim">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Data de término
+              </label>
+              <Input
+                type="date"
+                {...register('dataFim')}
+                className="h-11"
+              />
+            </div>
+          </FormSection>
+
+          <ActionsBar
+            isSubmitting={createMutation.isPending}
+            submitLabel="Cadastrar Período"
+            submittingLabel="Cadastrando..."
+            cancelTo="/periodos"
+          />
+        </form>
       </main>
     </div>
   );
-}
+};
+
+export default PeriodoNewPage;
 
 
 

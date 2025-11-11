@@ -9,9 +9,8 @@ import CrudToolbar from '@/components/crud/crud-toolbar';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import { apiService } from '@/services/api';
-import { Curso, Periodo, Role, Turno, Curriculo } from '@/types/api';
+import { Curso, Periodo, Turno, Curriculo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import {
   Layers3,
@@ -29,7 +28,6 @@ import {
 } from 'lucide-react';
 
 export default function PeriodosPage() {
-  const { hasRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -58,13 +56,22 @@ export default function PeriodosPage() {
   const canEdit = useCan('edit', 'periodos');
   const canDelete = useCan('delete', 'periodos');
 
-  const { data: cursosResponse } = useQuery({
+  const { data: cursosResponse, isLoading: isLoadingCursos, error: cursosError } = useQuery({
     queryKey: ['cursos'],
     queryFn: () => apiService.getCursos({ limit: 200 }),
+    retry: 2,
   });
   const cursos = cursosResponse?.data || [];
-  const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: () => apiService.getTurnos() });
-  const { data: curriculos = [] } = useQuery({ queryKey: ['curriculos'], queryFn: () => apiService.getCurriculos() });
+  const { data: turnos = [] } = useQuery({ 
+    queryKey: ['turnos'], 
+    queryFn: () => apiService.getTurnos(),
+    retry: 2,
+  });
+  const { data: curriculos = [] } = useQuery({ 
+    queryKey: ['curriculos'], 
+    queryFn: () => apiService.getCurriculos(),
+    retry: 2,
+  });
 
   const hasActiveCurso = cursoFiltro !== '';
 
@@ -157,12 +164,15 @@ export default function PeriodosPage() {
         description: 'Período removido com sucesso!',
       });
     },
-    onError: (mutationError: any) => {
+    onError: (error) => {
+      const apiError = error as { response?: { status?: number }; message?: string };
       // Verificar se é erro de restrição de FK
-      if (mutationError.response?.status === 409 || 
-          mutationError.message?.includes('foreign key') || 
-          mutationError.message?.includes('constraint') ||
-          mutationError.message?.includes('violates foreign key')) {
+      if (
+        apiError.response?.status === 409 ||
+        apiError.message?.includes('foreign key') ||
+        apiError.message?.includes('constraint') ||
+        apiError.message?.includes('violates foreign key')
+      ) {
         toast({
           title: 'Não é possível excluir',
           description: 'Este período possui disciplinas ou turmas relacionadas. Remova primeiro os dados relacionados para poder excluir o período.',
@@ -173,7 +183,7 @@ export default function PeriodosPage() {
       
       toast({
         title: 'Erro ao remover período',
-        description: mutationError.message || 'Erro desconhecido',
+        description: apiError.message || 'Erro desconhecido',
         variant: 'destructive',
       });
     },
@@ -185,14 +195,19 @@ export default function PeriodosPage() {
     }
   };
 
-  if (error) {
+  // Only show error if it's from the periodos query and we have an active curso
+  // Don't block the UI if the error is from a disabled query
+  if (error && hasActiveCurso) {
     return (
       <div className="min-h-screen bg-gray-50 p-8">
         <div className="max-w-4xl mx-auto">
           <Card>
             <CardContent className="p-8 text-center">
               <h2 className="text-2xl font-bold text-red-600 mb-4">Erro ao carregar dados</h2>
-              <p className="text-gray-600">No foi possvel conectar com o servidor.</p>
+              <p className="text-gray-600">Não foi possível conectar com o servidor.</p>
+              <Button onClick={() => window.location.reload()} className="mt-4">
+                Recarregar página
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -282,9 +297,16 @@ export default function PeriodosPage() {
                     setSearchTerm('');
                     setPage(1);
                   }}
-                  className="w-full md:w-64 rounded-md border px-3 py-2 text-sm"
+                  disabled={isLoadingCursos}
+                  className="w-full md:w-64 rounded-md border px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">Selecione um curso...</option>
+                  <option value="">
+                    {isLoadingCursos 
+                      ? 'Carregando cursos...' 
+                      : cursos.length === 0 
+                        ? 'Nenhum curso disponível' 
+                        : 'Selecione um curso...'}
+                  </option>
                   {cursos.map((curso: Curso) => (
                     <option key={curso.id} value={curso.id}>
                       {curso.nome}
@@ -297,6 +319,11 @@ export default function PeriodosPage() {
                   </Button>
                 )}
               </div>
+              {cursosError && (
+                <p className="text-sm text-red-600 mt-2">
+                  Erro ao carregar cursos. Por favor, recarregue a página.
+                </p>
+              )}
             </CardContent>
           </Card>
           <CrudToolbar
@@ -320,7 +347,7 @@ export default function PeriodosPage() {
                   className="px-3 py-2 border rounded-md text-sm"
                   disabled={!hasActiveCurso || turnosDisponiveis.length === 0}
                 >
-                  <option value="">{turnosDisponiveis.length ? 'Todos os turnos' : 'Selecione um curso'}</option>
+                  <option value="">{turnosDisponiveis.length ? 'Todos os turnos' : 'Selecione um curso para ver os turnos'}</option>
                   {turnosDisponiveis.map((turno: Turno) => (
                     <option key={turno.id} value={turno.id}>{turno.nome}</option>
                   ))}
@@ -335,7 +362,7 @@ export default function PeriodosPage() {
                   className="px-3 py-2 border rounded-md text-sm"
                   disabled={!hasActiveCurso || curriculosDisponiveis.length === 0}
                 >
-                  <option value="">{curriculosDisponiveis.length ? 'Todos os curriculos' : 'Selecione um curso'}</option>
+                  <option value="">{curriculosDisponiveis.length ? 'Todos os curriculos' : 'Selecione um curso para ver os curriculos'}</option>
                   {curriculosDisponiveis.map((curriculo: Curriculo) => (
                     <option key={curriculo.id} value={curriculo.id}>{curriculo.versao}</option>
                   ))}
@@ -414,23 +441,38 @@ export default function PeriodosPage() {
                   {
                     key: 'turno',
                     header: 'Turno',
-                    render: (p: any) => {
-                      const t = (turnos as any[]).find((x)=> x.id === (p.turnoId || p.turno?.id));
-                      return t?.nome || p.turno?.nome || '';
+                    render: (p: Periodo) => {
+                      const turnoId = p.curriculo?.turnoId;
+                      if (p.turno?.nome) {
+                        return p.turno.nome;
+                      }
+                      if (turnoId) {
+                        return turnos.find((turno) => turno.id === turnoId)?.nome || '';
+                      }
+                      return '';
                     },
                   },
                   {
                     key: 'curriculo',
                     header: 'Currculo',
-                    render: (p: any) => {
-                      const c = (curriculos as any[]).find((x)=> x.id === (p.curriculoId || p.curriculo?.id));
-                      return c?.versao || '';
-                    },
+                    render: (p: Periodo) => p.curriculo?.versao || curriculos.find((curriculo) => curriculo.id === p.curriculoId)?.versao || '',
                   },
                   {
                     key: 'curso',
                     header: 'Curso',
-                    render: (p: Periodo) => p.curso?.nome || cursos.find((c) => c.id === p.cursoId)?.nome || '',
+                    render: (p: Periodo) => {
+                      if (p.curso?.nome) {
+                        return p.curso.nome;
+                      }
+                      const cursoId = p.curriculo?.cursoId;
+                      if (cursoId) {
+                        const cursoEncontrado = cursos.find((c) => c.id === cursoId);
+                        if (cursoEncontrado) {
+                          return cursoEncontrado.nome;
+                        }
+                      }
+                      return '';
+                    },
                   },
                   {
                     key: 'totalDisciplinas',
@@ -489,7 +531,19 @@ export default function PeriodosPage() {
                               {periodo.nome || `Perodo ${periodo.numero}`}
                             </h3>
                             <p className="text-sm text-gray-500">
-                              {periodo.curso?.nome || cursos.find((c) => c.id === periodo.cursoId)?.nome || 'Curso no informado'}
+                              {(() => {
+                                if (periodo.curso?.nome) {
+                                  return periodo.curso.nome;
+                                }
+                                const cursoId = periodo.curriculo?.cursoId;
+                                if (cursoId) {
+                                  const cursoEncontrado = cursos.find((c) => c.id === cursoId);
+                                  if (cursoEncontrado) {
+                                    return cursoEncontrado.nome;
+                                  }
+                                }
+                                return 'Curso no informado';
+                              })()}
                             </p>
                           </div>
                         </div>
@@ -525,7 +579,19 @@ export default function PeriodosPage() {
                         <div className="flex items-center space-x-2">
                           <BookOpen className="h-4 w-4" />
                           <span>
-                            {periodo.curso?.grau || cursos.find((c) => c.id === periodo.cursoId)?.grau || 'Grau no informado'}
+                            {(() => {
+                              if (periodo.curso?.grau) {
+                                return periodo.curso.grau;
+                              }
+                              const cursoId = periodo.curriculo?.cursoId;
+                              if (cursoId) {
+                                const cursoEncontrado = cursos.find((c) => c.id === cursoId);
+                                if (cursoEncontrado?.grau) {
+                                  return cursoEncontrado.grau;
+                                }
+                              }
+                              return 'Grau no informado';
+                            })()}
                           </span>
                         </div>
                         <div className="flex items-center space-x-2">

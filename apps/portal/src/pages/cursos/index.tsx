@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
-import { Curso, Curriculo, Disciplina, Periodo, Role, Turno } from '@/types/api';
+import { Curso, Curriculo, Disciplina, DisciplinaPeriodo, Periodo, Role, Turno } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Plus, Search, Trash2, BookOpen, Wand2, ArrowRight, ChevronRight, Calendar, Layers3 } from 'lucide-react';
@@ -110,13 +110,20 @@ export default function CursosPage() {
   });
   periodosByCurriculo.forEach((list) => list.sort((a, b) => Number(a.numero ?? 0) - Number(b.numero ?? 0)));
 
-  const disciplinasByPeriodo = new Map<number, Disciplina[]>();
-  disciplinasData.forEach((disciplina) => {
-   const list = disciplinasByPeriodo.get(disciplina.periodoId) || [];
-   list.push(disciplina);
-   disciplinasByPeriodo.set(disciplina.periodoId, list);
+ const disciplinasByPeriodo = new Map<number, Disciplina[]>();
+ disciplinasData.forEach((disciplina) => {
+  const vinculos = Array.isArray(disciplina.periodos) ? disciplina.periodos : [];
+  vinculos.forEach((vinculo) => {
+    const periodoId = Number(vinculo.periodoId);
+    if (!Number.isFinite(periodoId)) {
+      return;
+    }
+    const list = disciplinasByPeriodo.get(periodoId) || [];
+    list.push(disciplina);
+    disciplinasByPeriodo.set(periodoId, list);
   });
-  disciplinasByPeriodo.forEach((list) => list.sort((a, b) => (a.nome || '').localeCompare(b.nome || '')));
+ });
+ disciplinasByPeriodo.forEach((list) => list.sort((a, b) => (a.nome || '').localeCompare(b.nome || '')));
 
   const map = new Map<number, CourseStructure>();
 

@@ -1,10 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
-import { cursos, disciplinas, periodos } from '../db/schema';
+import { cursos, disciplinas, periodos, disciplinasPeriodos, curriculos } from '../db/schema';
 import { CreateCursoSchema, UpdateCursoSchema, IdParamSchema } from '@seminario/shared-dtos';
-import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
+import { requireAuth, requireSecretaria } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, asc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 
@@ -184,11 +184,36 @@ const getCursoWithDisciplinas = asyncHandler(async (req: Request, res: Response)
       ementa: disciplinas.ementa,
       bibliografia: disciplinas.bibliografia,
       ativo: disciplinas.ativo,
-      periodoId: disciplinas.periodoId,
     })
     .from(disciplinas)
     .where(eq(disciplinas.cursoId, id))
     .orderBy(disciplinas.nome);
+
+  const vinculos = await db
+    .select({
+      disciplinaId: disciplinasPeriodos.disciplinaId,
+      periodoId: disciplinasPeriodos.periodoId,
+      ordem: disciplinasPeriodos.ordem,
+      obrigatoria: disciplinasPeriodos.obrigatoria,
+      periodo: {
+        id: periodos.id,
+        numero: periodos.numero,
+        nome: periodos.nome,
+        curriculoId: periodos.curriculoId,
+      },
+    })
+    .from(disciplinasPeriodos)
+    .innerJoin(periodos, eq(periodos.id, disciplinasPeriodos.periodoId))
+    .innerJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
+    .where(eq(curriculos.cursoId, id))
+    .orderBy(asc(periodos.numero), asc(disciplinasPeriodos.ordem), asc(disciplinasPeriodos.disciplinaId));
+
+  const periodosMap = new Map<number, typeof vinculos>();
+  for (const vinculo of vinculos) {
+    const list = periodosMap.get(vinculo.disciplinaId) ?? [];
+    list.push(vinculo);
+    periodosMap.set(vinculo.disciplinaId, list);
+  }
 
   const periodosResult = await db
     .select({
@@ -196,11 +221,12 @@ const getCursoWithDisciplinas = asyncHandler(async (req: Request, res: Response)
       numero: periodos.numero,
       nome: periodos.nome,
       descricao: periodos.descricao,
-      totalDisciplinas: sql<number>`COUNT(${disciplinas.id})`,
+      totalDisciplinas: sql<number>`COUNT(DISTINCT ${disciplinasPeriodos.disciplinaId})`,
     })
     .from(periodos)
-    .leftJoin(disciplinas, eq(disciplinas.periodoId, periodos.id))
-    .where(eq(periodos.cursoId, id))
+    .leftJoin(disciplinasPeriodos, eq(disciplinasPeriodos.periodoId, periodos.id))
+    .innerJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
+    .where(eq(curriculos.cursoId, id))
     .groupBy(periodos.id, periodos.numero, periodos.nome, periodos.descricao)
     .orderBy(periodos.numero);
 
@@ -209,6 +235,12 @@ const getCursoWithDisciplinas = asyncHandler(async (req: Request, res: Response)
     ...curso,
     disciplinas: disciplinasResult.map((disciplina) => ({
       ...disciplina,
+      periodos: (periodosMap.get(disciplina.id) ?? []).map((vinculo) => ({
+        periodoId: vinculo.periodoId,
+        ordem: vinculo.ordem ?? undefined,
+        obrigatoria: vinculo.obrigatoria,
+        periodo: vinculo.periodo,
+      })),
     })),
     periodos: periodosResult.map((periodo) => ({
       ...periodo,

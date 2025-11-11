@@ -25,10 +25,23 @@ import {
   ArrowRight,
   Edit
 } from 'lucide-react';
+import type { Disciplina } from '@/types/api';
 
 export default function TurmaDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  const getDisciplinaPeriodoLabel = (disciplina?: Disciplina) => {
+    if (!disciplina || !Array.isArray(disciplina.periodos) || disciplina.periodos.length === 0) {
+      return 'Nenhum período vinculado';
+    }
+    const vinculo = disciplina.periodos[0];
+    const periodo = vinculo.periodo;
+    if (periodo) {
+      return periodo.nome || (periodo.numero !== undefined ? `Período ${periodo.numero}` : `Período ${vinculo.periodoId}`);
+    }
+    return `Período ${vinculo.periodoId}`;
+  };
 
   const {
     data: turma,
@@ -209,7 +222,7 @@ export default function TurmaDetailPage() {
                     <Calendar className="h-5 w-5 text-gray-400" />
                     <div>
                       <p className="text-sm text-gray-500">Período (disciplina)</p>
-                      <p className="font-medium">{turma.disciplina?.periodo?.nome || turma.disciplina?.periodo?.numero || 'N/A'}</p>
+                      <p className="font-medium">{getDisciplinaPeriodoLabel(turma.disciplina)}</p>
                     </div>
                   </div>
 

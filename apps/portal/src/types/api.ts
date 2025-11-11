@@ -238,8 +238,6 @@ export interface CreateCoorte {
 
 export interface Periodo {
   id: number;
-  cursoId: number;
-  turnoId: number;
   curriculoId: number;
   numero: number;
   nome?: string | null;
@@ -249,11 +247,12 @@ export interface Periodo {
   totalDisciplinas?: number;
   totalAlunos?: number;
   curso?: Curso;
+  curriculo?: Curriculo;
+  turno?: Turno;
+  disciplinas?: Array<Disciplina & { ordem?: number; obrigatoria?: boolean }>;
 }
 
 export interface CreatePeriodo {
-  cursoId: number;
-  turnoId: number;
   curriculoId: number;
   numero: number;
   nome?: string;
@@ -264,10 +263,21 @@ export interface CreatePeriodo {
 
 export interface UpdatePeriodo extends Partial<CreatePeriodo> {}
 
+export interface DisciplinaPeriodo {
+  periodoId: number;
+  ordem?: number;
+  obrigatoria: boolean;
+  periodo?: {
+    id: number;
+    numero?: number | null;
+    nome?: string | null;
+    curriculoId?: number;
+  };
+}
+
 export interface Disciplina {
   id: number;
   cursoId: number;
-  periodoId: number;
   codigo: string;
   nome: string;
   creditos: number;
@@ -275,11 +285,7 @@ export interface Disciplina {
   ementa?: string;
   bibliografia?: string;
   ativo: boolean;
-  periodo?: {
-    id: number;
-    nome?: string | null;
-    numero?: number | null;
-  };
+  periodos?: DisciplinaPeriodo[];
   curso?: Curso;
 }
 
