@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Seminário Acadêmico
 
 # Stage 1: Base dependencies
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 WORKDIR /app
 RUN npm install -g pnpm turbo
 COPY . .
@@ -17,7 +17,7 @@ WORKDIR /app/apps/portal
 RUN pnpm run build
 
 # Stage 4: Production API image
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 # Install production dependencies
 RUN apk add --no-cache curl
