@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { apiService } from '@/services/api';
 import { Role } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import { Layers3, BookOpen, Users, BarChart3, Edit, ListOrdered, Calendar, Clock, CheckCircle, XCircle, ArrowRight, Award, ArrowLeft } from 'lucide-react';
 
@@ -25,6 +25,31 @@ export default function PeriodoViewPage() {
     enabled: !!id,
   });
 
+  // Configure Hero via hook (must be called before early returns)
+  usePageHero({
+    title: periodo?.nome || periodo?.numero ? `Período ${periodo.numero}` : 'Carregando...',
+    description: periodo ? `Período acadêmico do curso ${periodo.curso?.nome || 'N/A'} com disciplinas e estrutura curricular` : 'Carregando detalhes do período',
+    backTo: "/periodos",
+    stats: periodo ? [
+      { value: periodo.numero, label: 'Número' },
+      { value: periodo.curso?.nome || 'N/A', label: 'Curso' },
+      { value: periodo.dataInicio ? new Date(periodo.dataInicio).toLocaleDateString() : 'N/A', label: 'Início' },
+      { value: periodo.dataFim ? new Date(periodo.dataFim).toLocaleDateString() : 'N/A', label: 'Fim' }
+    ] : [],
+    actionLink: {
+      href: '/periodos',
+      label: 'Ver todos os períodos'
+    },
+    actions: periodo && canEdit ? (
+      <Link to={`/periodos/edit/${periodo.id}`}>
+        <Button>
+          <Edit className="h-4 w-4 mr-2" />
+          Editar Período
+        </Button>
+      </Link>
+    ) : undefined
+  });
+
   if (isLoading || !periodo) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -37,52 +62,6 @@ export default function PeriodoViewPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center space-x-4">
-              <Link to="/periodos">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar aos Períodos
-                </Button>
-              </Link>
-              <div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline">Período {periodo.numero}</Badge>
-                  <h1 className="text-2xl font-bold text-gray-900">{periodo.nome || `Período ${periodo.numero}`}</h1>
-                </div>
-                <p className="text-sm text-gray-600">Curso: {periodo.curso?.nome || 'N/A'}</p>
-              </div>
-            </div>
-            {canEdit && (
-              <Link to={`/periodos/edit/${periodo.id}`}>
-                <Button>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Editar Período
-                </Button>
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Detalhes do Período"
-        title={periodo.nome || `Período ${periodo.numero}`}
-        description={`Período acadêmico do curso ${periodo.curso?.nome || 'N/A'} com disciplinas e estrutura curricular`}
-        stats={[
-          { value: periodo.numero, label: 'Número' },
-          { value: periodo.curso?.nome || 'N/A', label: 'Curso' },
-          { value: periodo.dataInicio ? new Date(periodo.dataInicio).toLocaleDateString() : 'N/A', label: 'Início' },
-          { value: periodo.dataFim ? new Date(periodo.dataFim).toLocaleDateString() : 'N/A', label: 'Fim' }
-        ]}
-        actionLink={{
-          href: '/periodos',
-          label: 'Ver todos os períodos'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Estatísticas */}

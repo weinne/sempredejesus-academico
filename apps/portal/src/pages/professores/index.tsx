@@ -10,8 +10,7 @@ import { apiService } from '@/services/api';
 import { Professor, CreateProfessorWithUser, Pessoa, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import CrudHeader from '@/components/crud/crud-header';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
@@ -138,6 +137,31 @@ export default function ProfessoresPage() {
 
   const professores = professoresResponse?.data || [];
   const pagination = professoresResponse?.pagination;
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão completa dos professores",
+    description: "Visualize e gerencie todos os professores com suas informações acadêmicas, situação e histórico.",
+    backTo: "/dashboard",
+    stats: [
+      { value: pagination?.total || 0, label: 'Total de Professores' },
+      { value: professores.filter(p => p.situacao === 'ATIVO').length, label: 'Ativos' },
+      { value: professores.filter(p => p.situacao === 'INATIVO').length, label: 'Inativos' },
+      { value: professores.filter(p => p.formacaoAcad).length, label: 'Com Formação' }
+    ],
+    actionLink: {
+      href: '/disciplinas',
+      label: 'Ver disciplinas'
+    },
+    actions: canCreate ? (
+      <Link to="/professores/new">
+        <Button>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Professor
+        </Button>
+      </Link>
+    ) : undefined
+  });
 
   // Create mutation
   const createMutation = useMutation({
@@ -327,36 +351,6 @@ export default function ProfessoresPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gerenciar Professores"
-        description="Cadastro e gestão do corpo docente"
-        backTo="/dashboard"
-        actions={canCreate ? (
-          <Link to="/professores/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Professor
-            </Button>
-          </Link>
-        ) : undefined}
-      />
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Corpo Docente"
-        title="Gestão completa dos professores"
-        description="Visualize e gerencie todos os professores com suas informações acadêmicas, situação e histórico."
-        stats={[
-          { value: professores.length, label: 'Total de Professores' },
-          { value: professores.filter(p => p.situacao === 'ATIVO').length, label: 'Ativos' },
-          { value: professores.filter(p => p.situacao === 'INATIVO').length, label: 'Inativos' },
-          { value: professores.filter(p => p.formacaoAcad).length, label: 'Com Formação' }
-        ]}
-        actionLink={{
-          href: '/disciplinas',
-          label: 'Ver disciplinas'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">

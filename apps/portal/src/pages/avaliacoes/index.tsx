@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { apiService } from '@/services/api';
@@ -11,7 +12,7 @@ import { Avaliacao, CreateAvaliacao, LancarNotaInput, Role, EstudanteAvaliacao, 
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Send, Plus, List, Calendar, AlertTriangle, CheckCircle, Save, Download } from 'lucide-react';
-import CrudHeader from '@/components/crud/crud-header';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { GradeUtils } from '@/lib/grade-utils';
 import { cn } from '@/lib/utils';
 
@@ -184,13 +185,15 @@ export default function AvaliacoesPage() {
   const turmasSelecionada = turmasOptions.find((t: any) => t.id === turmaId);
   const avaliacaoAtual = avaliacoes.find(a => a.id === avaliacaoSelecionada);
 
+  // Configure Hero via hook
+  usePageHero({
+    title: "Sistema de Notas e Avaliações",
+    description: "Gerencie avaliações, lance notas e acompanhe o desempenho dos alunos",
+    backTo: "/dashboard"
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <CrudHeader 
-        title="Sistema de Notas e Avaliações" 
-        description="Gerencie avaliações, lance notas e acompanhe o desempenho dos alunos" 
-        backTo="/dashboard" 
-      />
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
         {/* Seleção de Turma */}
@@ -304,10 +307,10 @@ export default function AvaliacoesPage() {
                       </div>
                       <div>
                         <label className="text-sm font-medium block mb-1">Data*</label>
-                        <Input 
-                          type="date" 
-                          value={novo.data || ''} 
-                          onChange={(e) => setNovo(v => ({...v, data: e.target.value}))}
+                        <DatePicker 
+                          value={novo.data || null} 
+                          onChange={(value) => setNovo(v => ({...v, data: value || ''}))}
+                          placeholder="dd/mm/aaaa"
                         />
                       </div>
                       <div>

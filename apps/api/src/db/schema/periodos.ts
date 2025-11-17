@@ -7,7 +7,7 @@ export const periodos = pgTable(
     id: serial('id').primaryKey(),
     curriculoId: integer('curriculo_id')
       .notNull()
-      .references(() => curriculos.id, { onDelete: 'restrict' }),
+      .references(() => curriculos.id, { onDelete: 'cascade' }),
     numero: smallint('numero').notNull(),
     nome: varchar('nome', { length: 80 }),
     descricao: text('descricao'),

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -51,6 +52,7 @@ export default function AulasBatchPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     setValue,
     watch,
@@ -218,7 +220,18 @@ export default function AulasBatchPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dataInicio">Data Início *</Label>
-                  <Input id="dataInicio" type="date" {...register('dataInicio')} />
+                  <Controller
+                    name="dataInicio"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        value={field.value || null}
+                        onChange={field.onChange}
+                        placeholder="dd/mm/aaaa"
+                        id="dataInicio"
+                      />
+                    )}
+                  />
                   {errors.dataInicio && (
                     <p className="text-sm text-red-500">{errors.dataInicio.message}</p>
                   )}
@@ -226,7 +239,18 @@ export default function AulasBatchPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="dataFim">Data Fim *</Label>
-                  <Input id="dataFim" type="date" {...register('dataFim')} />
+                  <Controller
+                    name="dataFim"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        value={field.value || null}
+                        onChange={field.onChange}
+                        placeholder="dd/mm/aaaa"
+                        id="dataFim"
+                      />
+                    )}
+                  />
                   {errors.dataFim && (
                     <p className="text-sm text-red-500">{errors.dataFim.message}</p>
                   )}

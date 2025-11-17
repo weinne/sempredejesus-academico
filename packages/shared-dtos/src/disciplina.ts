@@ -10,6 +10,9 @@ export const DisciplinaSchema = z.object({
   cargaHoraria: z.number().int().min(1),
   ementa: z.string().optional(),
   bibliografia: z.string().optional(),
+  objetivos: z.string().optional(),
+  conteudoProgramatico: z.string().optional(),
+  instrumentosEAvaliacao: z.string().optional(),
   ativo: z.boolean().default(true),
 });
 

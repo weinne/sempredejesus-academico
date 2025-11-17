@@ -25,6 +25,11 @@ const DisciplinaResumoSchema = z.object({
   cargaHoraria: z.number().int().optional(),
   periodoId: z.number().int().nullable().optional(),
   cursoId: z.number().int().optional(),
+  ementa: z.string().nullable().optional(),
+  bibliografia: z.string().nullable().optional(),
+  objetivos: z.string().nullable().optional(),
+  conteudoProgramatico: z.string().nullable().optional(),
+  instrumentosEAvaliacao: z.string().nullable().optional(),
   periodo: z
     .object({
       id: z.number().int(),
@@ -67,6 +72,11 @@ export const TurmaSchema = z.object({
   sala: z.string().max(20).optional(),
   horario: z.string().max(50).optional(),
   secao: z.string().max(6).optional(),
+  ementa: z.string().nullable().optional(),
+  bibliografia: z.string().nullable().optional(),
+  objetivos: z.string().nullable().optional(),
+  conteudoProgramatico: z.string().nullable().optional(),
+  instrumentosEAvaliacao: z.string().nullable().optional(),
   totalInscritos: z.number().int().nonnegative().optional(),
 });
 

@@ -13,8 +13,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useFormErrors } from '@/hooks/use-form-errors';
 import { onlyDigits, maskCPF, maskPhone } from '@/lib/form-utils';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { DatePicker } from '@/components/ui/date-picker';
 
 type AddressState = {
   logradouro: string;
@@ -127,7 +128,7 @@ export default function ProfessorEditPage() {
   });
   const relatedUser = usersResponse?.data?.find((u: any) => Number(u.pessoaId) === Number(professor?.pessoaId));
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<EditFormData>({
+  const { register, handleSubmit, control, formState: { errors }, reset } = useForm<EditFormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       dataInicio: '',
@@ -300,10 +301,17 @@ export default function ProfessorEditPage() {
           >
             <div data-field="dataInicio">
               <label className="block text-sm font-medium text-slate-700 mb-2">Data de Início *</label>
-              <Input 
-                type="date" 
-                {...register('dataInicio')} 
-                className={`${errors.dataInicio ? 'border-red-500' : ''} h-11`} 
+              <Controller
+                name="dataInicio"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    placeholder="dd/mm/aaaa"
+                    className={errors.dataInicio ? 'border-red-500' : ''}
+                  />
+                )}
               />
               <FieldError message={errors.dataInicio?.message} />
             </div>
@@ -399,10 +407,16 @@ export default function ProfessorEditPage() {
 
             <div data-field="pessoa.data_nascimento">
               <label className="block text-sm font-medium text-slate-700 mb-2">Data de Nascimento</label>
-              <Input 
-                type="date" 
-                {...register('pessoa.data_nascimento')} 
-                className="h-11"
+              <Controller
+                name="pessoa.data_nascimento"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    placeholder="dd/mm/aaaa"
+                  />
+                )}
               />
               <FieldError message={errors?.pessoa?.data_nascimento?.message} />
             </div>

@@ -6,13 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { apiService } from '@/services/api';
 import { Turma, CreateTurma, Disciplina, DisciplinaPeriodo, Professor, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import CrudHeader from '@/components/crud/crud-header';
-import { HeroSection } from '@/components/ui/hero-section';
-import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import { 
@@ -125,6 +123,29 @@ export default function TurmasPage() {
 
   const turmas = turmasResponse?.data || [];
   const pagination = turmasResponse?.pagination;
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão das turmas acadêmicas",
+    description: "Configure e gerencie as turmas oferecidas para organizar as ofertas acadêmicas.",
+    backTo: "/dashboard",
+    stats: [
+      { value: pagination?.total || 0, label: 'Total de Turmas' },
+      { value: disciplinas.length, label: 'Disciplinas' },
+      { value: professores.length, label: 'Professores' },
+      { value: turmas.reduce((acc, t) => acc + (t.totalInscritos || 0), 0), label: 'Total de Inscritos' }
+    ],
+    actionLink: {
+      href: '/disciplinas',
+      label: 'Ver disciplinas'
+    },
+    actions: canCreate ? (
+      <Button onClick={() => navigate('/turmas/new')}>
+        <Plus className="h-4 w-4 mr-2" />
+        Nova Turma
+      </Button>
+    ) : undefined
+  });
 
   // Create mutation
   const createMutation = useMutation({
@@ -270,33 +291,6 @@ export default function TurmasPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gerenciar Turmas"
-        backTo="/dashboard"
-        actions={canCreate ? (
-          <Button onClick={() => navigate('/turmas/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Turma
-          </Button>
-        ) : undefined}
-      />
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Ofertas Acadêmicas"
-        title="Gestão das turmas acadêmicas"
-        description="Configure e gerencie as turmas oferecidas para organizar as ofertas acadêmicas."
-        stats={[
-          { value: turmas.length, label: 'Total de Turmas' },
-          { value: disciplinas.length, label: 'Disciplinas' },
-          { value: professores.length, label: 'Professores' },
-          { value: turmas.reduce((acc, t) => acc + (t.totalInscritos || 0), 0), label: 'Total de Inscritos' }
-        ]}
-        actionLink={{
-          href: '/disciplinas',
-          label: 'Ver disciplinas'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">
@@ -325,34 +319,6 @@ export default function TurmasPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Estatísticas */}
-          <StatsGrid>
-            <StatCard
-              title="Total de Turmas"
-              value={turmas.length}
-              icon={Calendar}
-              iconColor="text-blue-600"
-            />
-            <StatCard
-              title="Disciplinas"
-              value={disciplinas.length}
-              icon={BookOpen}
-              iconColor="text-green-600"
-            />
-            <StatCard
-              title="Professores"
-              value={professores.length}
-              icon={User}
-              iconColor="text-purple-600"
-            />
-            <StatCard
-              title="Total de Inscritos"
-              value={turmas.reduce((acc, t) => acc + (t.totalInscritos || 0), 0)}
-              icon={Users}
-              iconColor="text-orange-600"
-            />
-          </StatsGrid>
 
           <Card>
             <CardHeader>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +32,7 @@ export default function PessoaFormModal({ isOpen, onClose, onSubmit, isLoading =
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<PessoaFormData>({
     resolver: zodResolver(pessoaSchema),
@@ -140,9 +142,16 @@ export default function PessoaFormModal({ isOpen, onClose, onSubmit, isLoading =
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Data de Nascimento
                 </label>
-                <Input
-                  type="date"
-                  {...register('data_nascimento')}
+                <Controller
+                  name="data_nascimento"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      value={field.value || null}
+                      onChange={field.onChange}
+                      placeholder="dd/mm/aaaa"
+                    />
+                  )}
                 />
               </div>
 

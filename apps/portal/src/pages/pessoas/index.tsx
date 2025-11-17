@@ -8,8 +8,7 @@ import { apiService } from '@/services/api';
 import { Pessoa } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import CrudHeader from '@/components/crud/crud-header';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
@@ -54,7 +53,28 @@ export default function PessoasPage() {
     retry: false, // Don't retry in development with mock data
   });
 
-
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão completa de pessoas",
+    description: "Cadastre e gerencie todas as pessoas do sistema com suas informações pessoais e de contato.",
+    backTo: "/dashboard",
+    stats: [
+      { value: pessoas.length, label: 'Total de Pessoas' },
+      { value: pessoas.filter(p => p.sexo === 'M').length, label: 'Masculino' },
+      { value: pessoas.filter(p => p.sexo === 'F').length, label: 'Feminino' },
+      { value: pessoas.filter(p => p.email).length, label: 'Com Email' }
+    ],
+    actionLink: {
+      href: '/alunos',
+      label: 'Ver alunos'
+    },
+    actions: canCreate ? (
+      <Button onClick={() => navigate('/pessoas/new')}>
+        <Plus className="h-4 w-4 mr-2" />
+        Nova Pessoa
+      </Button>
+    ) : undefined
+  });
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -126,31 +146,6 @@ export default function PessoasPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gerenciar Pessoas"
-        description="Cadastro e edição de pessoas"
-        backTo="/dashboard"
-        actions={canCreate ? (
-          <Button onClick={() => navigate('/pessoas/new')}>Nova Pessoa</Button>
-        ) : undefined}
-      />
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Cadastro de Pessoas"
-        title="Gestão completa de pessoas"
-        description="Cadastre e gerencie todas as pessoas do sistema com suas informações pessoais e de contato."
-        stats={[
-          { value: pessoas.length, label: 'Total de Pessoas' },
-          { value: pessoas.filter(p => p.sexo === 'M').length, label: 'Masculino' },
-          { value: pessoas.filter(p => p.sexo === 'F').length, label: 'Feminino' },
-          { value: pessoas.filter(p => p.email).length, label: 'Com Email' }
-        ]}
-        actionLink={{
-          href: '/alunos',
-          label: 'Ver alunos'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">
@@ -229,6 +224,17 @@ export default function PessoasPage() {
                           <Edit className="h-4 w-4" />
                         </Button>
                       )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(String(p.id))}
+                          title="Remover"
+                          disabled={deleteMutation.isPending}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      )}
                     </div>
                   ) },
                 ]}
@@ -240,11 +246,24 @@ export default function PessoasPage() {
                           <User className="h-5 w-5 text-gray-400" />
                           <h3 className="font-semibold text-gray-900 truncate">{pessoa.nome}</h3>
                         </div>
-                        {canEdit && (
+                        {(canEdit || canDelete) && (
                           <div className="flex space-x-1">
-                            <Button variant="ghost" size="sm" onClick={() => navigate(`/pessoas/edit/${pessoa.id}`)} title="Editar">
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                            {canEdit && (
+                              <Button variant="ghost" size="sm" onClick={() => navigate(`/pessoas/edit/${pessoa.id}`)} title="Editar">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(String(pessoa.id))}
+                                title="Remover"
+                                disabled={deleteMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>

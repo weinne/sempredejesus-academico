@@ -10,8 +10,7 @@ import { apiService } from '@/services/api';
 import { Coorte, CreateCoorte, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import CrudHeader from '@/components/crud/crud-header';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
@@ -63,6 +62,29 @@ export default function CoortesPage() {
     queryFn: () => apiService.getCursos({ limit: 200 }),
   });
   const cursos = cursosResponse?.data || [];
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão das coortes acadêmicas",
+    description: "Configure e gerencie as turmas de ingresso dos alunos para organizar a estrutura acadêmica.",
+    backTo: "/dashboard",
+    stats: [
+      { value: coortes.length, label: 'Total de Coortes' },
+      { value: coortes.filter(c => c.ativo).length, label: 'Ativas' },
+      { value: cursos.length, label: 'Cursos' },
+      { value: coortes.length, label: 'Coortes' }
+    ],
+    actionLink: {
+      href: '/alunos',
+      label: 'Ver alunos'
+    },
+    actions: canCreate ? (
+      <Button onClick={() => navigate('/coortes/new')}>
+        <Plus className="h-4 w-4 mr-2" />
+        Nova Coorte
+      </Button>
+    ) : undefined
+  });
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -134,34 +156,6 @@ export default function CoortesPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gerenciar Coortes"
-        description="Administração das turmas de ingresso dos alunos"
-        backTo="/dashboard"
-        actions={canCreate ? (
-          <Button onClick={() => navigate('/coortes/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Coorte
-          </Button>
-        ) : undefined}
-      />
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Estrutura Acadêmica"
-        title="Gestão das coortes acadêmicas"
-        description="Configure e gerencie as turmas de ingresso dos alunos para organizar a estrutura acadêmica."
-        stats={[
-          { value: coortes.length, label: 'Total de Coortes' },
-          { value: coortes.filter(c => c.ativo).length, label: 'Ativas' },
-          { value: cursos.length, label: 'Cursos' },
-          { value: coortes.length, label: 'Coortes' }
-        ]}
-        actionLink={{
-          href: '/alunos',
-          label: 'Ver alunos'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">

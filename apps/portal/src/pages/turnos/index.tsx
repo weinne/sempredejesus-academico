@@ -10,8 +10,7 @@ import { apiService } from '@/services/api';
 import { Turno, CreateTurno, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import CrudHeader from '@/components/crud/crud-header';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
@@ -75,6 +74,29 @@ export default function TurnosPage() {
   });
 
   const turnos = turnosResponse || [];
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão dos turnos acadêmicos",
+    description: "Configure e gerencie os turnos oferecidos pelo seminário para organizar a estrutura acadêmica.",
+    backTo: "/dashboard",
+    stats: [
+      { value: turnos.length, label: 'Total de Turnos' },
+      { value: turnos.filter(t => t.nome.includes('Manhã')).length, label: 'Manhã' },
+      { value: turnos.filter(t => t.nome.includes('Tarde')).length, label: 'Tarde' },
+      { value: turnos.filter(t => t.nome.includes('Noite')).length, label: 'Noite' }
+    ],
+    actionLink: {
+      href: '/cursos',
+      label: 'Ver cursos'
+    },
+    actions: canCreate ? (
+      <Button onClick={() => navigate('/turnos/new')}>
+        <Plus className="h-4 w-4 mr-2" />
+        Novo Turno
+      </Button>
+    ) : undefined
+  });
 
   // Create mutation
   const createMutation = useMutation({
@@ -222,34 +244,6 @@ export default function TurnosPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gerenciar Turnos"
-        description="Administração dos turnos oferecidos pelo seminário"
-        backTo="/dashboard"
-        actions={canCreate ? (
-          <Button onClick={() => navigate('/turnos/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Turno
-          </Button>
-        ) : undefined}
-      />
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Estrutura Acadêmica"
-        title="Gestão dos turnos acadêmicos"
-        description="Configure e gerencie os turnos oferecidos pelo seminário para organizar a estrutura acadêmica."
-        stats={[
-          { value: turnos.length, label: 'Total de Turnos' },
-          { value: turnos.filter(t => t.nome.includes('Manhã')).length, label: 'Manhã' },
-          { value: turnos.filter(t => t.nome.includes('Tarde')).length, label: 'Tarde' },
-          { value: turnos.filter(t => t.nome.includes('Noite')).length, label: 'Noite' }
-        ]}
-        actionLink={{
-          href: '/cursos',
-          label: 'Ver cursos'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">

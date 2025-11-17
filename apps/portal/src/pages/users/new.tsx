@@ -9,8 +9,9 @@ import { apiService } from '@/services/api';
 import { Pessoa, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const schema = z.object({
   createNewPessoa: z.boolean().default(true),
@@ -51,6 +52,7 @@ export default function UserNewPage() {
     watch,
     setValue,
     reset,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -190,7 +192,17 @@ export default function UserNewPage() {
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                            <Input type="date" {...register('pessoaDataNasc')} />
+                            <Controller
+                              name="pessoaDataNasc"
+                              control={control}
+                              render={({ field }) => (
+                                <DatePicker
+                                  value={field.value || null}
+                                  onChange={field.onChange}
+                                  placeholder="dd/mm/aaaa"
+                                />
+                              )}
+                            />
                           </div>
                           <div className="md:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>

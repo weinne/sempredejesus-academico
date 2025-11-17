@@ -5,8 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { apiService } from '@/services/api';
-import { HeroSection } from '@/components/ui/hero-section';
-import { StatCard } from '@/components/ui/stats-card';
+import { usePageHero } from '@/hooks/use-page-hero';
 import {
   ArrowLeft, 
   Calendar, 
@@ -23,7 +22,8 @@ import {
   CheckCircle,
   XCircle,
   ArrowRight,
-  Edit
+  Edit,
+  Printer
 } from 'lucide-react';
 import type { Disciplina } from '@/types/api';
 
@@ -54,6 +54,31 @@ export default function TurmaDetailPage() {
     retry: false,
   });
 
+  // Configure Hero via hook (must be called before early returns)
+  usePageHero({
+    title: turma?.disciplina?.nome || 'Carregando...',
+    description: turma ? `Turma ${turma.secao ? `seção ${turma.secao}` : 'única'} da disciplina ${turma.disciplina?.codigo || 'N/A'}` : 'Carregando detalhes da turma',
+    backTo: "/turmas",
+    stats: turma ? [
+      { value: turma.disciplina?.codigo || 'N/A', label: 'Código' },
+      { value: turma.secao || 'Única', label: 'Seção' },
+      { value: turma.sala || 'N/A', label: 'Sala' },
+      { value: turma.horario || 'N/A', label: 'Horário' }
+    ] : [],
+    actionLink: {
+      href: '/turmas',
+      label: 'Ver todas as turmas'
+    },
+    actions: turma ? (
+      <Link to={`/turmas/edit/${turma.id}`}>
+        <Button>
+          <Edit className="h-4 w-4 mr-2" />
+          Editar Turma
+        </Button>
+      </Link>
+    ) : undefined
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -67,23 +92,6 @@ export default function TurmaDetailPage() {
   if (error || !turma) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center space-x-4 py-4">
-              <Link to="/turmas">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Detalhes da Turma</h1>
-                <p className="text-sm text-gray-600">ID: {id}</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Card>
             <CardContent className="p-8 text-center">
@@ -100,86 +108,8 @@ export default function TurmaDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center space-x-4">
-              <Link to="/turmas">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar às Turmas
-                </Button>
-              </Link>
-              <div>
-                <div className="flex items-center gap-3">
-                  <Badge variant="outline">
-                    {turma.secao ? `Seção ${turma.secao}` : 'Turma'}
-                  </Badge>
-                  <h1 className="text-2xl font-bold text-gray-900">
-                    {turma.disciplina?.nome || 'Disciplina não informada'}
-                  </h1>
-                </div>
-                <p className="text-sm text-gray-600">
-                  Código: {turma.disciplina?.codigo || 'N/A'}
-                </p>
-              </div>
-            </div>
-            <Link to={`/turmas/edit/${turma.id}`}>
-              <Button>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar Turma
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Detalhes da Turma"
-        title={turma.disciplina?.nome || 'Disciplina não informada'}
-        description={`Turma ${turma.secao ? `seção ${turma.secao}` : 'única'} da disciplina ${turma.disciplina?.codigo || 'N/A'}`}
-        stats={[
-          { value: turma.disciplina?.codigo || 'N/A', label: 'Código' },
-          { value: turma.secao || 'Única', label: 'Seção' },
-          { value: turma.sala || 'N/A', label: 'Sala' },
-          { value: turma.horario || 'N/A', label: 'Horário' }
-        ]}
-        actionLink={{
-          href: '/turmas',
-          label: 'Ver todas as turmas'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        {/* Estatísticas */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
-          <StatCard
-            title="Código"
-            value={turma.disciplina?.codigo || 'N/A'}
-            icon={BookOpen}
-            iconColor="text-blue-600"
-          />
-          <StatCard
-            title="Seção"
-            value={turma.secao || 'Única'}
-            icon={Users}
-            iconColor="text-green-600"
-          />
-          <StatCard
-            title="Sala"
-            value={turma.sala || 'N/A'}
-            icon={MapPin}
-            iconColor="text-purple-600"
-          />
-          <StatCard
-            title="Horário"
-            value={turma.horario || 'N/A'}
-            icon={Clock}
-            iconColor="text-orange-600"
-          />
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Informações Principais */}
           <div className="lg:col-span-2 space-y-6">
@@ -235,19 +165,97 @@ export default function TurmaDetailPage() {
                   </div>
                 </div>
 
-                {turma.disciplina?.ementa && (
-                  <div className="pt-4 border-t border-gray-100">
-                    <h4 className="font-medium text-gray-900 mb-2">Ementa</h4>
-                    <p className="text-sm text-gray-600">{turma.disciplina.ementa}</p>
-                  </div>
-                )}
+                {/* Plano de Ensino com fallback: turma primeiro, depois disciplina */}
+                {(() => {
+                  const ementa = turma.ementa ?? turma.disciplina?.ementa;
+                  const objetivos = turma.objetivos ?? turma.disciplina?.objetivos;
+                  const conteudoProgramatico = turma.conteudoProgramatico ?? turma.disciplina?.conteudoProgramatico;
+                  const instrumentosEAvaliacao = turma.instrumentosEAvaliacao ?? turma.disciplina?.instrumentosEAvaliacao;
+                  const bibliografia = turma.bibliografia ?? turma.disciplina?.bibliografia;
 
-                {turma.disciplina?.bibliografia && (
-                  <div className="pt-4 border-t border-gray-100">
-                    <h4 className="font-medium text-gray-900 mb-2">Bibliografia</h4>
-                    <p className="text-sm text-gray-600">{turma.disciplina.bibliografia}</p>
-                  </div>
-                )}
+                  if (!ementa && !objetivos && !conteudoProgramatico && !instrumentosEAvaliacao && !bibliografia) {
+                    return null;
+                  }
+
+                  return (
+                    <div className="pt-4 border-t border-gray-100 space-y-4">
+                      {ementa && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-gray-900">Ementa</h4>
+                            {turma.ementa && (
+                              <Badge variant="outline" className="text-xs">Personalizado</Badge>
+                            )}
+                          </div>
+                          <div 
+                            className="prose prose-sm max-w-none text-gray-600"
+                            dangerouslySetInnerHTML={{ __html: ementa }}
+                          />
+                        </div>
+                      )}
+
+                      {objetivos && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-gray-900">Objetivos</h4>
+                            {turma.objetivos && (
+                              <Badge variant="outline" className="text-xs">Personalizado</Badge>
+                            )}
+                          </div>
+                          <div 
+                            className="prose prose-sm max-w-none text-gray-600"
+                            dangerouslySetInnerHTML={{ __html: objetivos }}
+                          />
+                        </div>
+                      )}
+
+                      {conteudoProgramatico && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-gray-900">Conteúdo Programático</h4>
+                            {turma.conteudoProgramatico && (
+                              <Badge variant="outline" className="text-xs">Personalizado</Badge>
+                            )}
+                          </div>
+                          <div 
+                            className="prose prose-sm max-w-none text-gray-600"
+                            dangerouslySetInnerHTML={{ __html: conteudoProgramatico }}
+                          />
+                        </div>
+                      )}
+
+                      {instrumentosEAvaliacao && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-gray-900">Instrumentos e Critérios de Avaliação</h4>
+                            {turma.instrumentosEAvaliacao && (
+                              <Badge variant="outline" className="text-xs">Personalizado</Badge>
+                            )}
+                          </div>
+                          <div 
+                            className="prose prose-sm max-w-none text-gray-600"
+                            dangerouslySetInnerHTML={{ __html: instrumentosEAvaliacao }}
+                          />
+                        </div>
+                      )}
+
+                      {bibliografia && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-gray-900">Bibliografia</h4>
+                            {turma.bibliografia && (
+                              <Badge variant="outline" className="text-xs">Personalizado</Badge>
+                            )}
+                          </div>
+                          <div 
+                            className="prose prose-sm max-w-none text-gray-600"
+                            dangerouslySetInnerHTML={{ __html: bibliografia }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
 
@@ -396,33 +404,6 @@ export default function TurmaDetailPage() {
                     <span className="text-gray-500">ID:</span>
                     <span className="font-medium">{turma.id}</span>
                   </div>
-                  
-                  {turma.sala && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Sala:</span>
-                      <span className="font-medium flex items-center">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        {turma.sala}
-                      </span>
-                    </div>
-                  )}
-
-                  {turma.horario && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Horário:</span>
-                      <span className="font-medium flex items-center">
-                        <Clock className="h-4 w-4 mr-1" />
-                        {turma.horario}
-                      </span>
-                    </div>
-                  )}
-
-                  {turma.secao && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Seção:</span>
-                      <span className="font-medium">{turma.secao}</span>
-                    </div>
-                  )}
 
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Situação:</span>
@@ -521,6 +502,14 @@ export default function TurmaDetailPage() {
                     Editar Turma
                   </Button>
                 </Link>
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => window.open(`/turmas/${turma.id}/print`, '_blank')}
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir
+                </Button>
               </CardContent>
             </Card>
           </div>

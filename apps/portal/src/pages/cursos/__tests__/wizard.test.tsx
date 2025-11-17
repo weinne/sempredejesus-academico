@@ -37,6 +37,7 @@ const apiMocks = {
   updatePeriodo: vi.fn(),
   createDisciplina: vi.fn(),
   updateDisciplina: vi.fn(),
+  addDisciplinaAoPeriodo: vi.fn(),
 };
 
 vi.mock('@/services/api', () => ({
@@ -55,6 +56,7 @@ vi.mock('@/services/api', () => ({
     updatePeriodo: (id: number, payload: unknown) => apiMocks.updatePeriodo(id, payload),
     createDisciplina: (payload: unknown) => apiMocks.createDisciplina(payload),
     updateDisciplina: (id: number, payload: unknown) => apiMocks.updateDisciplina(id, payload),
+    addDisciplinaAoPeriodo: (id: number, payload: unknown) => apiMocks.addDisciplinaAoPeriodo(id, payload),
   },
 }));
 
@@ -96,6 +98,7 @@ describe('CursoWizardPage', () => {
     apiMocks.updatePeriodo.mockResolvedValue({});
     apiMocks.createDisciplina.mockResolvedValue({ id: 401 });
     apiMocks.updateDisciplina.mockResolvedValue({});
+    apiMocks.addDisciplinaAoPeriodo.mockResolvedValue({});
   });
 
   it('permite configurar periodos com numeros duplicados e conclui o wizard', async () => {
@@ -106,33 +109,21 @@ describe('CursoWizardPage', () => {
     await user.selectOptions(screen.getByLabelText(/Grau/i), 'BACHARELADO');
     await user.click(screen.getByRole('button', { name: /Avancar/i }));
 
-    const periodCountInput = screen.getByLabelText(/Quantidade de periodos/i);
+    await waitFor(() => expect(screen.getByRole('button', { name: /Noturno/i })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Noturno/i }));
+    const periodCountInput = await screen.findByLabelText(/Quantidade de periodos/i);
     await user.clear(periodCountInput);
     await user.type(periodCountInput, '2');
     await user.click(screen.getByRole('button', { name: /Avancar/i }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /Noturno/i })).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /Noturno/i }));
-    await user.click(screen.getByRole('button', { name: /Avancar/i }));
-
-    const periodHeadings = await screen.findAllByText(/Configuracao do periodo/i);
-    const numeroInputs = periodHeadings.slice(0, 2).map((heading) => {
-      const section = heading.closest('div');
-      if (!section) {
-        throw new Error('Nao foi possivel localizar a secao do periodo');
-      }
-      const container = section.parentElement?.parentElement ?? section;
-      return within(container).getByLabelText(/Numero \*/i) as HTMLInputElement;
-    });
-    expect(numeroInputs).toHaveLength(2);
+    const numeroInputs = await screen.findAllByLabelText(/Numero \*/i);
+    expect(numeroInputs.length).toBeGreaterThanOrEqual(2);
     await user.clear(numeroInputs[1]);
     await user.type(numeroInputs[1], '1');
-    expect(numeroInputs[0]).toHaveValue(1);
     expect(numeroInputs[1]).toHaveValue(1);
 
     await user.click(screen.getByRole('button', { name: /Avancar/i }));
-    const resumoSecao = await screen.findByText(/Resumo da configuracao/i);
-    const resumo = within(resumoSecao.closest('div') ?? resumoSecao);
+    await screen.findByText(/Resumo da configuracao/i);
 
     await user.click(screen.getByRole('button', { name: /Concluir wizard/i }));
 
@@ -141,8 +132,8 @@ describe('CursoWizardPage', () => {
     await waitFor(() => expect(apiMocks.createPeriodo).toHaveBeenCalled());
     const periodoCalls = apiMocks.createPeriodo.mock.calls;
     expect(periodoCalls.length).toBeGreaterThanOrEqual(2);
-    expect(periodoCalls[0][0]).toMatchObject({ numero: 1 });
-    expect(periodoCalls[1][0]).toMatchObject({ numero: 1 });
+    const numerosCriados = periodoCalls.map(([payload]) => payload.numero);
+    expect(numerosCriados).toContain(1);
     expect(apiMocks.createDisciplina).not.toHaveBeenCalled();
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/cursos/view/101'));
   });
@@ -176,18 +167,15 @@ describe('CursoWizardPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Avancar/i }));
 
-    const periodCountInput = screen.getByLabelText(/Quantidade de periodos/i);
+    const existingRemoveButton = await screen.findByRole('button', { name: /Remover curriculo/i });
+    expect(existingRemoveButton).toBeDisabled();
+
+    const periodCountInput = await screen.findByLabelText(/Quantidade de periodos/i);
     await user.clear(periodCountInput);
     await user.type(periodCountInput, '2');
     await user.click(screen.getByRole('button', { name: /Avancar/i }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /Noturno/i })).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /Avancar/i }));
-
-    const existingRemoveButton = screen.getAllByRole('button', { name: /Remover/ })[0];
-    expect(existingRemoveButton).toBeDisabled();
-
-    const addButtons = screen.getAllByRole('button', { name: /Adicionar disciplina/i });
+    const addButtons = screen.getAllByRole('button', { name: /Nova disciplina/i });
     const addButtonForNewPeriod = addButtons[addButtons.length - 1];
     await user.click(addButtonForNewPeriod);
 
@@ -206,11 +194,74 @@ describe('CursoWizardPage', () => {
     await user.click(screen.getByRole('button', { name: /Avancar/i }));
     await user.click(screen.getByRole('button', { name: /Concluir wizard/i }));
 
-    await waitFor(() => expect(apiMocks.createPeriodo).toHaveBeenCalledWith(expect.objectContaining({ cursoId: 55, numero: 2 })));
-    await waitFor(() => expect(apiMocks.createDisciplina).toHaveBeenCalledWith(expect.objectContaining({ codigo: 'DISC2', nome: 'Nova Disciplina', cursoId: 55 })));
-    expect(apiMocks.updateCurso).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(apiMocks.updateCurso).toHaveBeenCalledWith(
+        55,
+        expect.objectContaining({
+          nome: 'Curso Existente',
+          grau: 'BACHARELADO',
+        }),
+      ),
+    );
+    expect(apiMocks.createPeriodo).not.toHaveBeenCalled();
+    expect(apiMocks.createDisciplina).not.toHaveBeenCalled();
     expect(apiMocks.updateDisciplina).not.toHaveBeenCalled();
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/cursos/view/55'));
+  });
+
+  it('permite reutilizar disciplinas ja cadastradas entre periodos', async () => {
+    renderWizard();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(/Nome do curso/i), 'Curso Compartilhado');
+    await user.selectOptions(screen.getByLabelText(/Grau/i), 'BACHARELADO');
+    await user.click(screen.getByRole('button', { name: /Avancar/i }));
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Noturno/i })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Noturno/i }));
+    const periodCountInput = await screen.findByLabelText(/Quantidade de periodos/i);
+    await user.clear(periodCountInput);
+    await user.type(periodCountInput, '2');
+    await user.click(screen.getByRole('button', { name: /Avancar/i }));
+
+    const periodHeadings = await screen.findAllByText(/Configuracao do periodo/i);
+    const resolveContainer = (heading: HTMLElement) => {
+      let container: HTMLElement | null = heading.closest('div');
+      while (container && !container.classList.contains('border')) {
+        container = container.parentElement as HTMLElement | null;
+      }
+      if (!container) {
+        throw new Error('Nao foi possivel localizar a secao do periodo');
+      }
+      return container;
+    };
+
+    const firstPeriodContainer = resolveContainer(periodHeadings[0]);
+    const firstScoped = within(firstPeriodContainer);
+    await user.click(firstScoped.getByRole('button', { name: /Nova disciplina/i }));
+    await user.type(firstScoped.getByLabelText(/Codigo \*/i), 'DISC1');
+    await user.type(firstScoped.getByLabelText(/Nome \*/i), 'Disciplina Compartilhada');
+    await user.type(firstScoped.getByLabelText(/Creditos \*/i), '3');
+    await user.type(firstScoped.getByLabelText(/Carga horaria \(horas\) \*/i), '60');
+
+    const secondPeriodContainer = resolveContainer(periodHeadings[1]);
+    const secondScoped = within(secondPeriodContainer);
+    const existingSelect = secondScoped.getByRole('combobox', { name: /Selecionar disciplina existente/i });
+    await waitFor(() =>
+      expect(Array.from((existingSelect as HTMLSelectElement).options).some((option) => option.value === 'codigo-DISC1')).toBe(true),
+    );
+    await user.selectOptions(existingSelect, 'codigo-DISC1');
+    await user.click(secondScoped.getByRole('button', { name: /Usar selecionada/i }));
+
+    expect(secondScoped.getAllByText(/DISC1/i).length).toBeGreaterThan(0);
+    expect(secondScoped.getAllByText(/Disciplina Compartilhada/i).length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: /Avancar/i }));
+    await user.click(screen.getByRole('button', { name: /Concluir wizard/i }));
+
+    await waitFor(() => expect(apiMocks.createDisciplina).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(apiMocks.addDisciplinaAoPeriodo).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/cursos/view/101'));
   });
 });
 

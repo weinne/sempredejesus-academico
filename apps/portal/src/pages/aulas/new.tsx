@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { DatePicker } from '@/components/ui/date-picker';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +40,7 @@ export default function NovaAulaPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     setValue,
     watch,
@@ -146,7 +148,18 @@ export default function NovaAulaPage() {
               {/* Data */}
               <div className="space-y-2">
                 <Label htmlFor="data">Data *</Label>
-                <Input id="data" type="date" {...register('data')} />
+                <Controller
+                  name="data"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      value={field.value || null}
+                      onChange={field.onChange}
+                      placeholder="dd/mm/aaaa"
+                      id="data"
+                    />
+                  )}
+                />
                 {errors.data && <p className="text-sm text-red-500">{errors.data.message}</p>}
               </div>
 

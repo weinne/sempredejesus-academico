@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Role } from '@/types/api';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import {
   ArrowLeft,
@@ -49,6 +49,31 @@ export default function AlunoDetailPage() {
     retry: false,
   });
 
+  // Configure Hero via hook (must be called before early returns)
+  usePageHero({
+    title: aluno?.pessoa?.nome || 'Carregando...',
+    description: aluno ? `Aluno ${aluno.situacao.toLowerCase()} do curso ${aluno.curso?.nome || 'N/A'}` : 'Carregando detalhes do aluno',
+    backTo: "/alunos",
+    stats: aluno ? [
+      { value: aluno.ra, label: 'RA' },
+      { value: aluno.situacao, label: 'Situação' },
+      { value: aluno.anoIngresso, label: 'Ano de Ingresso' },
+      { value: aluno.coeficienteAcad || 'N/A', label: 'Coeficiente' }
+    ] : [],
+    actionLink: {
+      href: '/alunos',
+      label: 'Ver todos os alunos'
+    },
+    actions: aluno && canEdit ? (
+      <Link to={`/alunos/edit/${aluno.ra}`}>
+        <Button>
+          <Edit className="h-4 w-4 mr-2" />
+          Editar
+        </Button>
+      </Link>
+    ) : undefined
+  });
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -62,23 +87,6 @@ export default function AlunoDetailPage() {
   if (error || !aluno) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center space-x-4 py-4">
-              <Link to="/alunos">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar para Alunos
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Detalhes do Aluno</h1>
-                <p className="text-sm text-gray-600">RA: {ra}</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Card>
             <CardContent className="p-8 text-center">
@@ -103,57 +111,6 @@ export default function AlunoDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center space-x-4">
-              <Link to="/alunos">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Voltar para Alunos
-                </Button>
-              </Link>
-              <div>
-                {/* Breadcrumb */}
-                <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-1">
-                  <Link to="/alunos" className="hover:text-gray-700">Alunos</Link>
-                  <span>/</span>
-                  <span className="text-gray-900">{aluno.pessoa?.nome || aluno.ra}</span>
-                </nav>
-                <h1 className="text-2xl font-bold text-gray-900">Detalhes do Aluno</h1>
-                <p className="text-sm text-gray-600">RA: {aluno.ra}</p>
-              </div>
-            </div>
-            {canEdit && (
-              <div className="flex space-x-2">
-                <Link to={`/alunos/edit/${aluno.ra}`}>
-                  <Button>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Detalhes do Aluno"
-        title={aluno.pessoa?.nome || 'Nome não disponível'}
-        description={`Aluno ${aluno.situacao.toLowerCase()} do curso ${aluno.curso?.nome || 'N/A'}`}
-        stats={[
-          { value: aluno.ra, label: 'RA' },
-          { value: aluno.situacao, label: 'Situação' },
-          { value: aluno.anoIngresso, label: 'Ano de Ingresso' },
-          { value: aluno.coeficienteAcad || 'N/A', label: 'Coeficiente' }
-        ]}
-        actionLink={{
-          href: '/alunos',
-          label: 'Ver todos os alunos'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Estatísticas */}

@@ -3,7 +3,9 @@ import { turmas } from './turmas';
 
 export const aulas = pgTable('aulas', {
   id: serial('id').primaryKey(),
-  turmaId: integer('turma_id').notNull().references(() => turmas.id),
+  turmaId: integer('turma_id')
+    .notNull()
+    .references(() => turmas.id, { onDelete: 'cascade' }),
   data: date('data').notNull(),
   horaInicio: time('hora_inicio'),
   horaFim: time('hora_fim'),

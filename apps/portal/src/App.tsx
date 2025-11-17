@@ -29,6 +29,7 @@ import TurmaDetailPage from '@/pages/turmas/[id]';
 import TurmaNewPage from '@/pages/turmas/new';
 import TurmaEditPage from '@/pages/turmas/edit/[id]';
 import TurmaInscricoesPage from '@/pages/turmas/inscricoes/[id]';
+import TurmaPrintPage from '@/pages/turmas/print/[id]';
 import RelatoriosPage from '@/pages/relatorios';
 import AvaliacoesPage from '@/pages/avaliacoes';
 import AulasPage from '@/pages/aulas';
@@ -74,6 +75,9 @@ function App() {
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
 
+          {/* Protected routes without layout (print pages) */}
+          <Route path="/turmas/:id/print" element={<ProtectedRoute permission={{ action: 'view', resource: 'turmas' }}><TurmaPrintPage /></ProtectedRoute>} />
+
           {/* Protected routes within layout */}
           <Route
             element={
@@ -112,12 +116,12 @@ function App() {
             <Route path="/turmas/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'turmas' }}><TurmaDetailPage /></ProtectedRoute>} />
             <Route path="/turmas/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'turmas' }}><TurmaDetailPage /></ProtectedRoute>} />
             <Route path="/turmas/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurmaNewPage /></ProtectedRoute>} />
-            <Route path="/turmas/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurmaEditPage /></ProtectedRoute>} />
+            <Route path="/turmas/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><TurmaEditPage /></ProtectedRoute>} />
             <Route path="/turmas/inscricoes/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'turmas' }} roles={[Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]}><TurmaInscricoesPage /></ProtectedRoute>} />
-            <Route path="/disciplinas" element={<DisciplinasPage />} />
-            <Route path="/disciplinas/new" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaNewPage /></ProtectedRoute>} />
-            <Route path="/disciplinas/edit/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaEditPage /></ProtectedRoute>} />
-            <Route path="/disciplinas/view/:id" element={<ProtectedRoute roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaViewPage /></ProtectedRoute>} />
+            <Route path="/disciplinas" element={<ProtectedRoute permission={{ action: 'view', resource: 'disciplinas' }}><DisciplinasPage /></ProtectedRoute>} />
+            <Route path="/disciplinas/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'disciplinas' }} roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaNewPage /></ProtectedRoute>} />
+            <Route path="/disciplinas/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'disciplinas' }} roles={[Role.ADMIN, Role.SECRETARIA]}><DisciplinaEditPage /></ProtectedRoute>} />
+            <Route path="/disciplinas/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'disciplinas' }}><DisciplinaViewPage /></ProtectedRoute>} />
             <Route path="/curriculos" element={<ProtectedRoute permission={{ action: 'view', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculosPage /></ProtectedRoute>} />
             <Route path="/curriculos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoNewPage /></ProtectedRoute>} />
             <Route path="/curriculos/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoEditPage /></ProtectedRoute>} />

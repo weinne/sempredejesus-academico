@@ -39,12 +39,14 @@ const roleCapabilities: Record<Role, Capabilities> = {
     turmas: { view: true, create: true, edit: true, delete: false },
   },
   [Role.PROFESSOR]: {
-    turmas: { view: true },
+    turmas: { view: true, edit: true },
     alunos: { view: true },
     disciplinas: { view: true },
   },
   [Role.ALUNO]: {
     alunos: { view: true },
+    disciplinas: { view: true },
+    turmas: { view: true },
   },
 };
 

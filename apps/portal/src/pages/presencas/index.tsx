@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import CrudHeader from '@/components/crud/crud-header';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { apiService } from '@/services/api';
 import { Aula, EstudanteAula, LancarFrequenciaInput, Role, AlertasFrequencia } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
@@ -121,13 +121,15 @@ export default function PresencasPage() {
   const presentes = Object.values(presencas).filter(Boolean).length;
   const ausentes = totalEstudantes - presentes;
 
+  // Configure Hero via hook
+  usePageHero({
+    title: "Registro de Presenças",
+    description: "Marque as presenças dos alunos de forma visual e intuitiva",
+    backTo: "/dashboard"
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <CrudHeader 
-        title="Registro de Presenças" 
-        description="Marque as presenças dos alunos de forma visual e intuitiva" 
-        backTo="/dashboard" 
-      />
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
         {/* Seleção de Turma e Aula */}

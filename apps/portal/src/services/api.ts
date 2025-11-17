@@ -1412,7 +1412,7 @@ class ApiService {
     periodoId: number,
     payload: { disciplinaId: number; ordem?: number; obrigatoria?: boolean },
   ): Promise<DisciplinaPeriodo> {
-    const response = await this.api.post(`/api/periodos/${periodoId}/disciplinas`, payload);
+    const response = await this.api.post(`/api/disciplinas/periodos/${periodoId}/disciplinas`, payload);
     const mapped = this.mapDisciplinaPeriodo(response.data.data || response.data);
     if (!mapped) {
       throw new Error('Falha ao vincular disciplina ao período');
@@ -1426,7 +1426,7 @@ class ApiService {
     payload: { ordem?: number; obrigatoria?: boolean },
   ): Promise<DisciplinaPeriodo> {
     const response = await this.api.patch(
-      `/api/periodos/${periodoId}/disciplinas/${disciplinaId}`,
+      `/api/disciplinas/periodos/${periodoId}/disciplinas/${disciplinaId}`,
       payload,
     );
     const mapped = this.mapDisciplinaPeriodo(response.data.data || response.data);
@@ -1437,7 +1437,7 @@ class ApiService {
   }
 
   async removeDisciplinaDoPeriodo(periodoId: number, disciplinaId: number): Promise<void> {
-    await this.api.delete(`/api/periodos/${periodoId}/disciplinas/${disciplinaId}`);
+    await this.api.delete(`/api/disciplinas/periodos/${periodoId}/disciplinas/${disciplinaId}`);
   }
 
   // Turmas CRUD
@@ -1644,6 +1644,12 @@ class ApiService {
       cargaHoraria: Number(disciplina.cargaHoraria ?? payload.cargaHoraria ?? 0),
       ementa: disciplina.ementa ?? payload.ementa ?? undefined,
       bibliografia: disciplina.bibliografia ?? payload.bibliografia ?? undefined,
+      objetivos: disciplina.objetivos ?? payload.objetivos ?? undefined,
+      conteudoProgramatico: disciplina.conteudoProgramatico ?? payload.conteudoProgramatico ?? undefined,
+      instrumentosEAvaliacao:
+        disciplina.instrumentosEAvaliacao ??
+        payload.instrumentosEAvaliacao ??
+        undefined,
       ativo: disciplina.ativo ?? payload.ativo ?? true,
       periodos,
       curso: curso

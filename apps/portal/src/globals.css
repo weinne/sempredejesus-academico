@@ -2,6 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
+input[type='date'].date-input {
+  position: relative;
+}
+
+input[type='date'].date-input[data-date-empty='true'] {
+  color: transparent;
+}
+
+input[type='date'].date-input[data-date-empty='true']::-webkit-datetime-edit,
+input[type='date'].date-input[data-date-empty='true']::-webkit-datetime-edit-day-field,
+input[type='date'].date-input[data-date-empty='true']::-webkit-datetime-edit-month-field,
+input[type='date'].date-input[data-date-empty='true']::-webkit-datetime-edit-year-field,
+input[type='date'].date-input[data-date-empty='true']::-webkit-datetime-edit-text {
+  color: transparent;
+}
+
+input[type='date'].date-input[data-date-empty='true']::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgb(156 163 175);
+  pointer-events: none;
+}
+
+input[type='date'].date-input:focus {
+  color: inherit;
+}
+
+input[type='date'].date-input:focus::before,
+input[type='date'].date-input[data-date-empty='false']::before {
+  content: "";
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import CrudHeader from '@/components/crud/crud-header';
+import { usePageHero } from '@/hooks/use-page-hero';
 import CrudToolbar from '@/components/crud/crud-toolbar';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
@@ -133,6 +133,25 @@ export default function PeriodosPage() {
   const totalDisciplinasCurso = disciplinasResumo?.pagination?.total ?? 0;
   const periodosTotal = hasActiveCurso ? (pagination?.total ?? periodos.length) : 0;
   const turnosConectados = hasActiveCurso ? turnosDisponiveis.length : 0;
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão de períodos acadêmicos",
+    description: "Organize os períodos dos cursos com suas disciplinas e configurações acadêmicas.",
+    backTo: "/cursos",
+    stats: [
+      { value: periodosTotal, label: 'Períodos' },
+      { value: totalDisciplinasCurso, label: 'Disciplinas' },
+      { value: turnosConectados, label: 'Turnos' },
+      { value: cursos.length, label: 'Cursos' }
+    ],
+    actions: canCreate ? (
+      <Button onClick={() => navigate('/periodos/new')}>
+        <Plus className="h-4 w-4 mr-2" />
+        Novo Período
+      </Button>
+    ) : undefined
+  });
   const selectedCourse = useMemo(() => {
     if (cursoFiltro === '') {
       return undefined;
@@ -217,66 +236,6 @@ export default function PeriodosPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gestão de Períodos"
-        description="Organize os períodos dos cursos"
-        backTo="/cursos"
-        actions={
-          canCreate ? (
-            <Button onClick={() => navigate('/periodos/new')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Período
-            </Button>
-          ) : undefined
-        }
-      />
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-sky-900/70 to-slate-900" />
-        <div className="relative max-w-7xl mx-auto px-6 py-16 text-white">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-10">
-            <div className="max-w-2xl space-y-4">
-              <Badge className="bg-white/20 text-white hover:bg-white/30">Gestão Acadêmica</Badge>
-              <h1 className="text-4xl md:text-5xl font-semibold leading-tight">
-                Organização completa dos períodos acadêmicos
-              </h1>
-              <p className="text-base md:text-lg text-slate-200/80">
-                Visualize e gerencie os períodos de cada curso com seus turnos, currículos e disciplinas.
-                Configure a estrutura acadêmica de forma organizada e eficiente.
-              </p>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-2xl p-6 w-full max-w-md shadow-lg border border-white/10">
-              <p className="text-sm uppercase tracking-wide text-slate-200/70">Visão geral</p>
-              <div className="mt-4 grid grid-cols-2 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-semibold">{cursos.length}</p>
-                  <p className="text-xs text-slate-200/70">Cursos</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-semibold">{periodosTotal}</p>
-                  <p className="text-xs text-slate-200/70">Períodos</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-semibold">{turnosConectados}</p>
-                  <p className="text-xs text-slate-200/70">Turnos</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-semibold">{totalDisciplinasCurso}</p>
-                  <p className="text-xs text-slate-200/70">Disciplinas</p>
-                </div>
-              </div>
-              <Link
-                to="/cursos"
-                className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-slate-100 hover:text-white transition"
-              >
-                Voltar aos cursos
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">

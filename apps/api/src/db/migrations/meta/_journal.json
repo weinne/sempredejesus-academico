@@ -29,6 +29,55 @@
       "when": 1761564065481,
       "tag": "0003_grey_otto_octavius",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1768675200000,
+      "tag": "0008_cascade_cursos_dependencias",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1768676200000,
+      "tag": "0009_cascade_curriculos_dependentes",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1763369602197,
+      "tag": "0006_yellow_william_stryker",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1768677200000,
+      "tag": "0010_cascade_coortes_dependentes",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1768678200000,
+      "tag": "0011_cascade_turmas_chain",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1768679200000,
+      "tag": "0012_cascade_professores_dependentes",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1768680200000,
+      "tag": "0013_cascade_pessoas_dependentes",
+      "breakpoints": true
     }
   ]
 }

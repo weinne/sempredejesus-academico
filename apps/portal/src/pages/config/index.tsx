@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import { ArrowLeft, Settings, Shield, Database, Users, BarChart3, CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/providers/auth-provider';
@@ -28,41 +28,25 @@ export default function ConfigPage() {
     );
   }
 
+  // Configure Hero via hook
+  usePageHero({
+    title: "Controle total do sistema",
+    description: "Configure e gerencie todas as configurações do sistema, segurança e parâmetros.",
+    backTo: "/dashboard",
+    stats: [
+      { value: 'Admin', label: 'Acesso' },
+      { value: '100%', label: 'Segurança' },
+      { value: 'Real-time', label: 'Monitoramento' },
+      { value: 'Backup', label: 'Proteção' }
+    ],
+    actionLink: {
+      href: '/dashboard',
+      label: 'Ver dashboard'
+    }
+  });
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-4 py-4">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Configurações</h1>
-              <p className="text-sm text-gray-600">Configurações do sistema</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Configurações do Sistema"
-        title="Controle total do sistema"
-        description="Configure e gerencie todas as configurações do sistema, segurança e parâmetros."
-        stats={[
-          { value: 'Admin', label: 'Acesso' },
-          { value: '100%', label: 'Segurança' },
-          { value: 'Real-time', label: 'Monitoramento' },
-          { value: 'Backup', label: 'Proteção' }
-        ]}
-        actionLink={{
-          href: '/dashboard',
-          label: 'Ver dashboard'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Estatísticas */}

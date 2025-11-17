@@ -20,8 +20,9 @@ import { CreateAlunoWithUser, Pessoa, Curso, Periodo, Turno, Coorte } from '@/ty
 import { useToast } from '@/hooks/use-toast';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { z } from 'zod';
-import { useForm, type FieldErrors } from 'react-hook-form';
+import { useForm, type FieldErrors, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const pessoaInlineSchema = z.object({
   nome: z.string({ required_error: 'Nome é obrigatório' }).min(1, 'Nome é obrigatório'),
@@ -97,7 +98,7 @@ export default function AlunoNewPage() {
   const queryClient = useQueryClient();
   const [showPessoaModal, setShowPessoaModal] = useState(false);
 
-  const { register, handleSubmit, watch, setValue, setError, clearErrors, formState: { errors } } = useForm<AlunoFormData>({
+  const { register, handleSubmit, watch, setValue, setError, clearErrors, control, formState: { errors } } = useForm<AlunoFormData>({
     resolver: zodResolver(alunoSchema),
     defaultValues: { situacao: 'ATIVO', createUser: true },
   });
@@ -601,7 +602,17 @@ export default function AlunoNewPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                        <Input type="date" {...register('pessoa.data_nascimento')} />
+                        <Controller
+                          name="pessoa.data_nascimento"
+                          control={control}
+                          render={({ field }) => (
+                            <DatePicker
+                              value={field.value || null}
+                              onChange={field.onChange}
+                              placeholder="dd/mm/aaaa"
+                            />
+                          )}
+                        />
                       </div>
                     </div>
                     

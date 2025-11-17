@@ -303,6 +303,7 @@ const router = Router();
 // Create Enhanced CRUD factory for professores with joins
 const professoresCrud = new EnhancedCrudFactory({
   table: professores,
+  primaryKey: 'matricula',
   createSchema: CreateProfessorSchema,
   updateSchema: UpdateProfessorSchema,
   joinTables: [

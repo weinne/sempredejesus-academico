@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { DatePicker } from '@/components/ui/date-picker';
 import { User, MapPin } from 'lucide-react';
 
 import CrudHeader from '@/components/crud/crud-header';
@@ -63,6 +64,7 @@ export default function PessoaNewPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<PessoaFormData>({
     resolver: zodResolver(pessoaSchema),
@@ -185,11 +187,17 @@ export default function PessoaNewPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                    <Input
-                      type="date"
-                      data-field="data_nascimento"
-                      {...register('data_nascimento')}
-                      className="h-11"
+                    <Controller
+                      name="data_nascimento"
+                      control={control}
+                      render={({ field }) => (
+                        <DatePicker
+                          value={field.value || null}
+                          onChange={field.onChange}
+                          placeholder="dd/mm/aaaa"
+                          data-field="data_nascimento"
+                        />
+                      )}
                     />
                   </div>
 

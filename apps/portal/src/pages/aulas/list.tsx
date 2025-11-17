@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import CrudHeader from '@/components/crud/crud-header';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { apiService } from '@/services/api';
 import { Aula, Role } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
@@ -160,13 +160,15 @@ export default function AulasListPage() {
     setGlobalFilter('');
   };
 
+  // Configure Hero via hook
+  usePageHero({
+    title: "Aulas",
+    description: "Listagem de aulas cadastradas",
+    backTo: "/dashboard"
+  });
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <CrudHeader
-        title="Aulas"
-        description="Listagem de aulas cadastradas"
-        backTo="/dashboard"
-      />
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
         {/* Filters */}

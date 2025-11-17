@@ -3,13 +3,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
 import { apiService } from '@/services/api';
 import { CalendarioItem, CreateCalendarioItem, Role, Periodo } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import { ArrowLeft, Plus, Trash2, Calendar, Clock, CheckCircle, XCircle, Users, ArrowRight } from 'lucide-react';
 
@@ -31,6 +32,23 @@ export default function CalendarioPage() {
     queryFn: () => apiService.getPeriodos({ limit: 200 }),
   });
   const periodos = periodosResponse?.data || [];
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão de eventos e prazos",
+    description: "Organize e gerencie todos os eventos acadêmicos, prazos e feriados do sistema.",
+    backTo: "/dashboard",
+    stats: [
+      { value: eventos.length, label: 'Total de Eventos' },
+      { value: periodos.length, label: 'Períodos' },
+      { value: eventos.filter(e => new Date(e.inicio) > new Date()).length, label: 'Próximos' },
+      { value: eventos.filter(e => new Date(e.termino) < new Date()).length, label: 'Concluídos' }
+    ],
+    actionLink: {
+      href: '/periodos',
+      label: 'Ver períodos'
+    }
+  });
 
   const criar = useMutation({
     mutationFn: (payload: CreateCalendarioItem) => apiService.createCalendario(payload),
@@ -58,34 +76,6 @@ export default function CalendarioPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-4 py-4">
-            <Link to="/dashboard"><Button variant="ghost" size="sm"><ArrowLeft className="h-4 w-4 mr-2"/>Voltar</Button></Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Calendário Acadêmico</h1>
-              <p className="text-sm text-gray-600">Eventos, prazos e feriados</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Calendário Acadêmico"
-        title="Gestão de eventos e prazos"
-        description="Organize e gerencie todos os eventos acadêmicos, prazos e feriados do sistema."
-        stats={[
-          { value: eventos.length, label: 'Total de Eventos' },
-          { value: periodos.length, label: 'Períodos' },
-          { value: eventos.filter(e => new Date(e.inicio) > new Date()).length, label: 'Próximos' },
-          { value: eventos.filter(e => new Date(e.termino) < new Date()).length, label: 'Concluídos' }
-        ]}
-        actionLink={{
-          href: '/periodos',
-          label: 'Ver períodos'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
         {canEdit && (
@@ -96,8 +86,8 @@ export default function CalendarioPage() {
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-6 gap-3">
               <Input placeholder="Evento" value={novo.evento || ''} onChange={e=>setNovo(v=>({...v, evento: e.target.value}))} />
-              <Input type="date" placeholder="Início" value={novo.inicio as any || ''} onChange={e=>setNovo(v=>({...v, inicio: e.target.value}))} />
-              <Input type="date" placeholder="Término" value={novo.termino as any || ''} onChange={e=>setNovo(v=>({...v, termino: e.target.value}))} />
+              <DatePicker placeholder="Início" value={novo.inicio as any || null} onChange={value=>setNovo(v=>({...v, inicio: value || ''}))} />
+              <DatePicker placeholder="Término" value={novo.termino as any || null} onChange={value=>setNovo(v=>({...v, termino: value || ''}))} />
               <select
                 value={novo.periodoId || ''}
                 onChange={e=>setNovo(v=>({...v, periodoId: e.target.value ? Number(e.target.value) : undefined}))}

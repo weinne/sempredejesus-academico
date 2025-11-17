@@ -376,6 +376,9 @@ const getDisciplinaComplete = asyncHandler(async (req: Request, res: Response) =
       cargaHoraria: disciplinas.cargaHoraria,
       ementa: disciplinas.ementa,
       bibliografia: disciplinas.bibliografia,
+      objetivos: disciplinas.objetivos,
+      conteudoProgramatico: disciplinas.conteudoProgramatico,
+      instrumentosEAvaliacao: disciplinas.instrumentosEAvaliacao,
       ativo: disciplinas.ativo,
       curso: {
         id: cursos.id,
@@ -483,6 +486,9 @@ router.get(
         cargaHoraria: disciplinas.cargaHoraria,
         ementa: disciplinas.ementa,
         bibliografia: disciplinas.bibliografia,
+        objetivos: disciplinas.objetivos,
+        conteudoProgramatico: disciplinas.conteudoProgramatico,
+        instrumentosEAvaliacao: disciplinas.instrumentosEAvaliacao,
         ativo: disciplinas.ativo,
         curso: {
           id: cursos.id,

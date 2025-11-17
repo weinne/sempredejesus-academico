@@ -1,11 +1,11 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { BookOpen, Building2, FileText } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Building2, FileText, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import CrudHeader from '@/components/crud/crud-header';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { FormSection, FieldError, ActionsBar } from '@/components/forms';
 import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +24,9 @@ const schema = z.object({
   cargaHoraria: z.number({ required_error: 'Carga horária é obrigatória' }).min(1, 'Carga horária deve ser pelo menos 1'),
   ementa: z.string().optional(),
   bibliografia: z.string().optional(),
+  objetivos: z.string().optional(),
+  conteudoProgramatico: z.string().optional(),
+  instrumentosEAvaliacao: z.string().optional(),
   ativo: z.boolean().default(true),
 });
 
@@ -41,7 +44,7 @@ export default function DisciplinaNewPage() {
   });
   const cursos = cursosResponse?.data || [];
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { ativo: true },
   });
@@ -65,11 +68,29 @@ export default function DisciplinaNewPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader 
-        title="Cadastrar Disciplina" 
-        backTo="/disciplinas" 
-        description="Preencha os dados da nova disciplina" 
-      />
+      {/* Header with Breadcrumb */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-4">
+            <div className="flex items-center space-x-4">
+              <Link to="/disciplinas" className="ml-2">
+                <Button variant="ghost" size="icon" title="Voltar">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">Cadastrar Disciplina</h1>
+                {/* Breadcrumb */}
+                <nav className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
+                  <Link to="/disciplinas" className="hover:text-gray-700">Disciplinas</Link>
+                  <span>/</span>
+                  <span className="text-gray-900">Cadastrar</span>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
       
       <main className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <form onSubmit={handleSubmit((data) => createMutation.mutate(data), handleFormError)} className="space-y-8">
@@ -163,28 +184,61 @@ export default function DisciplinaNewPage() {
           <FormSection
             icon={FileText}
             title="Plano de Ensino"
-            description="Ementa e bibliografia da disciplina"
+            description="Detalhamento completo da disciplina"
           >
             <div className="lg:col-span-3" data-field="ementa">
               <label className="block text-sm font-medium text-slate-700 mb-2">Ementa</label>
-              <Textarea 
-                {...register('ementa')} 
-                placeholder="Descreva os objetivos e conteúdo da disciplina..." 
-                rows={5} 
-                className={errors.ementa ? 'border-red-500' : ''} 
+              <RichTextEditor
+                value={watch('ementa') || ''}
+                onChange={(value) => setValue('ementa', value)}
+                placeholder="Descreva os objetivos e conteúdo da disciplina..."
+                rows={5}
               />
               <FieldError message={errors.ementa?.message} />
             </div>
 
             <div className="lg:col-span-3" data-field="bibliografia">
               <label className="block text-sm font-medium text-slate-700 mb-2">Bibliografia</label>
-              <Textarea 
-                {...register('bibliografia')} 
-                placeholder="Liste os livros e materiais de referência..." 
-                rows={5} 
-                className={errors.bibliografia ? 'border-red-500' : ''} 
+              <RichTextEditor
+                value={watch('bibliografia') || ''}
+                onChange={(value) => setValue('bibliografia', value)}
+                placeholder="Liste os livros e materiais de referência..."
+                rows={5}
               />
               <FieldError message={errors.bibliografia?.message} />
+            </div>
+
+            <div className="lg:col-span-3" data-field="objetivos">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Objetivos</label>
+              <RichTextEditor
+                value={watch('objetivos') || ''}
+                onChange={(value) => setValue('objetivos', value)}
+                placeholder="Descreva os objetivos de aprendizagem da disciplina..."
+                rows={5}
+              />
+              <FieldError message={errors.objetivos?.message} />
+            </div>
+
+            <div className="lg:col-span-3" data-field="conteudoProgramatico">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Conteúdo Programático</label>
+              <RichTextEditor
+                value={watch('conteudoProgramatico') || ''}
+                onChange={(value) => setValue('conteudoProgramatico', value)}
+                placeholder="Descreva o conteúdo programático da disciplina..."
+                rows={5}
+              />
+              <FieldError message={errors.conteudoProgramatico?.message} />
+            </div>
+
+            <div className="lg:col-span-3" data-field="instrumentosEAvaliacao">
+              <label className="block text-sm font-medium text-slate-700 mb-2">Instrumentos e Critérios de Avaliação</label>
+              <RichTextEditor
+                value={watch('instrumentosEAvaliacao') || ''}
+                onChange={(value) => setValue('instrumentosEAvaliacao', value)}
+                placeholder="Descreva os instrumentos e critérios de avaliação..."
+                rows={5}
+              />
+              <FieldError message={errors.instrumentosEAvaliacao?.message} />
             </div>
           </FormSection>
 

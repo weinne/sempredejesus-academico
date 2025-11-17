@@ -284,6 +284,9 @@ export interface Disciplina {
   cargaHoraria: number;
   ementa?: string;
   bibliografia?: string;
+  objetivos?: string;
+  conteudoProgramatico?: string;
+  instrumentosEAvaliacao?: string;
   ativo: boolean;
   periodos?: DisciplinaPeriodo[];
   curso?: Curso;
@@ -299,6 +302,11 @@ export interface Turma {
   sala?: string;
   horario?: string;
   secao?: string;
+  ementa?: string | null;
+  bibliografia?: string | null;
+  objetivos?: string | null;
+  conteudoProgramatico?: string | null;
+  instrumentosEAvaliacao?: string | null;
   disciplina?: Disciplina;
   professor?: Professor;
   coorte?: Coorte;
@@ -313,6 +321,11 @@ export interface CreateTurma {
   sala?: string;
   horario?: string;
   secao?: string;
+  ementa?: string | null;
+  bibliografia?: string | null;
+  objetivos?: string | null;
+  conteudoProgramatico?: string | null;
+  instrumentosEAvaliacao?: string | null;
 }
 
 export interface TurmaInscrito {

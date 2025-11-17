@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Users, Trash2, RefreshCw, CheckCircle } from 'lucide-react';
 
-import CrudHeader from '@/components/crud/crud-header';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -160,13 +160,15 @@ export default function TurmaInscricoesPage() {
     return null;
   }
 
+  // Configure Hero via hook
+  usePageHero({
+    title: "Inscrições da turma",
+    description: "Gerencie matriculados, inscrições em lote e status",
+    backTo: `/turmas/view/${turmaId}`
+  });
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Inscrições da turma"
-        backTo={`/turmas/view/${turmaId}`}
-        description="Gerencie matriculados, inscrições em lote e status"
-      />
 
       <main className="max-w-6xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

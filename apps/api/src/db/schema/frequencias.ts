@@ -4,8 +4,12 @@ import { turmasInscritos } from './turmas';
 
 export const frequencias = pgTable('frequencias', {
   id: serial('id').primaryKey(),
-  aulaId: integer('aula_id').notNull().references(() => aulas.id),
-  inscricaoId: integer('inscricao_id').notNull().references(() => turmasInscritos.id),
+  aulaId: integer('aula_id')
+    .notNull()
+    .references(() => aulas.id, { onDelete: 'cascade' }),
+  inscricaoId: integer('inscricao_id')
+    .notNull()
+    .references(() => turmasInscritos.id, { onDelete: 'cascade' }),
   presente: boolean('presente').notNull(),
   justificativa: text('justificativa'),
 });

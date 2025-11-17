@@ -281,6 +281,14 @@ router.get(
         disciplinaCursoId: disciplinas.cursoId,
         disciplinaEmenta: disciplinas.ementa,
         disciplinaBibliografia: disciplinas.bibliografia,
+        disciplinaObjetivos: disciplinas.objetivos,
+        disciplinaConteudoProgramatico: disciplinas.conteudoProgramatico,
+        disciplinaInstrumentosEAvaliacao: disciplinas.instrumentosEAvaliacao,
+        turmaEmenta: turmas.ementa,
+        turmaBibliografia: turmas.bibliografia,
+        turmaObjetivos: turmas.objetivos,
+        turmaConteudoProgramatico: turmas.conteudoProgramatico,
+        turmaInstrumentosEAvaliacao: turmas.instrumentosEAvaliacao,
         professorMatricula: professores.matricula,
         professorPessoaId: professores.pessoaId,
         professorFormacaoAcad: professores.formacaoAcad,
@@ -340,6 +348,9 @@ router.get(
             cursoId: row.disciplinaCursoId ?? null,
             ementa: row.disciplinaEmenta ?? null,
             bibliografia: row.disciplinaBibliografia ?? null,
+            objetivos: row.disciplinaObjetivos ?? null,
+            conteudoProgramatico: row.disciplinaConteudoProgramatico ?? null,
+            instrumentosEAvaliacao: row.disciplinaInstrumentosEAvaliacao ?? null,
             periodos: periodosDisciplina,
           }
         : null;
@@ -379,6 +390,11 @@ router.get(
         sala: row.sala,
         horario: row.horario,
         secao: row.secao,
+        ementa: row.turmaEmenta ?? null,
+        bibliografia: row.turmaBibliografia ?? null,
+        objetivos: row.turmaObjetivos ?? null,
+        conteudoProgramatico: row.turmaConteudoProgramatico ?? null,
+        instrumentosEAvaliacao: row.turmaInstrumentosEAvaliacao ?? null,
         totalInscritos: Number(row.totalInscritos ?? 0),
         disciplina,
         professor,
@@ -418,6 +434,14 @@ router.get(
         disciplinaCursoId: disciplinas.cursoId,
         disciplinaEmenta: disciplinas.ementa,
         disciplinaBibliografia: disciplinas.bibliografia,
+        disciplinaObjetivos: disciplinas.objetivos,
+        disciplinaConteudoProgramatico: disciplinas.conteudoProgramatico,
+        disciplinaInstrumentosEAvaliacao: disciplinas.instrumentosEAvaliacao,
+        turmaEmenta: turmas.ementa,
+        turmaBibliografia: turmas.bibliografia,
+        turmaObjetivos: turmas.objetivos,
+        turmaConteudoProgramatico: turmas.conteudoProgramatico,
+        turmaInstrumentosEAvaliacao: turmas.instrumentosEAvaliacao,
         professorMatricula: professores.matricula,
         professorPessoaId: professores.pessoaId,
         professorFormacaoAcad: professores.formacaoAcad,
@@ -528,6 +552,9 @@ router.get(
             cursoId: turmaRow.disciplinaCursoId ?? null,
             ementa: turmaRow.disciplinaEmenta ?? null,
             bibliografia: turmaRow.disciplinaBibliografia ?? null,
+            objetivos: turmaRow.disciplinaObjetivos ?? null,
+            conteudoProgramatico: turmaRow.disciplinaConteudoProgramatico ?? null,
+            instrumentosEAvaliacao: turmaRow.disciplinaInstrumentosEAvaliacao ?? null,
             periodos: periodosDisciplina,
           }
         : null,
@@ -556,6 +583,11 @@ router.get(
             ativo: turmaRow.coorteAtivo ?? false,
           }
         : null,
+      ementa: turmaRow.turmaEmenta ?? null,
+      bibliografia: turmaRow.turmaBibliografia ?? null,
+      objetivos: turmaRow.turmaObjetivos ?? null,
+      conteudoProgramatico: turmaRow.turmaConteudoProgramatico ?? null,
+      instrumentosEAvaliacao: turmaRow.turmaInstrumentosEAvaliacao ?? null,
     };
 
     res.json({
@@ -826,7 +858,7 @@ router.delete(
 router.post('/', requireSecretaria, turmasCrud.create);
 
 // PATCH /turmas/:id - Update turma (requires ADMIN, SECRETARIA or PROFESSOR)
-router.patch('/:id', validateParams(IdParamSchema), requireSecretaria, turmasCrud.update);
+router.patch('/:id', validateParams(IdParamSchema), requireProfessor, turmasCrud.update);
 
 // DELETE /turmas/:id - Delete turma (requires ADMIN, SECRETARIA or PROFESSOR)
 router.delete('/:id', validateParams(IdParamSchema), requireSecretaria, turmasCrud.delete);

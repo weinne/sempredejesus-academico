@@ -6,7 +6,9 @@ export const tipoAvaliacaoEnum = pgEnum('tipo_avaliacao', ['PROVA', 'TRABALHO', 
 
 export const avaliacoes = pgTable('avaliacoes', {
   id: serial('id').primaryKey(),
-  turmaId: integer('turma_id').notNull().references(() => turmas.id),
+  turmaId: integer('turma_id')
+    .notNull()
+    .references(() => turmas.id, { onDelete: 'cascade' }),
   data: date('data').notNull(),
   tipo: tipoAvaliacaoEnum('tipo').notNull(),
   codigo: varchar('codigo', { length: 8 }).notNull(),
@@ -17,8 +19,12 @@ export const avaliacoes = pgTable('avaliacoes', {
 
 export const avaliacoesAlunos = pgTable('avaliacoes_alunos', {
   id: serial('id').primaryKey(),
-  avaliacaoId: integer('avaliacao_id').notNull().references(() => avaliacoes.id),
-  alunoId: char('aluno_id', { length: 8 }).notNull().references(() => alunos.ra),
+  avaliacaoId: integer('avaliacao_id')
+    .notNull()
+    .references(() => avaliacoes.id, { onDelete: 'cascade' }),
+  alunoId: char('aluno_id', { length: 8 })
+    .notNull()
+    .references(() => alunos.ra, { onDelete: 'cascade' }),
   nota: decimal('nota', { precision: 5, scale: 2 }).notNull(),
   obs: text('obs'),
 });

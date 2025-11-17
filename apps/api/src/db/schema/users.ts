@@ -5,7 +5,10 @@ export const userRoleEnum = pgEnum('user_role', ['ADMIN', 'SECRETARIA', 'PROFESS
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
-  pessoaId: integer('pessoa_id').notNull().references(() => pessoas.id).unique(),
+  pessoaId: integer('pessoa_id')
+    .notNull()
+    .references(() => pessoas.id, { onDelete: 'cascade' })
+    .unique(),
   username: varchar('username', { length: 50 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   role: userRoleEnum('role').notNull(),

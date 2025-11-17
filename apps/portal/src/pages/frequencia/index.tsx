@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import CrudHeader from '@/components/crud/crud-header';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { apiService } from '@/services/api';
 import { Aula, TurmaInscrito, Role, FrequenciaBulkUpsert } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
@@ -164,10 +164,16 @@ export default function FrequenciaPage() {
 
   const isLoading = loadingInscritos || loadingAulas;
 
+  // Configure Hero via hook
+  usePageHero({
+    title: canEdit ? "Registro de Frequência" : "Frequência",
+    description: canEdit ? "Marque as faltas dos alunos por aula" : "Visualize informações de frequência",
+    backTo: "/dashboard"
+  });
+
   if (!canEdit) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <CrudHeader title="Frequência" backTo="/dashboard" />
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Card>
             <CardContent className="p-6">
@@ -183,11 +189,6 @@ export default function FrequenciaPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <CrudHeader
-        title="Registro de Frequência"
-        description="Marque as faltas dos alunos por aula"
-        backTo="/dashboard"
-      />
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 space-y-6">
         {/* Filters */}

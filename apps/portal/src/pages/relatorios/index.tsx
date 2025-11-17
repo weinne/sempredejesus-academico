@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import { ArrowLeft, Search, BarChart3, FileText, TrendingUp, Users, ArrowRight, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { apiService } from '@/services/api';
@@ -20,41 +20,25 @@ export default function RelatoriosPage() {
   const [freq, setFreq] = useState<any[] | null>(null);
   const [desempenho, setDesempenho] = useState<any | null>(null);
 
+  // Configure Hero via hook
+  usePageHero({
+    title: "Análise e relatórios do sistema",
+    description: "Gere relatórios detalhados sobre histórico acadêmico, frequência e desempenho dos alunos.",
+    backTo: "/dashboard",
+    stats: [
+      { value: '4', label: 'Tipos de Relatórios' },
+      { value: '100%', label: 'Cobertura' },
+      { value: 'Real-time', label: 'Dados' },
+      { value: 'PDF/Excel', label: 'Exportação' }
+    ],
+    actionLink: {
+      href: '/dashboard',
+      label: 'Ver dashboard'
+    }
+  });
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-4 py-4">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
-              <p className="text-sm text-gray-600">Relatórios acadêmicos e gerenciais</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Relatórios Acadêmicos"
-        title="Análise e relatórios do sistema"
-        description="Gere relatórios detalhados sobre histórico acadêmico, frequência e desempenho dos alunos."
-        stats={[
-          { value: '4', label: 'Tipos de Relatórios' },
-          { value: '100%', label: 'Cobertura' },
-          { value: 'Real-time', label: 'Dados' },
-          { value: 'PDF/Excel', label: 'Exportação' }
-        ]}
-        actionLink={{
-          href: '/dashboard',
-          label: 'Ver dashboard'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6">
         {/* Estatísticas */}

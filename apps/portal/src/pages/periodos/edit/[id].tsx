@@ -4,7 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
+import { DatePicker } from '@/components/ui/date-picker';
 
 import CrudHeader from '@/components/crud/crud-header';
 import { FormSection, FieldError, ActionsBar } from '@/components/forms';
@@ -43,6 +44,7 @@ const PeriodoEditPage: React.FC = () => {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -226,14 +228,34 @@ const PeriodoEditPage: React.FC = () => {
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Data de início
               </label>
-              <Input type="date" {...register('dataInicio')} className="h-11" />
+              <Controller
+                name="dataInicio"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    placeholder="dd/mm/aaaa"
+                  />
+                )}
+              />
             </div>
 
             <div data-field="dataFim">
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Data de término
               </label>
-              <Input type="date" {...register('dataFim')} className="h-11" />
+              <Controller
+                name="dataFim"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    value={field.value || null}
+                    onChange={field.onChange}
+                    placeholder="dd/mm/aaaa"
+                  />
+                )}
+              />
             </div>
           </FormSection>
 

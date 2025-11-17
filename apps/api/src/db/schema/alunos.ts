@@ -9,9 +9,13 @@ export const situacaoAlunoEnum = pgEnum('situacao_aluno', ['ATIVO', 'TRANCADO', 
 
 export const alunos = pgTable('alunos', {
   ra: char('ra', { length: 8 }).primaryKey(),
-  pessoaId: integer('pessoa_id').notNull().references(() => pessoas.id),
-  cursoId: integer('curso_id').notNull().references(() => cursos.id),
-  coorteId: integer('coorte_id').references(() => coortes.id),
+  pessoaId: integer('pessoa_id')
+    .notNull()
+    .references(() => pessoas.id, { onDelete: 'cascade' }),
+  cursoId: integer('curso_id')
+    .notNull()
+    .references(() => cursos.id, { onDelete: 'cascade' }),
+  coorteId: integer('coorte_id').references(() => coortes.id, { onDelete: 'cascade' }),
   periodoId: integer('periodo_id').references(() => periodos.id),
   turnoId: integer('turno_id').references(() => turnos.id),
   anoIngresso: integer('ano_ingresso').notNull(),

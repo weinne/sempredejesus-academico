@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/date-picker';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
 import { Curso, Curriculo, Disciplina, DisciplinaPeriodo, Periodo, Turno } from '@/types/api';
@@ -35,6 +36,8 @@ interface DisciplineDraft {
   bibliografia: string;
   ordem: string;
   obrigatoria: boolean;
+  isLinkedFromExisting?: boolean;
+  expanded?: boolean;
 }
 
 interface PeriodDraft {
@@ -46,9 +49,10 @@ interface PeriodDraft {
   disciplinas: DisciplineDraft[];
 }
 
-interface TurnoDraft {
-  turnoId: number;
+interface CurriculoDraft {
+  id: string;
   curriculoId?: number;
+  turnoId: number;
   versao: string;
   vigenteDe: string;
   vigenteAte: string;
@@ -57,17 +61,24 @@ interface TurnoDraft {
   periodos: PeriodDraft[];
 }
 
+interface TurnoDraft {
+  turnoId: number;
+  curriculos: CurriculoDraft[];
+}
+
 interface WizardState {
   course: {
     id?: number;
     nome: string;
     grau: string;
   };
-  periodCount: number;
   turnos: TurnoDraft[];
 }
 
 type WizardMode = 'new' | 'existing';
+
+const DEFAULT_PERIOD_COUNT = 4;
+const MAX_PERIOD_COUNT = 12;
 
 const createInitialWizardState = (): WizardState => ({
   course: {
@@ -75,16 +86,14 @@ const createInitialWizardState = (): WizardState => ({
     nome: '',
     grau: '',
   },
-  periodCount: 4,
   turnos: [],
 });
 
 const steps = [
   { id: 0, label: 'Curso' },
-  { id: 1, label: 'Estrutura' },
-  { id: 2, label: 'Turnos e curriculos' },
-  { id: 3, label: 'Disciplinas' },
-  { id: 4, label: 'Resumo' },
+  { id: 1, label: 'Turnos e curriculos' },
+  { id: 2, label: 'Periodos e disciplinas' },
+  { id: 3, label: 'Resumo' },
 ];
 
 const emptyDiscipline = (): DisciplineDraft => ({
@@ -98,6 +107,8 @@ const emptyDiscipline = (): DisciplineDraft => ({
   bibliografia: '',
   ordem: '',
   obrigatoria: true,
+  isLinkedFromExisting: false,
+  expanded: true,
 });
 
 const emptyPeriod = (numero: number): PeriodDraft => ({
@@ -112,12 +123,45 @@ const emptyPeriod = (numero: number): PeriodDraft => ({
 const buildPeriods = (count: number): PeriodDraft[] =>
   Array.from({ length: count }, (_, index) => emptyPeriod(index + 1));
 
+const createCurriculoDraft = (turnoId: number, overrides: Partial<CurriculoDraft> = {}): CurriculoDraft => ({
+  id: overrides.id ?? Math.random().toString(36).slice(2),
+  curriculoId: overrides.curriculoId,
+  turnoId,
+  versao: overrides.versao ?? 'v1.0',
+  vigenteDe: overrides.vigenteDe ?? '',
+  vigenteAte: overrides.vigenteAte ?? '',
+  ativo: overrides.ativo ?? true,
+  isPersisted: overrides.isPersisted ?? false,
+  periodos: overrides.periodos
+    ? [...overrides.periodos].sort((a, b) => Number(a.numero || 0) - Number(b.numero || 0))
+    : buildPeriods(DEFAULT_PERIOD_COUNT),
+});
+
 const isPositiveNumber = (value: string): boolean => {
   if (!value) {
     return false;
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0;
+};
+
+const cloneDisciplineDraft = (disciplina: DisciplineDraft): DisciplineDraft => ({
+  ...disciplina,
+  id: Math.random().toString(36).slice(2),
+  persistedId: disciplina.persistedId,
+  isLinkedFromExisting: true,
+  expanded: false,
+});
+
+const buildDisciplineKey = (disciplina: DisciplineDraft): string => {
+  if (disciplina.persistedId) {
+    return `persisted-${disciplina.persistedId}`;
+  }
+  const normalizedCodigo = disciplina.codigo.trim().toUpperCase();
+  if (normalizedCodigo) {
+    return `codigo-${normalizedCodigo}`;
+  }
+  return `draft-${disciplina.id}`;
 };
 
 const loadCourseStructure = async (cursoId: number): Promise<{
@@ -149,6 +193,7 @@ export default function CursoWizardPage() {
   const [currentStep, setCurrentStep] = React.useState(0);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [wizardData, setWizardData] = React.useState<WizardState>(() => createInitialWizardState());
+  const [existingDisciplineSelections, setExistingDisciplineSelections] = React.useState<Record<string, string>>({});
 
   const [mode, setMode] = React.useState<WizardMode>('new');
   const [selectedExistingCourseId, setSelectedExistingCourseId] = React.useState<number | null>(null);
@@ -258,6 +303,8 @@ export default function CursoWizardPage() {
         ordem:
           vinculo && vinculo.ordem !== undefined && vinculo.ordem !== null ? String(vinculo.ordem) : '',
         obrigatoria: vinculo ? vinculo.obrigatoria !== false : true,
+        isLinkedFromExisting: true,
+        expanded: false,
       }));
 
       const periodDraft: PeriodDraft = {
@@ -273,10 +320,11 @@ export default function CursoWizardPage() {
       periodosByCurriculo.set(periodo.curriculoId, bucket);
     }
 
-    const turnoDrafts: TurnoDraft[] = curriculos.map((curriculo) => {
+    const curriculosByTurno = new Map<number, CurriculoDraft[]>();
+    for (const curriculo of curriculos) {
       const periodList = periodosByCurriculo.get(curriculo.id) || [];
-      return {
-        turnoId: curriculo.turnoId,
+      const curriculoDraft = createCurriculoDraft(curriculo.turnoId, {
+        id: `curriculo-${curriculo.id}`,
         curriculoId: curriculo.id,
         versao: curriculo.versao || 'v1.0',
         vigenteDe: curriculo.vigenteDe || '',
@@ -284,18 +332,16 @@ export default function CursoWizardPage() {
         ativo: Boolean(curriculo.ativo),
         isPersisted: true,
         periodos: periodList,
-      };
-    });
+      });
+      const bucket = curriculosByTurno.get(curriculo.turnoId) || [];
+      bucket.push(curriculoDraft);
+      curriculosByTurno.set(curriculo.turnoId, bucket);
+    }
 
-    const periodosCountPerTurno = turnoDrafts.map((turno) => turno.periodos.length);
-    const defaultPeriodCount = periodosCountPerTurno.length > 0 ? Math.max(...periodosCountPerTurno) : 1;
-
-    const orderedTurnos = turnoDrafts
-      .map((turno) => ({
-        ...turno,
-        periodos: [...turno.periodos].sort(
-          (a, b) => Number(a.numero || 0) - Number(b.numero || 0),
-        ),
+    const orderedTurnos: TurnoDraft[] = Array.from(curriculosByTurno.entries())
+      .map(([turnoId, curriculosList]) => ({
+        turnoId,
+        curriculos: curriculosList.sort((a, b) => (a.versao || '').localeCompare(b.versao || '')),
       }))
       .sort((a, b) => a.turnoId - b.turnoId);
 
@@ -305,7 +351,6 @@ export default function CursoWizardPage() {
         nome: course.nome,
         grau: course.grau,
       },
-      periodCount: defaultPeriodCount,
       turnos: orderedTurnos,
     });
 
@@ -352,78 +397,80 @@ export default function CursoWizardPage() {
           const disciplinaCodigoMap = new Map<string, number>();
 
           for (const turnoConfig of wizardData.turnos) {
-            const curriculo = await apiService.createCurriculo({
-              cursoId: createdCurso.id,
-              turnoId: turnoConfig.turnoId,
-              versao: turnoConfig.versao || 'v1.0',
-              vigenteDe: turnoConfig.vigenteDe || undefined,
-              vigenteAte: turnoConfig.vigenteAte || undefined,
-              ativo: turnoConfig.ativo,
-            });
-            createdCurriculos.push(curriculo.id);
-
-            for (let index = 0; index < turnoConfig.periodos.length; index++) {
-              const periodo = turnoConfig.periodos[index];
-              const numeroParsed = Number(periodo.numero);
-              const fallbackNumero = index + 1;
-              const numeroValue =
-                Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : fallbackNumero;
-
-              const createdPeriodo = await apiService.createPeriodo({
-                curriculoId: curriculo.id,
-                numero: numeroValue,
-                nome: periodo.nome || undefined,
-                descricao: periodo.descricao || undefined,
+            for (const curriculoDraft of turnoConfig.curriculos) {
+              const curriculo = await apiService.createCurriculo({
+                cursoId: createdCurso.id,
+                turnoId: turnoConfig.turnoId,
+                versao: curriculoDraft.versao || 'v1.0',
+                vigenteDe: curriculoDraft.vigenteDe || undefined,
+                vigenteAte: curriculoDraft.vigenteAte || undefined,
+                ativo: curriculoDraft.ativo,
               });
-              createdPeriodos.push(createdPeriodo.id);
+              createdCurriculos.push(curriculo.id);
 
-              const seenCodigos = new Set<string>();
-              for (const disciplina of periodo.disciplinas) {
-                const codigo = disciplina.codigo.trim();
-                const nome = disciplina.nome.trim();
-                const creditos = Number(disciplina.creditos);
-                const cargaHoraria = Number(disciplina.cargaHoraria);
+              for (let index = 0; index < curriculoDraft.periodos.length; index++) {
+                const periodo = curriculoDraft.periodos[index];
+                const numeroParsed = Number(periodo.numero);
+                const fallbackNumero = index + 1;
+                const numeroValue =
+                  Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : fallbackNumero;
 
-                if (!codigo || !nome || !Number.isFinite(creditos) || !Number.isFinite(cargaHoraria)) {
-                  continue;
-                }
-
-                const codigoKey = codigo.toUpperCase();
-                if (seenCodigos.has(codigoKey)) {
-                  continue;
-                }
-                seenCodigos.add(codigoKey);
-
-                let disciplinaId = disciplina.persistedId ?? disciplinaCodigoMap.get(codigoKey);
-
-                if (!disciplinaId) {
-                  const createdDisciplina = await apiService.createDisciplina({
-                    cursoId: createdCurso.id,
-                    codigo,
-                    nome,
-                    creditos,
-                    cargaHoraria,
-                    ementa: disciplina.ementa || undefined,
-                    bibliografia: disciplina.bibliografia || undefined,
-                    ativo: true,
-                  });
-                  disciplinaId = createdDisciplina.id;
-                  disciplinaCodigoMap.set(codigoKey, disciplinaId);
-                  createdDisciplinas.push(createdDisciplina.id);
-                }
-
-                if (!disciplinaId) {
-                  continue;
-                }
-
-                const ordemParsed = Number(disciplina.ordem);
-                const ordemValue = Number.isFinite(ordemParsed) && ordemParsed > 0 ? Math.floor(ordemParsed) : undefined;
-
-                await apiService.addDisciplinaAoPeriodo(createdPeriodo.id, {
-                  disciplinaId,
-                  ordem: ordemValue,
-                  obrigatoria: disciplina.obrigatoria !== false,
+                const createdPeriodo = await apiService.createPeriodo({
+                  curriculoId: curriculo.id,
+                  numero: numeroValue,
+                  nome: periodo.nome || undefined,
+                  descricao: periodo.descricao || undefined,
                 });
+                createdPeriodos.push(createdPeriodo.id);
+
+                const seenCodigos = new Set<string>();
+                for (const disciplina of periodo.disciplinas) {
+                  const codigo = disciplina.codigo.trim();
+                  const nome = disciplina.nome.trim();
+                  const creditos = Number(disciplina.creditos);
+                  const cargaHoraria = Number(disciplina.cargaHoraria);
+
+                  if (!codigo || !nome || !Number.isFinite(creditos) || !Number.isFinite(cargaHoraria)) {
+                    continue;
+                  }
+
+                  const codigoKey = codigo.toUpperCase();
+                  if (seenCodigos.has(codigoKey)) {
+                    continue;
+                  }
+                  seenCodigos.add(codigoKey);
+
+                  let disciplinaId = disciplina.persistedId ?? disciplinaCodigoMap.get(codigoKey);
+
+                  if (!disciplinaId) {
+                    const createdDisciplina = await apiService.createDisciplina({
+                      cursoId: createdCurso.id,
+                      codigo,
+                      nome,
+                      creditos,
+                      cargaHoraria,
+                      ementa: disciplina.ementa || undefined,
+                      bibliografia: disciplina.bibliografia || undefined,
+                      ativo: true,
+                    });
+                    disciplinaId = createdDisciplina.id;
+                    disciplinaCodigoMap.set(codigoKey, disciplinaId);
+                    createdDisciplinas.push(createdDisciplina.id);
+                  }
+
+                  if (!disciplinaId) {
+                    continue;
+                  }
+
+                  const ordemParsed = Number(disciplina.ordem);
+                  const ordemValue = Number.isFinite(ordemParsed) && ordemParsed > 0 ? Math.floor(ordemParsed) : undefined;
+
+                  await apiService.addDisciplinaAoPeriodo(createdPeriodo.id, {
+                    disciplinaId,
+                    ordem: ordemValue,
+                    obrigatoria: disciplina.obrigatoria !== false,
+                  });
+                }
               }
             }
           }
@@ -488,29 +535,13 @@ export default function CursoWizardPage() {
     }));
   };
 
-  const updatePeriodCount = (value: string) => {
-    const parsed = Number(value);
-    const requested = Number.isFinite(parsed) ? Math.max(1, Math.min(12, Math.floor(parsed))) : 1;
-
-    setWizardData((prev) => {
-      const maxPersisted = prev.turnos.reduce(
-        (acc, turno) => Math.max(acc, turno.periodos.filter((periodo) => periodo.persistedId).length),
-        0,
-      );
-      const periodCount = Math.max(requested, maxPersisted);
-      return {
-        ...prev,
-        periodCount,
-      };
-    });
-  };
-
   const toggleTurno = (turno: Turno) => {
     let removalBlocked = false;
     setWizardData((prev) => {
       const exists = prev.turnos.find((item) => item.turnoId === turno.id);
       if (exists) {
-        if (exists.isPersisted) {
+        const hasPersistedCurriculo = exists.curriculos.some((curriculo) => curriculo.isPersisted);
+        if (hasPersistedCurriculo) {
           removalBlocked = true;
           return prev;
         }
@@ -522,13 +553,7 @@ export default function CursoWizardPage() {
 
       const draft: TurnoDraft = {
         turnoId: turno.id,
-        curriculoId: undefined,
-        versao: 'v1.0',
-        vigenteDe: '',
-        vigenteAte: '',
-        ativo: true,
-        isPersisted: false,
-        periodos: buildPeriods(prev.periodCount),
+        curriculos: [createCurriculoDraft(turno.id)],
       };
 
       return {
@@ -539,75 +564,107 @@ export default function CursoWizardPage() {
     if (removalBlocked) {
       toast({
         title: 'Turno ja configurado',
-        description: 'Para remover um turno existente, utilize a area de curriculos.',
+        description: 'Remova ou ajuste curriculos existentes na etapa de curriculos antes de desabilitar o turno.',
         variant: 'destructive',
       });
     }
   };
 
-  const updateTurnoField = (turnoId: number, field: keyof TurnoDraft, value: string | boolean) => {
-    setWizardData((prev) => ({
-      ...prev,
-      turnos: prev.turnos.map((turno) =>
-        turno.turnoId === turnoId
-          ? {
-              ...turno,
-              [field]: value,
-            }
-          : turno,
-      ),
-    }));
-  };
 
-  const updatePeriodField = (turnoId: number, periodId: string, field: keyof PeriodDraft, value: string) => {
-    setWizardData((prev) => ({
-      ...prev,
-      turnos: prev.turnos.map((turno) => {
-        if (turno.turnoId !== turnoId) {
-          return turno;
-        }
-        return {
-          ...turno,
-          periodos: turno.periodos.map((periodo) =>
-            periodo.id === periodId
-              ? {
-                  ...periodo,
-                  [field]: value,
-                }
-              : periodo,
-          ),
-        };
-      }),
-    }));
-  };
-
-const addPeriod = (turnoId: number) => {
+const updatePeriodField = (
+  turnoId: number,
+  curriculoDraftId: string,
+  periodId: string,
+  field: keyof PeriodDraft,
+  value: string,
+) => {
   setWizardData((prev) => ({
     ...prev,
     turnos: prev.turnos.map((turno) => {
       if (turno.turnoId !== turnoId) {
         return turno;
       }
-
-      const highestNumero = turno.periodos.reduce((acc, periodo) => {
-        const parsed = Number(periodo.numero);
-        return Number.isFinite(parsed) ? Math.max(acc, parsed) : acc;
-      }, 0);
-
-      const nextNumero = highestNumero + 1;
-      const newPeriod = emptyPeriod(nextNumero);
-
       return {
         ...turno,
-        periodos: [...turno.periodos, newPeriod].sort(
-          (a, b) => Number(a.numero || 0) - Number(b.numero || 0),
-        ),
+        curriculos: turno.curriculos.map((curriculo) => {
+          if (curriculo.id !== curriculoDraftId) {
+            return curriculo;
+          }
+          return {
+            ...curriculo,
+            periodos: curriculo.periodos.map((periodo) =>
+              periodo.id === periodId
+                ? {
+                    ...periodo,
+                    [field]: value,
+                  }
+                : periodo,
+            ),
+          };
+        }),
       };
     }),
   }));
 };
 
-const removePeriod = (turnoId: number, periodId: string) => {
+const addPeriod = (turnoId: number, curriculoDraftId: string) => {
+  let limitReached = false;
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+      return {
+        ...turno,
+        curriculos: turno.curriculos.map((curriculo) => {
+          if (curriculo.id !== curriculoDraftId) {
+            return curriculo;
+          }
+          if (curriculo.periodos.length >= MAX_PERIOD_COUNT) {
+            limitReached = true;
+            return curriculo;
+          }
+          const highestNumero = curriculo.periodos.reduce((acc, periodo) => {
+            const parsed = Number(periodo.numero);
+            return Number.isFinite(parsed) ? Math.max(acc, parsed) : acc;
+          }, 0);
+          const nextNumero = highestNumero + 1;
+          const newPeriod = emptyPeriod(nextNumero);
+          return {
+            ...curriculo,
+            periodos: [...curriculo.periodos, newPeriod].sort(
+              (a, b) => Number(a.numero || 0) - Number(b.numero || 0),
+            ),
+          };
+        }),
+      };
+    }),
+  }));
+  if (limitReached) {
+    toast({
+      title: 'Limite de periodos',
+      description: `Cada curriculo pode ter no maximo ${MAX_PERIOD_COUNT} periodos.`,
+      variant: 'destructive',
+    });
+  }
+};
+
+const addCurriculo = (turnoId: number) => {
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) =>
+      turno.turnoId === turnoId
+        ? {
+            ...turno,
+            curriculos: [...turno.curriculos, createCurriculoDraft(turnoId)],
+          }
+        : turno,
+    ),
+  }));
+};
+
+const removeCurriculo = (turnoId: number, curriculoDraftId: string) => {
   let removalBlocked: 'persisted' | 'min' | null = null;
   setWizardData((prev) => ({
     ...prev,
@@ -615,21 +672,150 @@ const removePeriod = (turnoId: number, periodId: string) => {
       if (turno.turnoId !== turnoId) {
         return turno;
       }
-
-      if (turno.periodos.length <= 1) {
+      if (turno.curriculos.length <= 1) {
         removalBlocked = 'min';
         return turno;
       }
-
-      const target = turno.periodos.find((periodo) => periodo.id === periodId);
-      if (target?.persistedId) {
+      const target = turno.curriculos.find((curriculo) => curriculo.id === curriculoDraftId);
+      if (target?.isPersisted) {
         removalBlocked = 'persisted';
         return turno;
       }
-
       return {
         ...turno,
-        periodos: turno.periodos.filter((periodo) => periodo.id !== periodId),
+        curriculos: turno.curriculos.filter((curriculo) => curriculo.id !== curriculoDraftId),
+      };
+    }),
+  }));
+  if (removalBlocked === 'persisted') {
+    toast({
+      title: 'Curriculo existente',
+      description: 'Remova curriculos ja cadastrados pela tela de curriculos.',
+      variant: 'destructive',
+    });
+  }
+  if (removalBlocked === 'min') {
+    toast({
+      title: 'Estrutura invalida',
+      description: 'Cada turno selecionado precisa ter pelo menos um curriculo configurado.',
+      variant: 'destructive',
+    });
+  }
+};
+
+const updateCurriculoField = (
+  turnoId: number,
+  curriculoDraftId: string,
+  field: keyof Pick<CurriculoDraft, 'versao' | 'vigenteDe' | 'vigenteAte' | 'ativo'>,
+  value: string | boolean,
+) => {
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+      return {
+        ...turno,
+        curriculos: turno.curriculos.map((curriculo) =>
+          curriculo.id === curriculoDraftId
+            ? {
+                ...curriculo,
+                [field]: value,
+              }
+            : curriculo,
+        ),
+      };
+    }),
+  }));
+};
+
+const updateCurriculoPeriodCount = (turnoId: number, curriculoDraftId: string, value: string) => {
+  const parsed = Number(value);
+  const desired = Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_PERIOD_COUNT, Math.floor(parsed))) : 1;
+  let shrinkBlocked = false;
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+      return {
+        ...turno,
+        curriculos: turno.curriculos.map((curriculo) => {
+          if (curriculo.id !== curriculoDraftId) {
+            return curriculo;
+          }
+          const persisted = curriculo.periodos.filter((periodo) => periodo.persistedId).length;
+          if (persisted > desired) {
+            shrinkBlocked = true;
+            return curriculo;
+          }
+          let periodos = curriculo.periodos;
+          if (desired > periodos.length) {
+            const highestNumero = periodos.reduce((acc, periodo) => {
+              const numeroParsed = Number(periodo.numero);
+              return Number.isFinite(numeroParsed) ? Math.max(acc, numeroParsed) : acc;
+            }, 0);
+            const additions = Array.from({ length: desired - periodos.length }, (_, index) =>
+              emptyPeriod(highestNumero + index + 1),
+            );
+            periodos = [...periodos, ...additions];
+          } else if (desired < periodos.length) {
+            const removable = periodos.filter((periodo) => !periodo.persistedId);
+            const toRemove = periodos.length - desired;
+            if (removable.length < toRemove) {
+              shrinkBlocked = true;
+              return curriculo;
+            }
+            const removableIds = new Set(removable.slice(0, toRemove).map((periodo) => periodo.id));
+            periodos = periodos.filter((periodo) => !removableIds.has(periodo.id));
+          }
+          return {
+            ...curriculo,
+            periodos: [...periodos].sort((a, b) => Number(a.numero || 0) - Number(b.numero || 0)),
+          };
+        }),
+      };
+    }),
+  }));
+  if (shrinkBlocked) {
+    toast({
+      title: 'Periodos existentes',
+      description: 'Nao e possivel reduzir a quantidade abaixo dos periodos ja cadastrados.',
+      variant: 'destructive',
+    });
+  }
+};
+
+const removePeriod = (turnoId: number, curriculoDraftId: string, periodId: string) => {
+  let removalBlocked: 'persisted' | 'min' | null = null;
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+      return {
+        ...turno,
+        curriculos: turno.curriculos.map((curriculo) => {
+          if (curriculo.id !== curriculoDraftId) {
+            return curriculo;
+          }
+          if (curriculo.periodos.length <= 1) {
+            removalBlocked = 'min';
+            return curriculo;
+          }
+          const target = curriculo.periodos.find((periodo) => periodo.id === periodId);
+          if (target?.persistedId) {
+            removalBlocked = 'persisted';
+            return curriculo;
+          }
+          return {
+            ...curriculo,
+            periodos: curriculo.periodos.filter((periodo) => periodo.id !== periodId),
+          };
+        }),
       };
     }),
   }));
@@ -645,120 +831,257 @@ const removePeriod = (turnoId: number, periodId: string) => {
   if (removalBlocked === 'min') {
     toast({
       title: 'Estrutura invalida',
-      description: 'Cada turno precisa manter pelo menos um periodo configurado.',
+      description: 'Cada curriculo precisa manter pelo menos um periodo configurado.',
       variant: 'destructive',
     });
   }
 };
 
-  const addDiscipline = (turnoId: number, periodId: string) => {
-    setWizardData((prev) => ({
-      ...prev,
-      turnos: prev.turnos.map((turno) => {
-        if (turno.turnoId !== turnoId) {
-          return turno;
-        }
-        return {
-          ...turno,
-          periodos: turno.periodos.map((periodo) =>
-            periodo.id === periodId
-              ? {
-                  ...periodo,
-                  disciplinas: [...periodo.disciplinas, emptyDiscipline()],
-                }
-              : periodo,
-          ),
-        };
-      }),
-    }));
-  };
+const addDiscipline = (turnoId: number, curriculoDraftId: string, periodId: string, base?: DisciplineDraft) => {
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+      return {
+        ...turno,
+        curriculos: turno.curriculos.map((curriculo) => {
+          if (curriculo.id !== curriculoDraftId) {
+            return curriculo;
+          }
+          return {
+            ...curriculo,
+            periodos: curriculo.periodos.map((periodo) =>
+              periodo.id === periodId
+                ? {
+                    ...periodo,
+                    disciplinas: [
+                      ...periodo.disciplinas,
+                      base ? cloneDisciplineDraft(base) : emptyDiscipline(),
+                    ],
+                  }
+                : periodo,
+            ),
+          };
+        }),
+      };
+    }),
+  }));
+};
 
-  const updateDisciplineField = (
-    turnoId: number,
-    periodId: string,
-    disciplineId: string,
-    field: keyof DisciplineDraft,
-    value: string | boolean,
-  ) => {
-    setWizardData((prev) => ({
-      ...prev,
-      turnos: prev.turnos.map((turno) => {
-        if (turno.turnoId !== turnoId) {
-          return turno;
-        }
-        return {
-          ...turno,
-          periodos: turno.periodos.map((periodo) => {
-            if (periodo.id !== periodId) {
-              return periodo;
-            }
-            return {
-              ...periodo,
-              disciplinas: periodo.disciplinas.map((disciplina) =>
-                disciplina.id === disciplineId
-                  ? { ...disciplina, [field]: value }
-                  : disciplina,
-              ),
-            };
-          }),
-        };
-      }),
-    }));
-  };
+const updateDisciplineField = (
+  turnoId: number,
+  curriculoDraftId: string,
+  periodId: string,
+  disciplineId: string,
+  field: keyof DisciplineDraft,
+  value: string | boolean,
+) => {
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+      return {
+        ...turno,
+        curriculos: turno.curriculos.map((curriculo) => {
+          if (curriculo.id !== curriculoDraftId) {
+            return curriculo;
+          }
+          return {
+            ...curriculo,
+            periodos: curriculo.periodos.map((periodo) => {
+              if (periodo.id !== periodId) {
+                return periodo;
+              }
+              return {
+                ...periodo,
+                disciplinas: periodo.disciplinas.map((disciplina) =>
+                  disciplina.id === disciplineId
+                    ? {
+                        ...disciplina,
+                        [field]: value,
+                      }
+                    : disciplina,
+                ),
+              };
+            }),
+          };
+        }),
+      };
+    }),
+  }));
+};
 
-  const removeDiscipline = (turnoId: number, periodId: string, disciplineId: string) => {
-    let removalBlocked = false;
-    setWizardData((prev) => ({
-      ...prev,
-      turnos: prev.turnos.map((turno) => {
-        if (turno.turnoId !== turnoId) {
-          return turno;
-        }
-        return {
-          ...turno,
-          periodos: turno.periodos.map((periodo) => {
-            if (periodo.id !== periodId) {
-              return periodo;
-            }
-            const target = periodo.disciplinas.find((disciplina) => disciplina.id === disciplineId);
-            if (target?.persistedId) {
-              removalBlocked = true;
-              return periodo;
-            }
-            return {
-              ...periodo,
-              disciplinas: periodo.disciplinas.filter((disciplina) => disciplina.id !== disciplineId),
-            };
-          }),
-        };
-      }),
-    }));
-    if (removalBlocked) {
-      toast({
-        title: 'Disciplina existente',
-        description: 'Remova disciplinas ja cadastradas pela tela de disciplinas.',
-        variant: 'destructive',
+const removeDiscipline = (
+  turnoId: number,
+  curriculoDraftId: string,
+  periodId: string,
+  disciplineId: string,
+) => {
+  let removalBlocked = false;
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+      return {
+        ...turno,
+        curriculos: turno.curriculos.map((curriculo) => {
+          if (curriculo.id !== curriculoDraftId) {
+            return curriculo;
+          }
+          return {
+            ...curriculo,
+            periodos: curriculo.periodos.map((periodo) => {
+              if (periodo.id !== periodId) {
+                return periodo;
+              }
+              const target = periodo.disciplinas.find((disciplina) => disciplina.id === disciplineId);
+              if (target?.persistedId) {
+                removalBlocked = true;
+                return periodo;
+              }
+              return {
+                ...periodo,
+                disciplinas: periodo.disciplinas.filter((disciplina) => disciplina.id !== disciplineId),
+              };
+            }),
+          };
+        }),
+      };
+    }),
+  }));
+  if (removalBlocked) {
+    toast({
+      title: 'Disciplina existente',
+      description: 'Remova disciplinas ja cadastradas pela tela de disciplinas.',
+      variant: 'destructive',
+    });
+  }
+};
+
+const toggleDisciplineExpanded = (
+  turnoId: number,
+  curriculoDraftId: string,
+  periodId: string,
+  disciplineId: string,
+) => {
+  setWizardData((prev) => ({
+    ...prev,
+    turnos: prev.turnos.map((turno) => {
+      if (turno.turnoId !== turnoId) {
+        return turno;
+      }
+      return {
+        ...turno,
+        curriculos: turno.curriculos.map((curriculo) => {
+          if (curriculo.id !== curriculoDraftId) {
+            return curriculo;
+          }
+          return {
+            ...curriculo,
+            periodos: curriculo.periodos.map((periodo) => {
+              if (periodo.id !== periodId) {
+                return periodo;
+              }
+              return {
+                ...periodo,
+                disciplinas: periodo.disciplinas.map((disciplina) =>
+                  disciplina.id === disciplineId
+                    ? {
+                        ...disciplina,
+                        expanded: !disciplina.expanded,
+                      }
+                    : disciplina,
+                ),
+              };
+            }),
+          };
+        }),
+      };
+    }),
+  }));
+};
+
+const allCurriculos = React.useMemo(() => wizardData.turnos.flatMap((turno) => turno.curriculos), [wizardData.turnos]);
+
+const disciplineCatalog = React.useMemo(() => {
+  const map = new Map<string, DisciplineDraft>();
+  wizardData.turnos.forEach((turno) => {
+    turno.curriculos.forEach((curriculo) => {
+      curriculo.periodos.forEach((periodo) => {
+        periodo.disciplinas.forEach((disciplina) => {
+          const codigo = disciplina.codigo.trim();
+          const nome = disciplina.nome.trim();
+          if (!codigo || !nome || !isPositiveNumber(disciplina.creditos) || !isPositiveNumber(disciplina.cargaHoraria)) {
+            return;
+          }
+          const key = buildDisciplineKey(disciplina);
+          if (!map.has(key)) {
+            map.set(key, disciplina);
+          }
+        });
       });
-    }
-  };
+    });
+  });
+  return map;
+}, [wizardData.turnos]);
 
-  const hasIncompleteDiscipline = wizardData.turnos.some((turno) =>
-    turno.periodos.some((periodo) =>
-      periodo.disciplinas.some(
-        (disciplina) =>
-          !disciplina.nome.trim() ||
-          !disciplina.codigo.trim() ||
-          !isPositiveNumber(disciplina.creditos) ||
-          !isPositiveNumber(disciplina.cargaHoraria),
-      ),
-    ),
-  );
+const totalCurriculos = allCurriculos.length;
 
-const hasInvalidPeriod = wizardData.turnos.some(
-  (turno) =>
-    turno.periodos.length === 0 ||
-    turno.periodos.some((periodo) => !isPositiveNumber(periodo.numero)),
+const disciplineOptions = React.useMemo(
+  () =>
+    Array.from(disciplineCatalog.entries()).map(([key, disciplina]) => ({
+      key,
+      label: `${disciplina.codigo} • ${disciplina.nome}`,
+    })),
+  [disciplineCatalog],
 );
+
+const hasIncompleteDiscipline = allCurriculos.some((curriculo) =>
+  curriculo.periodos.some((periodo) =>
+    periodo.disciplinas.some(
+      (disciplina) =>
+        !disciplina.nome.trim() ||
+        !disciplina.codigo.trim() ||
+        !isPositiveNumber(disciplina.creditos) ||
+        !isPositiveNumber(disciplina.cargaHoraria),
+    ),
+  ),
+);
+
+const hasInvalidPeriod = allCurriculos.some(
+  (curriculo) =>
+    curriculo.periodos.length === 0 ||
+    curriculo.periodos.some((periodo) => !isPositiveNumber(periodo.numero)),
+);
+
+const handleExistingDisciplineSelection = (periodId: string, optionKey: string) => {
+  setExistingDisciplineSelections((prev) => ({
+    ...prev,
+    [periodId]: optionKey,
+  }));
+};
+
+const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: string, periodId: string) => {
+  const selectedKey = existingDisciplineSelections[periodId];
+  if (!selectedKey) {
+    return;
+  }
+  const disciplina = disciplineCatalog.get(selectedKey);
+  if (!disciplina) {
+    return;
+  }
+  addDiscipline(turnoId, curriculoDraftId, periodId, disciplina);
+  setExistingDisciplineSelections((prev) => ({
+    ...prev,
+    [periodId]: '',
+  }));
+};
 
   const canProceed = () => {
     switch (currentStep) {
@@ -775,12 +1098,14 @@ const hasInvalidPeriod = wizardData.turnos.some(
           wizardData.course.nome.trim().length >= 2 && wizardData.course.grau.trim().length > 0
         );
       case 1:
-        return wizardData.periodCount > 0;
+        return (
+          wizardData.turnos.length > 0 &&
+          totalCurriculos > 0 &&
+          allCurriculos.every((curriculo) => curriculo.periodos.length > 0)
+        );
       case 2:
-        return wizardData.turnos.length > 0;
+        return totalCurriculos > 0 && !hasIncompleteDiscipline && !hasInvalidPeriod;
       case 3:
-    return !hasIncompleteDiscipline && !hasInvalidPeriod;
-      case 4:
         return true;
       default:
         return false;
@@ -811,7 +1136,7 @@ const hasInvalidPeriod = wizardData.turnos.some(
   if (hasInvalidPeriod) {
     toast({
       title: 'Periodos invalidos',
-      description: 'Verifique se cada turno possui ao menos um periodo e se os numeros sao validos.',
+      description: 'Verifique se cada curriculo possui ao menos um periodo e se os numeros sao validos.',
       variant: 'destructive',
     });
     return;
@@ -960,33 +1285,8 @@ const hasInvalidPeriod = wizardData.turnos.some(
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Estrutura do curso</CardTitle>
-              <CardDescription>Defina o numero padrao de periodos para novos turnos. Voce podera ajustar cada turno individualmente depois.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label htmlFor="wizard-period-count" className="block text-sm font-medium text-gray-700 mb-1">Quantidade de periodos *</label>
-                <Input
-                  id="wizard-period-count"
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={wizardData.periodCount}
-                  onChange={(event) => updatePeriodCount(event.target.value)}
-                />
-                <p className="text-xs text-gray-500 mt-1">Limite maximo de 12 periodos. O valor pode ser ajustado depois.</p>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      case 2:
-        return (
-          <Card>
-            <CardHeader>
               <CardTitle>Turnos e curriculos</CardTitle>
-              <CardDescription>
-                Selecione em quais turnos o curso sera ofertado e personalize o curriculo de cada um.
-              </CardDescription>
+              <CardDescription>Selecione os turnos ofertados e configure os curriculos de cada turno antes de definir os periodos.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {isLoadingTurnos ? (
@@ -1016,45 +1316,100 @@ const hasInvalidPeriod = wizardData.turnos.some(
                           </div>
                         </button>
                         {selected && turnoDraft && (
-                          <div className="p-4 space-y-3 bg-white">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 space-y-4 bg-white">
+                            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                               <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Versao *</label>
-                                <Input
-                                  value={turnoDraft.versao}
-                                  onChange={(event) => updateTurnoField(turno.id, 'versao', event.target.value)}
-                                  placeholder="Ex: v1.0"
-                                />
+                                <p className="text-sm font-medium text-gray-700">Curriculos deste turno</p>
+                                <p className="text-xs text-gray-500">Informe versao, vigencia e quantidade de periodos para cada curriculo.</p>
                               </div>
-                              <div className="flex items-center gap-2 mt-6">
-                                <input
-                                  id={`turno-${turno.id}-ativo`}
-                                  type="checkbox"
-                                  className="h-4 w-4"
-                                  checked={turnoDraft.ativo}
-                                  onChange={(event) => updateTurnoField(turno.id, 'ativo', event.target.checked)}
-                                />
-                                <label htmlFor={`turno-${turno.id}-ativo`} className="text-sm text-gray-700">Curriculo ativo</label>
-                              </div>
+                              <Button type="button" variant="outline" size="sm" onClick={() => addCurriculo(turno.id)}>
+                                <Plus className="h-4 w-4 mr-2" /> Adicionar curriculo
+                              </Button>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Vigente de</label>
-                                <Input
-                                  type="date"
-                                  value={turnoDraft.vigenteDe}
-                                  onChange={(event) => updateTurnoField(turno.id, 'vigenteDe', event.target.value)}
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Vigente ate</label>
-                                <Input
-                                  type="date"
-                                  value={turnoDraft.vigenteAte}
-                                  onChange={(event) => updateTurnoField(turno.id, 'vigenteAte', event.target.value)}
-                                />
-                              </div>
-                            </div>
+                            {turnoDraft.curriculos.map((curriculo, index) => {
+                              const periodCount = curriculo.periodos.length;
+                              const canRemoveCurriculo = turnoDraft.curriculos.length > 1 && !curriculo.isPersisted;
+                              const removalTitle = canRemoveCurriculo
+                                ? 'Remover curriculo'
+                                : curriculo.isPersisted
+                                  ? 'Curriculos existentes devem ser removidos na tela de curriculos.'
+                                  : 'Mantenha pelo menos um curriculo por turno.';
+                              return (
+                                <div key={curriculo.id} className="border border-dashed border-gray-300 rounded-md p-4 space-y-4">
+                                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                                    <div>
+                                      <h4 className="text-sm font-semibold text-gray-800">Curriculo {curriculo.versao || index + 1}</h4>
+                                      <p className="text-xs text-gray-500">Turno {turno.nome} • {periodCount} periodo(s)</p>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeCurriculo(turno.id, curriculo.id)}
+                                      disabled={!canRemoveCurriculo}
+                                      className={`text-red-600 hover:text-red-700 ${!canRemoveCurriculo ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                      title={removalTitle}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-1" /> Remover curriculo
+                                    </Button>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Versao *</label>
+                                      <Input
+                                        value={curriculo.versao}
+                                        onChange={(event) => updateCurriculoField(turno.id, curriculo.id, 'versao', event.target.value)}
+                                        placeholder="Ex: v1.0"
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-6 md:justify-end">
+                                      <input
+                                        id={`curriculo-${curriculo.id}-ativo`}
+                                        type="checkbox"
+                                        className="h-4 w-4"
+                                        checked={curriculo.ativo}
+                                        onChange={(event) => updateCurriculoField(turno.id, curriculo.id, 'ativo', event.target.checked)}
+                                      />
+                                      <label htmlFor={`curriculo-${curriculo.id}-ativo`} className="text-sm text-gray-700">
+                                        Curriculo ativo
+                                      </label>
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Vigente de</label>
+                                      <DatePicker
+                                        value={curriculo.vigenteDe || null}
+                                        onChange={(value) => updateCurriculoField(turno.id, curriculo.id, 'vigenteDe', value || '')}
+                                        placeholder="dd/mm/aaaa"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">Vigente ate</label>
+                                      <DatePicker
+                                        value={curriculo.vigenteAte || null}
+                                        onChange={(value) => updateCurriculoField(turno.id, curriculo.id, 'vigenteAte', value || '')}
+                                        placeholder="dd/mm/aaaa"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label htmlFor={`curriculo-${curriculo.id}-period-count`} className="block text-sm font-medium text-gray-700 mb-1">Quantidade de periodos *</label>
+                                    <Input
+                                      id={`curriculo-${curriculo.id}-period-count`}
+                                      type="number"
+                                      min={1}
+                                      max={MAX_PERIOD_COUNT}
+                                      value={periodCount}
+                                      onChange={(event) => updateCurriculoPeriodCount(turno.id, curriculo.id, event.target.value)}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Cada curriculo pode ter no maximo {MAX_PERIOD_COUNT} periodos. Ajuste conforme a versao ofertada.
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -1064,62 +1419,60 @@ const hasInvalidPeriod = wizardData.turnos.some(
               )}
               {wizardData.turnos.length === 0 && !isLoadingTurnos && (
                 <p className="text-sm text-amber-600">
-                  Selecione pelo menos um turno para avancar.
+                  Selecione pelo menos um turno e configure seus curriculos para avancar.
                 </p>
               )}
             </CardContent>
           </Card>
         );
-      case 3:
+      case 2:
         return (
           <div className="space-y-6">
-            {wizardData.turnos.length === 0 ? (
+            {totalCurriculos === 0 ? (
               <Card>
                 <CardContent className="p-6 text-sm text-gray-600">
-                  Nenhum turno selecionado. Volte ao passo anterior e adicione pelo menos um turno.
+                  Nenhum curriculo configurado. Volte ao passo anterior e adicione ao menos um curriculo por turno selecionado.
                 </CardContent>
               </Card>
             ) : (
               wizardData.turnos.map((turno) => {
                 const turnoInfo = availableTurnos.find((item) => item.id === turno.turnoId);
-                return (
-                  <Card key={turno.turnoId}>
+                return turno.curriculos.map((curriculo) => (
+                  <Card key={`${turno.turnoId}-${curriculo.id}`}>
                     <CardHeader>
-                      <CardTitle>{turnoInfo?.nome || 'Turno'}</CardTitle>
-                      <CardDescription>
-                        Configure os periodos e disciplinas para este turno.
-                      </CardDescription>
+                      <CardTitle>{turnoInfo?.nome || 'Turno'} • Curriculo {curriculo.versao || 'v1.0'}</CardTitle>
+                      <CardDescription>Configure os periodos e disciplinas especificos deste curriculo.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-5">
-                      {turno.periodos.map((periodo) => {
+                      {curriculo.periodos.map((periodo) => {
                         const numeroFieldId = `periodo-${periodo.id}-numero` as const;
                         const nomeFieldId = `periodo-${periodo.id}-nome` as const;
                         const descricaoFieldId = `periodo-${periodo.id}-descricao` as const;
                         const removalDisabledReason = periodo.persistedId
                           ? 'persisted'
-                          : turno.periodos.length <= 1
-                          ? 'min'
-                          : null;
+                          : curriculo.periodos.length <= 1
+                            ? 'min'
+                            : null;
                         const canRemovePeriod = removalDisabledReason === null;
-                        const removalTitle = removalDisabledReason === 'persisted'
-                          ? 'Remova periodos existentes pela tela de periodos.'
-                          : removalDisabledReason === 'min'
-                            ? 'Mantenha pelo menos um periodo por turno.'
-                            : 'Remover periodo';
-
+                        const removalTitle =
+                          removalDisabledReason === 'persisted'
+                            ? 'Remova periodos existentes pela tela de periodos.'
+                            : removalDisabledReason === 'min'
+                              ? 'Mantenha pelo menos um periodo por curriculo.'
+                              : 'Remover periodo';
                         return (
                           <div key={periodo.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
                             <div className="space-y-3">
                               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
                                 <div className="flex flex-col gap-1">
                                   <h4 className="text-sm font-semibold text-gray-800">Configuracao do periodo</h4>
-                                  <p className="text-xs text-gray-500">Cadastre as disciplinas que compoem este periodo no turno selecionado.</p>
+                                  <p className="text-xs text-gray-500">Cadastre as disciplinas que compoem este periodo neste curriculo.</p>
                                 </div>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => removePeriod(turno.turnoId, periodo.id)}
+                                  onClick={() => removePeriod(turno.turnoId, curriculo.id, periodo.id)}
                                   disabled={!canRemovePeriod}
                                   className={`text-red-600 hover:text-red-700 ${!canRemovePeriod ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   title={removalTitle}
@@ -1135,7 +1488,7 @@ const hasInvalidPeriod = wizardData.turnos.some(
                                     type="number"
                                     min={1}
                                     value={periodo.numero}
-                                    onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'numero', event.target.value)}
+                                    onChange={(event) => updatePeriodField(turno.turnoId, curriculo.id, periodo.id, 'numero', event.target.value)}
                                     placeholder="Ex: 1"
                                   />
                                   <p className="text-[11px] text-gray-500 mt-1">E permitido repetir numeros conforme necessario.</p>
@@ -1145,7 +1498,7 @@ const hasInvalidPeriod = wizardData.turnos.some(
                                   <Input
                                     id={nomeFieldId}
                                     value={periodo.nome}
-                                    onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'nome', event.target.value)}
+                                    onChange={(event) => updatePeriodField(turno.turnoId, curriculo.id, periodo.id, 'nome', event.target.value)}
                                     placeholder="Nome do periodo (opcional)"
                                   />
                                 </div>
@@ -1154,7 +1507,7 @@ const hasInvalidPeriod = wizardData.turnos.some(
                             <Textarea
                               id={descricaoFieldId}
                               value={periodo.descricao}
-                              onChange={(event) => updatePeriodField(turno.turnoId, periodo.id, 'descricao', event.target.value)}
+                              onChange={(event) => updatePeriodField(turno.turnoId, curriculo.id, periodo.id, 'descricao', event.target.value)}
                               placeholder="Descricao opcional do periodo"
                             />
                             <div className="space-y-3">
@@ -1167,121 +1520,196 @@ const hasInvalidPeriod = wizardData.turnos.some(
                                 const disciplinaNomeFieldId = `${disciplinaPrefix}-nome`;
                                 const disciplinaCreditosFieldId = `${disciplinaPrefix}-creditos`;
                                 const disciplinaCargaFieldId = `${disciplinaPrefix}-carga`;
+                                const isCollapsed = disciplina.isLinkedFromExisting && !disciplina.expanded;
 
                                 return (
                                   <div key={disciplina.id} className="border border-dashed border-gray-300 rounded-md p-4 space-y-3 bg-gray-50">
-                                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                                      <h5 className="text-sm font-medium text-gray-700">Disciplina</h5>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => removeDiscipline(turno.turnoId, periodo.id, disciplina.id)}
-                                        className={`text-red-600 hover:text-red-700 ${disciplina.persistedId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        disabled={Boolean(disciplina.persistedId)}
-                                        title={disciplina.persistedId ? 'Remova disciplinas existentes na tela de disciplinas.' : 'Remover disciplina'}
-                                      >
-                                        <Trash2 className="h-4 w-4 mr-1" /> Remover
-                                      </Button>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                                       <div>
-                                        <label htmlFor={disciplinaCodigoFieldId} className="block text-xs font-medium text-gray-600 mb-1">Codigo *</label>
-                                        <Input
-                                          id={disciplinaCodigoFieldId}
-                                          value={disciplina.codigo}
-                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'codigo', event.target.value)}
-                                          placeholder="Ex: DISC101"
-                                        />
+                                        <h5 className="text-sm font-medium text-gray-700">
+                                          Disciplina {disciplina.isLinkedFromExisting ? '(existente)' : ''}
+                                        </h5>
+                                        {isCollapsed && (
+                                          <p className="text-xs text-gray-500">
+                                            {disciplina.codigo} • {disciplina.nome} • {disciplina.creditos} créditos • {disciplina.cargaHoraria}h
+                                          </p>
+                                        )}
                                       </div>
-                                      <div>
-                                        <label htmlFor={disciplinaNomeFieldId} className="block text-xs font-medium text-gray-600 mb-1">Nome *</label>
-                                        <Input
-                                          id={disciplinaNomeFieldId}
-                                          value={disciplina.nome}
-                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'nome', event.target.value)}
-                                          placeholder="Nome da disciplina"
-                                        />
-                                      </div>
-                                      <div>
-                                        <label htmlFor={`${disciplinaPrefix}-ordem`} className="block text-xs font-medium text-gray-600 mb-1">Ordem</label>
-                                        <Input
-                                          id={`${disciplinaPrefix}-ordem`}
-                                          type="number"
-                                          min={1}
-                                          value={disciplina.ordem}
-                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'ordem', event.target.value)}
-                                          placeholder="Ex: 1"
-                                        />
-                                        <p className="text-[11px] text-gray-500 mt-1">Opcional. Use para definir a sequencia da disciplina.</p>
-                                      </div>
-                                      <div className="flex items-center gap-2 pt-6 md:pt-0">
-                                        <input
-                                          id={`${disciplinaPrefix}-obrigatoria`}
-                                          type="checkbox"
-                                          className="h-4 w-4"
-                                          checked={disciplina.obrigatoria}
-                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'obrigatoria', event.target.checked)}
-                                        />
-                                        <label htmlFor={`${disciplinaPrefix}-obrigatoria`} className="text-xs text-gray-600">Disciplina obrigatoria</label>
+                                      <div className="flex items-center gap-2">
+                                        {disciplina.isLinkedFromExisting && (
+                                          <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={() =>
+                                              toggleDisciplineExpanded(turno.turnoId, curriculo.id, periodo.id, disciplina.id)
+                                            }
+                                          >
+                                            {isCollapsed ? 'Editar' : 'Recolher'}
+                                          </Button>
+                                        )}
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => removeDiscipline(turno.turnoId, curriculo.id, periodo.id, disciplina.id)}
+                                          className={`text-red-600 hover:text-red-700 ${disciplina.persistedId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                          disabled={Boolean(disciplina.persistedId)}
+                                          title={disciplina.persistedId ? 'Remova disciplinas existentes na tela de disciplinas.' : 'Remover disciplina'}
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-1" /> Remover
+                                        </Button>
                                       </div>
                                     </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                      <div>
-                                        <label htmlFor={disciplinaCreditosFieldId} className="block text-xs font-medium text-gray-600 mb-1">Creditos *</label>
-                                        <Input
-                                          id={disciplinaCreditosFieldId}
-                                          type="number"
-                                          min={1}
-                                          value={disciplina.creditos}
-                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'creditos', event.target.value)}
-                                          placeholder="Ex: 4"
-                                        />
+
+                                    {isCollapsed ? (
+                                      <div className="text-xs text-gray-600 grid grid-cols-1 md:grid-cols-4 gap-3">
+                                        <div>
+                                          <span className="font-semibold text-gray-700 block">Código</span>
+                                          {disciplina.codigo}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold text-gray-700 block">Nome</span>
+                                          {disciplina.nome}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold text-gray-700 block">Créditos</span>
+                                          {disciplina.creditos}
+                                        </div>
+                                        <div>
+                                          <span className="font-semibold text-gray-700 block">Carga horária</span>
+                                          {disciplina.cargaHoraria}h
+                                        </div>
                                       </div>
-                                      <div>
-                                        <label htmlFor={disciplinaCargaFieldId} className="block text-xs font-medium text-gray-600 mb-1">Carga horaria (horas) *</label>
-                                        <Input
-                                          id={disciplinaCargaFieldId}
-                                          type="number"
-                                          min={1}
-                                          value={disciplina.cargaHoraria}
-                                          onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'cargaHoraria', event.target.value)}
-                                          placeholder="Ex: 60"
+                                    ) : (
+                                      <>
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                                          <div>
+                                            <label htmlFor={disciplinaCodigoFieldId} className="block text-xs font-medium text-gray-600 mb-1">Codigo *</label>
+                                            <Input
+                                              id={disciplinaCodigoFieldId}
+                                              value={disciplina.codigo}
+                                              onChange={(event) => updateDisciplineField(turno.turnoId, curriculo.id, periodo.id, disciplina.id, 'codigo', event.target.value)}
+                                              placeholder="Ex: DISC101"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label htmlFor={disciplinaNomeFieldId} className="block text-xs font-medium text-gray-600 mb-1">Nome *</label>
+                                            <Input
+                                              id={disciplinaNomeFieldId}
+                                              value={disciplina.nome}
+                                              onChange={(event) => updateDisciplineField(turno.turnoId, curriculo.id, periodo.id, disciplina.id, 'nome', event.target.value)}
+                                              placeholder="Nome da disciplina"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label htmlFor={`${disciplinaPrefix}-ordem`} className="block text-xs font-medium text-gray-600 mb-1">Ordem</label>
+                                            <Input
+                                              id={`${disciplinaPrefix}-ordem`}
+                                              type="number"
+                                              min={1}
+                                              value={disciplina.ordem}
+                                              onChange={(event) => updateDisciplineField(turno.turnoId, curriculo.id, periodo.id, disciplina.id, 'ordem', event.target.value)}
+                                              placeholder="Ex: 1"
+                                            />
+                                            <p className="text-[11px] text-gray-500 mt-1">Opcional. Use para definir a sequencia da disciplina.</p>
+                                          </div>
+                                          <div className="flex items-center gap-2 pt-6 md:pt-0">
+                                            <input
+                                              id={`${disciplinaPrefix}-obrigatoria`}
+                                              type="checkbox"
+                                              className="h-4 w-4"
+                                              checked={disciplina.obrigatoria}
+                                              onChange={(event) => updateDisciplineField(turno.turnoId, curriculo.id, periodo.id, disciplina.id, 'obrigatoria', event.target.checked)}
+                                            />
+                                            <label htmlFor={`${disciplinaPrefix}-obrigatoria`} className="text-xs text-gray-600">Disciplina obrigatoria</label>
+                                          </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                          <div>
+                                            <label htmlFor={disciplinaCreditosFieldId} className="block text-xs font-medium text-gray-600 mb-1">Creditos *</label>
+                                            <Input
+                                              id={disciplinaCreditosFieldId}
+                                              type="number"
+                                              min={1}
+                                              value={disciplina.creditos}
+                                              onChange={(event) => updateDisciplineField(turno.turnoId, curriculo.id, periodo.id, disciplina.id, 'creditos', event.target.value)}
+                                              placeholder="Ex: 4"
+                                            />
+                                          </div>
+                                          <div>
+                                            <label htmlFor={disciplinaCargaFieldId} className="block text-xs font-medium text-gray-600 mb-1">Carga horaria (horas) *</label>
+                                            <Input
+                                              id={disciplinaCargaFieldId}
+                                              type="number"
+                                              min={1}
+                                              value={disciplina.cargaHoraria}
+                                              onChange={(event) => updateDisciplineField(turno.turnoId, curriculo.id, periodo.id, disciplina.id, 'cargaHoraria', event.target.value)}
+                                              placeholder="Ex: 60"
+                                            />
+                                          </div>
+                                        </div>
+                                        <Textarea
+                                          value={disciplina.ementa}
+                                          onChange={(event) => updateDisciplineField(turno.turnoId, curriculo.id, periodo.id, disciplina.id, 'ementa', event.target.value)}
+                                          placeholder="Ementa (opcional)"
                                         />
-                                      </div>
-                                    </div>
-                                    <Textarea
-                                      value={disciplina.ementa}
-                                      onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'ementa', event.target.value)}
-                                      placeholder="Ementa (opcional)"
-                                    />
-                                    <Textarea
-                                      value={disciplina.bibliografia}
-                                      onChange={(event) => updateDisciplineField(turno.turnoId, periodo.id, disciplina.id, 'bibliografia', event.target.value)}
-                                      placeholder="Bibliografia (opcional)"
-                                    />
+                                        <Textarea
+                                          value={disciplina.bibliografia}
+                                          onChange={(event) => updateDisciplineField(turno.turnoId, curriculo.id, periodo.id, disciplina.id, 'bibliografia', event.target.value)}
+                                          placeholder="Bibliografia (opcional)"
+                                        />
+                                      </>
+                                    )}
                                   </div>
                                 );
                               })}
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => addDiscipline(turno.turnoId, periodo.id)}
-                              >
-                                <Plus className="h-4 w-4 mr-2" /> Adicionar disciplina
-                              </Button>
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => addDiscipline(turno.turnoId, curriculo.id, periodo.id)}
+                                >
+                                  <Plus className="h-4 w-4 mr-2" /> Nova disciplina
+                                </Button>
+                                {disciplineOptions.length > 0 && (
+                                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                    <select
+                                      className="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                      value={existingDisciplineSelections[periodo.id] ?? ''}
+                                      onChange={(event) => handleExistingDisciplineSelection(periodo.id, event.target.value)}
+                                      aria-label="Selecionar disciplina existente"
+                                    >
+                                      <option value="">Selecionar disciplina existente...</option>
+                                      {disciplineOptions.map((option) => (
+                                        <option key={option.key} value={option.key}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      size="sm"
+                                      onClick={() => attachExistingDisciplineToPeriod(turno.turnoId, curriculo.id, periodo.id)}
+                                      disabled={!existingDisciplineSelections[periodo.id]}
+                                    >
+                                      Usar selecionada
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
                       })}
                       <div className="flex justify-end">
-                        <Button type="button" variant="outline" size="sm" onClick={() => addPeriod(turno.turnoId)}>
+                        <Button type="button" variant="outline" size="sm" onClick={() => addPeriod(turno.turnoId, curriculo.id)}>
                           <Plus className="h-4 w-4 mr-2" /> Adicionar periodo
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
-                );
+                ));
               })
             )}
             {hasIncompleteDiscipline && (
@@ -1291,7 +1719,7 @@ const hasInvalidPeriod = wizardData.turnos.some(
             )}
           </div>
         );
-      case 4:
+      case 3:
         return (
           <Card>
             <CardHeader>
@@ -1303,36 +1731,39 @@ const hasInvalidPeriod = wizardData.turnos.some(
                 <h4 className="text-sm font-semibold text-gray-800">Curso</h4>
                 <p><strong>Nome:</strong> {wizardData.course.nome}</p>
                 <p><strong>Grau:</strong> {wizardData.course.grau}</p>
-                <p><strong>Periodos padrao (novos turnos):</strong> {wizardData.periodCount}</p>
               </div>
               {wizardData.turnos.map((turno) => {
                 const turnoInfo = availableTurnos.find((item) => item.id === turno.turnoId);
                 return (
-                  <div key={turno.turnoId} className="border border-gray-200 rounded-md p-4 space-y-2">
+                  <div key={turno.turnoId} className="border border-gray-200 rounded-md p-4 space-y-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-green-600" />
                       <h5 className="text-sm font-semibold text-gray-800">{turnoInfo?.nome || 'Turno'}</h5>
                     </div>
-                    <p><strong>Versao:</strong> {turno.versao || 'v1.0'}</p>
-                    <p><strong>Status:</strong> {turno.ativo ? 'Ativo' : 'Inativo'}</p>
-                    <p><strong>Vigencia:</strong> {turno.vigenteDe || 'Nao informado'} - {turno.vigenteAte || 'Nao informado'}</p>
-                    {turno.periodos.map((periodo) => (
-                      <div key={periodo.id} className="pl-4 border-l border-dashed border-gray-300 space-y-1">
-                        <p className="font-medium">Periodo {periodo.numero} - {periodo.nome || 'Sem nome'}</p>
-                        <p className="text-xs text-gray-500">Disciplinas: {periodo.disciplinas.length}</p>
-                        {periodo.disciplinas.length > 0 && (
-                          <ul className="text-xs text-gray-600 list-disc list-inside space-y-1">
-                            {periodo.disciplinas.map((disciplina) => (
-                              <li key={disciplina.id}>
-                                <strong>{disciplina.codigo}</strong> - {disciplina.nome} ({disciplina.cargaHoraria}h / {disciplina.creditos} cred.)
-                                <span className="ml-2 text-[11px] text-gray-500 uppercase tracking-wide">
-                                  {disciplina.obrigatoria ? 'Obrigatoria' : 'Optativa'}
-                                  {disciplina.ordem ? ` • Ordem ${disciplina.ordem}` : ''}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                    {turno.curriculos.map((curriculo) => (
+                      <div key={curriculo.id} className="pl-4 border-l border-dashed border-gray-300 space-y-2">
+                        <p><strong>Curriculo:</strong> {curriculo.versao || 'v1.0'} • {curriculo.periodos.length} periodo(s)</p>
+                        <p><strong>Status:</strong> {curriculo.ativo ? 'Ativo' : 'Inativo'}</p>
+                        <p><strong>Vigencia:</strong> {curriculo.vigenteDe || 'Nao informado'} - {curriculo.vigenteAte || 'Nao informado'}</p>
+                        {curriculo.periodos.map((periodo) => (
+                          <div key={periodo.id} className="pl-4 border-l border-dotted border-gray-200 space-y-1">
+                            <p className="font-medium">Periodo {periodo.numero} - {periodo.nome || 'Sem nome'}</p>
+                            <p className="text-xs text-gray-500">Disciplinas: {periodo.disciplinas.length}</p>
+                            {periodo.disciplinas.length > 0 && (
+                              <ul className="text-xs text-gray-600 list-disc list-inside space-y-1">
+                                {periodo.disciplinas.map((disciplina) => (
+                                  <li key={disciplina.id}>
+                                    <strong>{disciplina.codigo}</strong> - {disciplina.nome} ({disciplina.cargaHoraria}h / {disciplina.creditos} cred.)
+                                    <span className="ml-2 text-[11px] text-gray-500 uppercase tracking-wide">
+                                      {disciplina.obrigatoria ? 'Obrigatoria' : 'Optativa'}
+                                      {disciplina.ordem ? ` • Ordem ${disciplina.ordem}` : ''}
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>
@@ -1405,7 +1836,7 @@ const hasInvalidPeriod = wizardData.turnos.some(
                   {currentStep === steps.length - 1 && (
                     <Button
                       onClick={handleSubmit}
-                      disabled={isSubmitting || wizardData.turnos.length === 0}
+                      disabled={isSubmitting || totalCurriculos === 0}
                     >
                       {isSubmitting ? (
                         <>

@@ -5,7 +5,9 @@ export const situacaoProfessorEnum = pgEnum('situacao_professor', ['ATIVO', 'INA
 
 export const professores = pgTable('professores', {
   matricula: char('matricula', { length: 8 }).primaryKey(),
-  pessoaId: integer('pessoa_id').notNull().references(() => pessoas.id),
+  pessoaId: integer('pessoa_id')
+    .notNull()
+    .references(() => pessoas.id, { onDelete: 'cascade' }),
   dataInicio: date('data_inicio').notNull(),
   formacaoAcad: varchar('formacao_acad', { length: 120 }),
   situacao: situacaoProfessorEnum('situacao').notNull().default('ATIVO'),

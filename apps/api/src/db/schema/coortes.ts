@@ -9,7 +9,9 @@ export const coortes = pgTable(
     id: serial('id').primaryKey(),
     cursoId: integer('curso_id').notNull().references(() => cursos.id, { onDelete: 'cascade' }),
     turnoId: integer('turno_id').notNull().references(() => turnos.id, { onDelete: 'restrict' }),
-    curriculoId: integer('curriculo_id').notNull().references(() => curriculos.id, { onDelete: 'restrict' }),
+    curriculoId: integer('curriculo_id')
+      .notNull()
+      .references(() => curriculos.id, { onDelete: 'cascade' }),
     anoIngresso: integer('ano_ingresso').notNull(),
     rotulo: varchar('rotulo', { length: 40 }).notNull(), // Ex.: "2016"
     ativo: boolean('ativo').notNull().default(true),

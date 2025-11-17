@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DatePicker } from '@/components/ui/date-picker';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -77,7 +78,18 @@ export default function AulaEditPage() {
               >
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                  <Input name="data" type="date" defaultValue={aula.data} />
+                  <DatePicker
+                    value={aula.data || null}
+                    onChange={(value) => {
+                      const form = document.querySelector('form') as HTMLFormElement;
+                      if (form) {
+                        const input = form.querySelector('input[name="data"]') as HTMLInputElement;
+                        if (input) input.value = value || '';
+                      }
+                    }}
+                    placeholder="dd/mm/aaaa"
+                    name="data"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tópico</label>

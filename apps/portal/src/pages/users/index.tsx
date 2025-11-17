@@ -10,8 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { Edit, Trash2, User as UserIcon, Mail, Key, Eye, UserPlus, Plus, Shield, ArrowLeft, Users, CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
-import CrudHeader from '@/components/crud/crud-header';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
@@ -76,6 +75,37 @@ export default function UsersPage() {
 
   const users = usersResponse?.data || [];
   const pagination = usersResponse?.pagination;
+
+  const handleNew = () => navigate('/users/new');
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão completa de usuários",
+    description: "Crie e gerencie todos os usuários do sistema com seus perfis, permissões e controle de acesso.",
+    backTo: "/dashboard",
+    stats: [
+      { value: pagination?.total || 0, label: 'Total de Usuários' },
+      { value: users.filter(u => u.role === 'ADMIN').length, label: 'Administradores' },
+      { value: users.filter(u => u.role === 'PROFESSOR').length, label: 'Professores' },
+      { value: users.filter(u => u.role === 'ALUNO').length, label: 'Alunos' }
+    ],
+    actionLink: {
+      href: '/pessoas',
+      label: 'Ver pessoas'
+    },
+    actions: (
+      <>
+        <Button variant="outline" onClick={() => setShowPessoaModal(true)}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Nova Pessoa
+        </Button>
+        <Button onClick={handleNew}>
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Usuário
+        </Button>
+      </>
+    )
+  });
 
   // Create Pessoa mutation (for quick person creation)
   const createPessoaMutation = useMutation({
@@ -147,7 +177,6 @@ export default function UsersPage() {
       deleteMutation.mutate(id);
     }
   };
-  const handleNew = () => navigate('/users/new');
   const handleChangePassword = (user: User) => navigate(`/users/edit/${user.id}#password`);
 
   const getRoleColor = (role: string) => {
@@ -177,40 +206,6 @@ export default function UsersPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gerenciar Usuários"
-        description="Criação, edição e controle de acesso de usuários"
-        backTo="/dashboard"
-        actions={
-          <>
-            <Button variant="outline" onClick={() => setShowPessoaModal(true)}>
-              <UserPlus className="h-4 w-4 mr-2" />
-              Nova Pessoa
-            </Button>
-            <Button onClick={handleNew}>
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Usuário
-            </Button>
-          </>
-        }
-      />
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Controle de Acesso"
-        title="Gestão completa de usuários"
-        description="Crie e gerencie todos os usuários do sistema com seus perfis, permissões e controle de acesso."
-        stats={[
-          { value: users.length, label: 'Total de Usuários' },
-          { value: users.filter(u => u.role === 'ADMIN').length, label: 'Administradores' },
-          { value: users.filter(u => u.role === 'PROFESSOR').length, label: 'Professores' },
-          { value: users.filter(u => u.role === 'ALUNO').length, label: 'Alunos' }
-        ]}
-        actionLink={{
-          href: '/pessoas',
-          label: 'Ver pessoas'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">

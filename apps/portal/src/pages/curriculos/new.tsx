@@ -8,9 +8,10 @@ import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
 import { Curso, Turno, CreateCurriculo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { DatePicker } from '@/components/ui/date-picker';
 
 const schema = z.object({
   cursoId: z.number().min(1, 'Selecione um curso'),
@@ -39,6 +40,7 @@ export default function CurriculoNewPage() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -151,11 +153,31 @@ export default function CurriculoNewPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Vigência (início) — opcional</label>
-                    <Input type="date" {...register('vigenteDe')} />
+                    <Controller
+                      name="vigenteDe"
+                      control={control}
+                      render={({ field }) => (
+                        <DatePicker
+                          value={field.value || null}
+                          onChange={field.onChange}
+                          placeholder="dd/mm/aaaa"
+                        />
+                      )}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Vigência (término) — opcional</label>
-                    <Input type="date" {...register('vigenteAte')} />
+                    <Controller
+                      name="vigenteAte"
+                      control={control}
+                      render={({ field }) => (
+                        <DatePicker
+                          value={field.value || null}
+                          onChange={field.onChange}
+                          placeholder="dd/mm/aaaa"
+                        />
+                      )}
+                    />
                   </div>
                 </div>
 

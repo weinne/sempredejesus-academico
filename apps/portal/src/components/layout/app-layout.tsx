@@ -1,6 +1,8 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/providers/auth-provider';
+import { PageHeaderProvider, usePageHeader } from '@/providers/page-header-provider';
+import { HeroSection } from '@/components/ui/hero-section';
 import { cn } from '@/lib/utils';
 import { Role } from '@/types/api';
 import { Badge } from '@/components/ui/badge';
@@ -36,9 +38,10 @@ import {
 
 type SectionKey = 'administracao' | 'gestao' | 'registros' | 'pessoal';
 
-export default function AppLayout() {
+function AppLayoutContent() {
   const navigate = useNavigate();
   const { logout, hasRole } = useAuth();
+  const { headerConfig, setOnMenuClick } = usePageHeader();
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
   const [isPinned, setIsPinned] = React.useState<boolean>(false);
   const [openSections, setOpenSections] = React.useState<Record<SectionKey, boolean>>({
@@ -47,6 +50,11 @@ export default function AppLayout() {
     registros: true,
     pessoal: true,
   });
+
+  // Passa a função de abrir menu para o context
+  React.useEffect(() => {
+    setOnMenuClick(() => () => setIsOpen(true));
+  }, [setOnMenuClick]);
 
   const toggleSection = (key: SectionKey) =>
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -241,26 +249,23 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Hamburger button */}
-      {!isPinned && (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsOpen(true)}
-          className="fixed top-4 left-4 z-50 h-10 w-10 bg-white/95 backdrop-blur-sm border border-slate-200/60 shadow-lg hover:bg-white hover:shadow-xl transition-all rounded-full"
-          aria-label="Abrir menu"
-        >
-          <MenuIcon className="h-5 w-5" />
-        </Button>
-      )}
-
       {/* Sidebar */}
       {isPinned ? (
         <div className="flex">
           {sidebar}
-          <main className="flex-1 min-w-0 md:ml-0">
-            <Outlet />
-          </main>
+          <div className="flex-1 min-w-0 md:ml-0">
+            {/* Hero integrado */}
+            {headerConfig && (
+              <HeroSection
+                {...headerConfig}
+                showMenuButton={true}
+                onMenuClick={() => setIsOpen(true)}
+              />
+            )}
+            <main>
+              <Outlet />
+            </main>
+          </div>
         </div>
       ) : (
         <>
@@ -280,12 +285,31 @@ export default function AppLayout() {
           >
             {sidebar}
           </div>
-          <main className="min-w-0">
-            <Outlet />
-          </main>
+          
+          <div className="min-w-0">
+            {/* Hero integrado com botão de menu */}
+            {headerConfig && (
+              <HeroSection
+                {...headerConfig}
+                onMenuClick={() => setIsOpen(true)}
+                showMenuButton={true}
+              />
+            )}
+            <main>
+              <Outlet />
+            </main>
+          </div>
         </>
       )}
     </div>
+  );
+}
+
+export default function AppLayout() {
+  return (
+    <PageHeaderProvider>
+      <AppLayoutContent />
+    </PageHeaderProvider>
   );
 }
 

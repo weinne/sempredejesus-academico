@@ -21,8 +21,7 @@ import { apiService } from '@/services/api';
 import { Curriculo } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import CrudHeader from '@/components/crud/crud-header';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 // import { Pagination } from '@/components/crud/pagination';
@@ -70,6 +69,29 @@ export default function CurriculosPage() {
   const cursos = cursosResponse?.data || [];
 
   const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: () => apiService.getTurnos() });
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão dos currículos acadêmicos",
+    description: "Configure e gerencie as versões de currículo dos cursos para organizar a estrutura acadêmica.",
+    backTo: "/dashboard",
+    stats: [
+      { value: curriculos.length, label: 'Total de Currículos' },
+      { value: curriculos.filter(c => c.ativo).length, label: 'Ativos' },
+      { value: cursos.length, label: 'Cursos' },
+      { value: turnos.length, label: 'Turnos' }
+    ],
+    actionLink: {
+      href: '/cursos',
+      label: 'Ver cursos'
+    },
+    actions: canCreate ? (
+      <Button onClick={() => navigate('/curriculos/new')}>
+        <Plus className="h-4 w-4 mr-2" />
+        Novo Currículo
+      </Button>
+    ) : undefined
+  });
 
   // Criação ocorre em /curriculos/new
 
@@ -164,34 +186,6 @@ export default function CurriculosPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gerenciar Currículos"
-        description="Administração das versões de currículo dos cursos"
-        backTo="/dashboard"
-        actions={canCreate ? (
-          <Button onClick={() => navigate('/curriculos/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Currículo
-          </Button>
-        ) : undefined}
-      />
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Estrutura Acadêmica"
-        title="Gestão dos currículos acadêmicos"
-        description="Configure e gerencie as versões de currículo dos cursos para organizar a estrutura acadêmica."
-        stats={[
-          { value: curriculos.length, label: 'Total de Currículos' },
-          { value: curriculos.filter(c => c.ativo).length, label: 'Ativos' },
-          { value: cursos.length, label: 'Cursos' },
-          { value: turnos.length, label: 'Turnos' }
-        ]}
-        actionLink={{
-          href: '/cursos',
-          label: 'Ver cursos'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">

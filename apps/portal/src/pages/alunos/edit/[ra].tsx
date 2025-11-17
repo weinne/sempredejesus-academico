@@ -21,6 +21,7 @@ import {
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { DatePicker } from '@/components/ui/date-picker';
 
 type AddressState = {
   logradouro: string;
@@ -643,10 +644,10 @@ export default function EditAlunoPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                      <Input
-                        type="date"
-                        defaultValue={formatDateForInput(aluno.pessoa?.data_nascimento)}
-                        onChange={(e) => updatePessoaMutation.mutate({ data_nascimento: e.target.value })}
+                      <DatePicker
+                        value={aluno.pessoa?.data_nascimento || null}
+                        onChange={(value) => updatePessoaMutation.mutate({ data_nascimento: value || '' })}
+                        placeholder="dd/mm/aaaa"
                       />
                     </div>
                     <div className="md:col-span-2 lg:col-span-3">

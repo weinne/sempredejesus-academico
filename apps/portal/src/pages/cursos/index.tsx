@@ -11,7 +11,7 @@ import { Curso, Curriculo, Disciplina, DisciplinaPeriodo, Periodo, Role, Turno }
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, Plus, Search, Trash2, BookOpen, Wand2, ArrowRight, ChevronRight, Calendar, Layers3 } from 'lucide-react';
-import CrudHeader from '@/components/crud/crud-header';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { Pagination } from '@/components/crud/pagination';
 
 interface CourseStructure {
@@ -226,79 +226,43 @@ export default function CursosPage() {
   );
  }
 
- const handleDelete = (id: number) => {
+const handleDelete = (id: number) => {
   if (window.confirm('Tem certeza que deseja remover este curso? Esta acao pode afetar alunos e disciplinas vinculadas.')) {
    deleteMutation.mutate(id);
   }
- };
+};
 
- return (
-  <div className="min-h-screen bg-slate-50">
-   <CrudHeader
-    title="Cursos"
-    description="Visualize a jornada academica completa de cada curso"
-    backTo="/dashboard"
-    actions={
-     canCreate ? (
-      <div className="flex gap-2">
-       <Button variant="outline" onClick={() => navigate('/cursos/wizard')}>
-        <Wand2 className="h-4 w-4 mr-2" />
-        Abrir wizard
-       </Button>
-       <Button onClick={() => navigate('/cursos/new')}>
-        <Plus className="h-4 w-4 mr-2" />
-        Novo curso
-       </Button>
-      </div>
-     ) : undefined
-    }
-   />
+// Configure Hero via hook
+usePageHero({
+ title: "Gestão de cursos acadêmicos",
+ description: "Crie, edite e organize o currículo de cada curso.",
+ backTo: "/dashboard",
+ stats: [
+  { value: cursosResponse?.pagination?.total ?? cursos.length, label: 'Cursos' },
+  { value: curriculosData.length, label: 'Currículos' },
+  { value: periodosData.length, label: 'Períodos' },
+  { value: disciplinasData.length, label: 'Disciplinas' }
+ ],
+ actionLink: {
+  href: '/relatorios',
+  label: 'Explorar relatórios'
+ },
+ actions: canCreate ? (
+  <div className="flex gap-2">
+   <Button variant="outline" onClick={() => navigate('/cursos/wizard')}>
+    <Wand2 className="h-4 w-4 mr-2" />
+    Abrir wizard
+   </Button>
+   <Button onClick={() => navigate('/cursos/new')}>
+    <Plus className="h-4 w-4 mr-2" />
+    Novo curso
+   </Button>
+  </div>
+ ) : undefined
+});
 
-   <section className="relative overflow-hidden">
-    <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-sky-900/70 to-slate-900" />
-    <div className="relative max-w-7xl mx-auto px-6 py-16 text-white">
-     <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-10">
-      <div className="max-w-2xl space-y-4">
-       <Badge className="bg-white/20 text-white hover:bg-white/30">Visao academica</Badge>
-       <h1 className="text-4xl md:text-5xl font-semibold leading-tight">
-        Organização completa dos cursos em um só lugar
-       </h1>
-       <p className="text-base md:text-lg text-slate-200/80">
-        Visualize cada curso com seus turnos, periodos e disciplinas em uma linha do tempo clara e responsiva.
-        Continue a configuracao pelo wizard quando precisar expandir a estrutura.
-       </p>
-      </div>
-      <div className="bg-white/10 backdrop-blur rounded-2xl p-6 w-full max-w-md shadow-lg border border-white/10">
-       <p className="text-sm uppercase tracking-wide text-slate-200/70">Visao geral do catalogo</p>
-       <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-        <div>
-         <p className="text-2xl font-semibold">{cursosResponse?.pagination?.total ?? cursos.length}</p>
-         <p className="text-xs text-slate-200/70">Cursos</p>
-        </div>
-        <div>
-         <p className="text-2xl font-semibold">{curriculosData.length}</p>
-         <p className="text-xs text-slate-200/70">Curriculos</p>
-        </div>
-        <div>
-         <p className="text-2xl font-semibold">{periodosData.length}</p>
-         <p className="text-xs text-slate-200/70">Periodos</p>
-        </div>
-        <div>
-         <p className="text-2xl font-semibold">{disciplinasData.length}</p>
-         <p className="text-xs text-slate-200/70">Disciplinas</p>
-        </div>
-       </div>
-       <Link
-        to="/relatorios"
-        className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-slate-100 hover:text-white transition"
-       >
-        Explorar relatorios
-        <ArrowRight className="h-4 w-4" />
-       </Link>
-      </div>
-     </div>
-    </div>
-   </section>
+return (
+ <div className="min-h-screen bg-slate-50">
 
    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
     <Card className="mb-6 border-0 shadow-sm">

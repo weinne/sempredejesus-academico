@@ -10,8 +10,7 @@ import { apiService } from '@/services/api';
 import { Aluno, Curso, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import CrudHeader from '@/components/crud/crud-header';
-import { HeroSection } from '@/components/ui/hero-section';
+import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import {
   Plus,
@@ -76,6 +75,29 @@ export default function AlunosPage() {
 
   const alunos = alunosResponse?.data || [];
   const pagination = alunosResponse?.pagination;
+
+  // Configure Hero via hook
+  usePageHero({
+    title: "Gestão completa dos alunos",
+    description: "Visualize e gerencie todos os alunos matriculados com suas informações acadêmicas, situação e histórico.",
+    backTo: "/dashboard",
+    stats: [
+      { value: pagination?.total || 0, label: 'Total de Alunos' },
+      { value: alunos.filter(a => a.situacao === 'ATIVO').length, label: 'Ativos' },
+      { value: cursos.length, label: 'Cursos' },
+      { value: alunos.filter(a => a.situacao === 'CONCLUIDO').length, label: 'Concluídos' }
+    ],
+    actionLink: {
+      href: '/cursos',
+      label: 'Ver cursos'
+    },
+    actions: canCreate ? (
+      <Button onClick={() => navigate('/alunos/new')}>
+        <Plus className="h-4 w-4 mr-2" />
+        Nova Matrícula
+      </Button>
+    ) : undefined
+  });
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -167,34 +189,6 @@ export default function AlunosPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <CrudHeader
-        title="Gerenciar Alunos"
-        description="Cadastro e gestão de alunos"
-        backTo="/dashboard"
-        actions={canCreate ? (
-          <Button onClick={() => navigate('/alunos/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Matrícula
-          </Button>
-        ) : undefined}
-      />
-
-      {/* Hero Section */}
-      <HeroSection
-        badge="Gestão Acadêmica"
-        title="Gestão completa dos alunos"
-        description="Visualize e gerencie todos os alunos matriculados com suas informações acadêmicas, situação e histórico."
-        stats={[
-          { value: alunos.length, label: 'Total de Alunos' },
-          { value: alunos.filter(a => a.situacao === 'ATIVO').length, label: 'Ativos' },
-          { value: cursos.length, label: 'Cursos' },
-          { value: alunos.filter(a => a.situacao === 'CONCLUIDO').length, label: 'Concluídos' }
-        ]}
-        actionLink={{
-          href: '/cursos',
-          label: 'Ver cursos'
-        }}
-      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">
