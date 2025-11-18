@@ -1,13 +1,16 @@
-import type { Config } from 'drizzle-kit';
-import { config } from '@seminario/shared-config';
+import { defineConfig } from 'drizzle-kit';
+import dotenvFlow from 'dotenv-flow';
 
-export default {
+// Load environment variables
+dotenvFlow.config({ silent: true });
+
+export default defineConfig({
   schema: './src/db/schema/index.ts',
   out: './src/db/migrations',
-  driver: 'pg',
+  dialect: 'postgresql',
   dbCredentials: {
-    connectionString: config.database.url,
+    url: process.env.DATABASE_URL || 'postgresql://postgres:passwd@localhost:5432/seminario_db',
   },
   verbose: true,
-  strict: false, // Remove prompts interativos
-} satisfies Config; 
+  strict: false,
+});

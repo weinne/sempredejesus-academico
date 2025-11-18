@@ -48,7 +48,7 @@ async function runMigrations() {
       const { promisify } = await import('util');
       const execAsync = promisify(exec);
       
-      await execAsync('npx drizzle-kit push:pg');
+      await execAsync('npx drizzle-kit push');
       console.log('✅ Database schema pushed successfully!');
       
       process.exit(0);

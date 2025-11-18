@@ -97,10 +97,10 @@ pnpm run db:seed
 cd apps/api
 
 # Gerar migrations
-pnpm drizzle-kit generate:pg
+pnpm drizzle-kit generate
 
 # Aplicar migrations  
-pnpm drizzle-kit migrate:pg
+pnpm drizzle-kit migrate
 
 # Push schema (sem migrations)
 pnpm run db:push
@@ -197,7 +197,7 @@ pnpm run db:push
 
 # Ou resetar migrations
 rm -rf apps/api/src/db/migrations/
-pnpm drizzle-kit generate:pg
+pnpm drizzle-kit generate
 ```
 
 ---
