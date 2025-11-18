@@ -2,12 +2,12 @@ import { Request, Response } from 'express';
 import { eq, desc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-import { AnyZodObject } from 'zod';
+import { ZodObject } from 'zod';
 
 interface SimpleCrudOptions {
   table: any;
-  createSchema?: AnyZodObject;
-  updateSchema?: AnyZodObject;
+  createSchema?: ZodObject<any>;
+  updateSchema?: ZodObject<any>;
 }
 
 export class SimpleCrudFactory {

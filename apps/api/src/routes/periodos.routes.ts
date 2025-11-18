@@ -96,11 +96,11 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
     .leftJoin(turnos, eq(curriculos.turnoId, turnos.id))
     .leftJoin(disciplinasPeriodos, eq(disciplinasPeriodos.periodoId, periodos.id));
 
-  if (whereCondition) {
-    query = query.where(whereCondition);
-  }
+  const finalQuery = whereCondition
+    ? query.where(whereCondition)
+    : query;
 
-  const rows = await query
+  const rows = await finalQuery
     .groupBy(
       periodos.id,
       periodos.curriculoId,

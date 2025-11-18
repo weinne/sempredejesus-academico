@@ -63,23 +63,23 @@ router.get(
       throw createError('Informe turmaId, disciplinaId ou professorId', 400);
     }
 
-    let query = db.select({ aula: aulas }).from(aulas).orderBy(desc(aulas.data));
-
-    if (turmaId && !Number.isNaN(turmaId)) {
-      query = query.where(eq(aulas.turmaId, turmaId));
-    } else {
-      query = query.leftJoin(turmas, eq(turmas.id, aulas.turmaId));
-
-      const conditions = [] as any[];
-      if (disciplinaId && !Number.isNaN(disciplinaId)) {
-        conditions.push(eq(turmas.disciplinaId, disciplinaId));
-      }
-      if (professorId && professorId.trim().length > 0) {
-        conditions.push(eq(turmas.professorId, professorId));
-      }
-
-      query = query.where(conditions.length === 1 ? conditions[0] : and(...conditions));
-    }
+    const query = turmaId && !Number.isNaN(turmaId)
+      ? db.select({ aula: aulas }).from(aulas).where(eq(aulas.turmaId, turmaId)).orderBy(desc(aulas.data))
+      : (() => {
+          const baseQuery = db.select({ aula: aulas }).from(aulas).leftJoin(turmas, eq(turmas.id, aulas.turmaId)).orderBy(desc(aulas.data));
+          const conditions = [] as any[];
+          if (disciplinaId && !Number.isNaN(disciplinaId)) {
+            conditions.push(eq(turmas.disciplinaId, disciplinaId));
+          }
+          if (professorId && professorId.trim().length > 0) {
+            conditions.push(eq(turmas.professorId, professorId));
+          }
+          return conditions.length === 1 
+            ? baseQuery.where(conditions[0])
+            : conditions.length > 1
+            ? baseQuery.where(and(...conditions))
+            : baseQuery;
+        })();
 
     const rows = await query;
     const data = rows.map((row: any) => row.aula ?? row);
@@ -631,10 +631,10 @@ router.post(
     const payload = FrequenciaBulkUpsertSchema.parse(req.body);
 
     // Group by aula for performance
-    const aulaIds = [...new Set(payload.itens.map(item => item.aulaId))];
+    const aulaIds = [...new Set(payload.itens.map((item: any) => item.aulaId as number))];
     
     // Verify all aulas exist and get turmaIds
-    const aulasData = await db.select().from(aulas).where(inArray(aulas.id, aulaIds));
+    const aulasData = await db.select().from(aulas).where(inArray(aulas.id, aulaIds as number[]));
     if (aulasData.length !== aulaIds.length) {
       throw createError('Uma ou mais aulas não encontradas', 404);
     }
@@ -652,10 +652,10 @@ router.post(
         .from(frequenciasTbl)
         .where(
           or(
-            ...payload.itens.map(item => 
+            ...payload.itens.map((item: any) => 
               and(
-                eq(frequenciasTbl.aulaId, item.aulaId),
-                eq(frequenciasTbl.inscricaoId, item.inscricaoId)
+                eq(frequenciasTbl.aulaId, item.aulaId as number),
+                eq(frequenciasTbl.inscricaoId, item.inscricaoId as number)
               )
             )
           )
@@ -682,7 +682,7 @@ router.post(
       // Insert new/updated records
       if (payload.itens.length > 0) {
         await tx.insert(frequenciasTbl).values(
-          payload.itens.map(item => ({
+          payload.itens.map((item: any) => ({
             aulaId: item.aulaId,
             inscricaoId: item.inscricaoId,
             presente: item.presente,
@@ -718,13 +718,13 @@ router.post(
       }
 
       // Recalculate attendance percentages
-      const inscricaoIds = [...new Set(payload.itens.map(item => item.inscricaoId))];
+      const inscricaoIds = [...new Set(payload.itens.map((item: any) => item.inscricaoId as number))];
       
       for (const inscricaoId of inscricaoIds) {
         const inscricao = await tx
           .select()
           .from(turmasInscritos)
-          .where(eq(turmasInscritos.id, inscricaoId))
+          .where(eq(turmasInscritos.id, inscricaoId as number))
           .limit(1);
         
         if (inscricao.length === 0) continue;
@@ -743,8 +743,8 @@ router.post(
             .leftJoin(aulas, eq(frequenciasTbl.aulaId, aulas.id))
             .where(
               and(
-                eq(aulas.turmaId, turmaId),
-                eq(frequenciasTbl.inscricaoId, inscricaoId),
+                eq(aulas.turmaId, turmaId as number),
+                eq(frequenciasTbl.inscricaoId, inscricaoId as number),
                 eq(frequenciasTbl.presente, true)
               )
             );
@@ -755,7 +755,7 @@ router.post(
           await tx
             .update(turmasInscritos)
             .set({ frequencia: String(attendancePercentage) })
-            .where(eq(turmasInscritos.id, inscricaoId));
+            .where(eq(turmasInscritos.id, inscricaoId as number));
         }
       }
     });

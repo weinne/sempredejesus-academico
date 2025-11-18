@@ -26,7 +26,7 @@ const schema = z.object({
   username: z.string().min(3, 'Username deve ter pelo menos 3 caracteres').max(50),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').max(100),
   role: z.enum(['ADMIN', 'SECRETARIA', 'PROFESSOR', 'ALUNO'], {
-    required_error: 'Selecione uma role',
+    message: 'Selecione uma role',
   }),
   isActive: z.enum(['S', 'N']).default('S'),
 }).refine((data) => {

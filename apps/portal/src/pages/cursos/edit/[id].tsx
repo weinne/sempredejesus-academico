@@ -16,10 +16,10 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 
 const schema = z.object({
   nome: z
-    .string({ required_error: 'Nome é obrigatório' })
+    .string({ message: 'Nome é obrigatório' })
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(80, 'Nome deve ter no máximo 80 caracteres'),
-  grau: z.string({ required_error: 'Selecione o grau' }).min(1, 'Selecione o grau acadêmico'),
+  grau: z.string({ message: 'Selecione o grau' }).min(1, 'Selecione o grau acadêmico'),
 });
 
 type FormData = z.infer<typeof schema>;

@@ -31,12 +31,11 @@ router.get(
       conditions.push(eq(curriculos.ativo, ativoBool));
     }
 
-    let query = db.select().from(curriculos);
-    if (conditions.length === 1) {
-      query = query.where(conditions[0]);
-    } else if (conditions.length > 1) {
-      query = query.where(and(...conditions));
-    }
+    const query = conditions.length === 1
+      ? db.select().from(curriculos).where(conditions[0])
+      : conditions.length > 1
+      ? db.select().from(curriculos).where(and(...conditions))
+      : db.select().from(curriculos);
 
     // Order by id for stable results
     const data = await query;

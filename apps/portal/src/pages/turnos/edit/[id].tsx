@@ -15,7 +15,7 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 
 const schema = z.object({
   nome: z
-    .string({ required_error: 'Nome é obrigatório' })
+    .string({ message: 'Nome é obrigatório' })
     .min(2, 'Nome deve ter pelo menos 2 caracteres')
     .max(30, 'Nome deve ter no máximo 30 caracteres'),
 });

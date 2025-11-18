@@ -2,14 +2,14 @@ import { Request, Response } from 'express';
 import { eq, or, like, desc, asc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-import { AnyZodObject } from 'zod';
+import { ZodObject } from 'zod';
 import bcrypt from 'bcrypt';
 
 interface EnhancedCrudOptions {
   table: any;
   primaryKey?: string; // Campo da chave primária (padrão: 'id')
-  createSchema?: AnyZodObject;
-  updateSchema?: AnyZodObject;
+  createSchema?: ZodObject<any>;
+  updateSchema?: ZodObject<any>;
   joinTables?: {
     table: any;
     on: any;
@@ -69,13 +69,14 @@ export class EnhancedCrudFactory {
     const data = await query.limit(limitNum).offset(offset);
 
     // Get total count for pagination
-    let countQuery = db.select({ count: this.options.table[primaryKeyField] }).from(this.options.table);
-    if (search && this.options.searchFields) {
-      const searchConditions = this.options.searchFields.map(field =>
+    const countQuery = search && this.options.searchFields
+      ? (() => {
+          const searchConditions = this.options.searchFields!.map(field =>
         like(this.options.table[field], `%${search}%`)
       );
-      countQuery = countQuery.where(or(...searchConditions));
-    }
+          return db.select({ count: this.options.table[primaryKeyField] }).from(this.options.table).where(or(...searchConditions));
+        })()
+      : db.select({ count: this.options.table[primaryKeyField] }).from(this.options.table);
     
     const countResult = await countQuery;
     const total = countResult.length;

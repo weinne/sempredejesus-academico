@@ -288,7 +288,7 @@ export default function TurmaPrintPage() {
                     <td>{inscrito.alunoId}</td>
                     <td>{inscrito.aluno?.pessoa?.nome || 'Nome não informado'}</td>
                     <td>{inscrito.status}</td>
-                    {turma.inscritos.some(i => i.media) && (
+                    {turma.inscritos?.some(i => i.media) && (
                       <td>{inscrito.media || '-'}</td>
                     )}
                   </tr>

@@ -86,7 +86,7 @@ const serializeEndereco = (address: AddressState) => JSON.stringify(address);
 
 const pessoaSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
-  sexo: z.enum(['M', 'F', 'O'], { errorMap: () => ({ message: 'Selecione um sexo válido' }) }).optional(),
+  sexo: z.enum(['M', 'F', 'O'], { message: 'Selecione um sexo válido' }).optional(),
   email: z.string().email().optional().or(z.literal('')),
   cpf: z.string().optional(),
   telefone: z.string().optional(),

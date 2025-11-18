@@ -420,29 +420,25 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
     .leftJoin(periodos, eq(alunos.periodoId, periodos.id));
 
-  // Add search if specified
-  if (search) {
-    query = query.where(
-      or(
-        like(alunos.ra, `%${search}%`),
-        like(pessoas.nomeCompleto, `%${search}%`),
-        like(pessoas.email, `%${search}%`),
-        like(cursos.nome, `%${search}%`),
-        like(periodos.nome, `%${search}%`)
-      )
-    );
-  }
-
   // Add ordering
   const orderDirection = sortOrder === 'desc' ? desc : asc;
-  if (sortBy === 'ra') {
-    query = query.orderBy(orderDirection(alunos.ra));
-  } else {
-    query = query.orderBy(orderDirection(alunos.ra)); // Default to RA ordering
-  }
+  const orderByExpr = orderDirection(alunos.ra);
+  
+  // Add search if specified and build final query
+  const finalQuery = search
+    ? query.where(
+        or(
+          like(alunos.ra, `%${search}%`),
+          like(pessoas.nomeCompleto, `%${search}%`),
+          like(pessoas.email, `%${search}%`),
+          like(cursos.nome, `%${search}%`),
+          like(periodos.nome, `%${search}%`)
+        )
+      ).orderBy(orderByExpr)
+    : query.orderBy(orderByExpr);
 
   // Get data with pagination
-  const rawData = await query.limit(limitNum).offset(offset);
+  const rawData = await finalQuery.limit(limitNum).offset(offset);
 
   // Process data to match frontend expected structure
   const data = rawData.map((row: any) => ({
@@ -480,24 +476,24 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     }));
 
   // Get total count for pagination
-  let countQuery = db
+  const baseCountQuery = db
     .select({ count: sql`count(*)` })
     .from(alunos)
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
     .leftJoin(periodos, eq(alunos.periodoId, periodos.id));
 
-  if (search) {
-    countQuery = countQuery.where(
-      or(
-        like(alunos.ra, `%${search}%`),
-        like(pessoas.nomeCompleto, `%${search}%`),
-        like(pessoas.email, `%${search}%`),
-        like(cursos.nome, `%${search}%`),
-        like(periodos.nome, `%${search}%`)
+  const countQuery = search
+    ? baseCountQuery.where(
+        or(
+          like(alunos.ra, `%${search}%`),
+          like(pessoas.nomeCompleto, `%${search}%`),
+          like(pessoas.email, `%${search}%`),
+          like(cursos.nome, `%${search}%`),
+          like(periodos.nome, `%${search}%`)
+        )
       )
-    );
-  }
+    : baseCountQuery;
 
   const [{ count }] = await countQuery;
   const total = parseInt(count as string);

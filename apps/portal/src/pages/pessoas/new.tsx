@@ -16,10 +16,9 @@ import { useFormErrors } from '@/hooks/use-form-errors';
 import { onlyDigits, maskCPF, maskPhone } from '@/lib/form-utils';
 
 const pessoaSchema = z.object({
-  nome: z.string({ required_error: 'Nome é obrigatório' }).min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  nome: z.string({ message: 'Nome é obrigatório' }).min(2, 'Nome deve ter pelo menos 2 caracteres'),
   sexo: z.enum(['M', 'F', 'O'], {
-    required_error: 'Selecione o sexo',
-    invalid_type_error: 'Sexo inválido',
+    message: 'Selecione o sexo',
   }),
   email: z
     .string()

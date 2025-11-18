@@ -33,7 +33,7 @@ export class JWTService {
     return jwt.sign(payload, this.jwtSecret, {
       expiresIn: this.accessTokenExpiry,
       algorithm: 'HS256',
-    });
+    } as jwt.SignOptions);
   }
 
   /**
@@ -48,7 +48,7 @@ export class JWTService {
     return jwt.sign(payload, this.jwtRefreshSecret, {
       expiresIn: this.refreshTokenExpiry,
       algorithm: 'HS256',
-    });
+    } as jwt.SignOptions);
   }
 
   /**

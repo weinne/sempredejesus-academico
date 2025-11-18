@@ -509,16 +509,15 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     .from(professores)
     .leftJoin(pessoas, eq(professores.pessoaId, pessoas.id));
 
-  // Simple search by matricula
-  if (typeof search === 'string' && search.trim()) {
-    // Using filter on matricula only to keep safe
-    query = query.where(eq(professores.matricula, search.trim()));
-  }
+  // Order expression
+  const orderExpr = sortDirection === 'desc' ? desc(sortField) : asc(sortField);
+  
+  // Simple search by matricula and build final query
+  const finalQuery = typeof search === 'string' && search.trim()
+    ? query.where(eq(professores.matricula, search.trim())).orderBy(orderExpr)
+    : query.orderBy(orderExpr);
 
-  // Order
-  query = sortDirection === 'desc' ? query.orderBy(desc(sortField)) : query.orderBy(asc(sortField));
-
-  const data = await query.limit(limitNum).offset(offset);
+  const data = await finalQuery.limit(limitNum).offset(offset);
 
   // Count total from base table (ignores search for simplicity; can add same filter if needed)
   const totalRows = await db.select({ id: professores.matricula }).from(professores);

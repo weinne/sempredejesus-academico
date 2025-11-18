@@ -18,8 +18,8 @@ import { useAuth } from '@/providers/auth-provider';
 import { ArrowLeft, Eye, Plus } from 'lucide-react';
 
 const batchSchema = z.object({
-  turmaId: z.number({ required_error: 'Turma é obrigatória' }).int().positive(),
-  diaDaSemana: z.number({ required_error: 'Dia da semana é obrigatório' }).int().min(0).max(6),
+  turmaId: z.number({ message: 'Turma é obrigatória' }).int().positive(),
+  diaDaSemana: z.number({ message: 'Dia da semana é obrigatório' }).int().min(0).max(6),
   dataInicio: z.string().min(1, 'Data de início é obrigatória'),
   dataFim: z.string().min(1, 'Data de fim é obrigatória'),
   horaInicio: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato inválido (HH:mm)'),

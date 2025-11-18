@@ -18,7 +18,7 @@ import { useAuth } from '@/providers/auth-provider';
 import { ArrowLeft, Save } from 'lucide-react';
 
 const createAulaSchema = z.object({
-  turmaId: z.number({ required_error: 'Turma é obrigatória' }).int().positive(),
+  turmaId: z.number({ message: 'Turma é obrigatória' }).int().positive(),
   data: z.string().min(1, 'Data é obrigatória'),
   horaInicio: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato inválido (HH:mm)').optional().or(z.literal('')),
   horaFim: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Formato inválido (HH:mm)').optional().or(z.literal('')),

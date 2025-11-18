@@ -23,9 +23,11 @@ router.get(
     if (cursoId) conditions.push(eq(coortes.cursoId, Number(cursoId)));
     if (turnoId) conditions.push(eq(coortes.turnoId, Number(turnoId)));
 
-    let query = db.select().from(coortes);
-    if (conditions.length === 1) query = query.where(conditions[0]);
-    if (conditions.length > 1) query = query.where(and(...conditions));
+    const query = conditions.length === 1
+      ? db.select().from(coortes).where(conditions[0])
+      : conditions.length > 1
+      ? db.select().from(coortes).where(and(...conditions))
+      : db.select().from(coortes);
 
     const data = await query;
     res.json({ success: true, data });

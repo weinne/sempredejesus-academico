@@ -4,12 +4,12 @@ import { PgTable, PgColumn } from 'drizzle-orm/pg-core';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { Pagination, Filter } from '@seminario/shared-dtos';
-import { AnyZodObject } from 'zod';
+import { ZodObject } from 'zod';
 
 interface CrudOptions {
   table: any; // More flexible typing for Drizzle tables
-  createSchema?: AnyZodObject;
-  updateSchema?: AnyZodObject;
+  createSchema?: ZodObject<any>;
+  updateSchema?: ZodObject<any>;
   searchFields?: string[];
   allowedFilters?: string[];
   defaultLimit?: number;
@@ -60,13 +60,13 @@ export class CrudFactory {
     const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
     // Execute queries
-    let dataQuery = db.select().from(this.options.table);
-    let countQuery = db.select({ count: sql<number>`count(*)` }).from(this.options.table);
+    const dataQuery = whereClause 
+      ? db.select().from(this.options.table).where(whereClause)
+      : db.select().from(this.options.table);
     
-    if (whereClause) {
-      dataQuery = dataQuery.where(whereClause);
-      countQuery = countQuery.where(whereClause);
-    }
+    const countQuery = whereClause
+      ? db.select({ count: sql<number>`count(*)` }).from(this.options.table).where(whereClause)
+      : db.select({ count: sql<number>`count(*)` }).from(this.options.table);
     
     const [data, totalResult] = await Promise.all([
       dataQuery.limit(limit).offset(offset),

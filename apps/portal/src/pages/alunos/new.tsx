@@ -25,11 +25,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { DatePicker } from '@/components/ui/date-picker';
 
 const pessoaInlineSchema = z.object({
-  nome: z.string({ required_error: 'Nome é obrigatório' }).min(1, 'Nome é obrigatório'),
+  nome: z.string({ message: 'Nome é obrigatório' }).min(1, 'Nome é obrigatório'),
   sexo: z
     .enum(['M', 'F', 'O'], {
-      invalid_type_error: 'Sexo inválido',
-      required_error: 'Sexo inválido',
+      message: 'Sexo inválido',
     })
     .optional(),
   email: z.string().email('Email inválido').optional(),
@@ -44,21 +43,21 @@ const alunoSchema = z.object({
   // Either select existing pessoa or fill inline pessoa
   pessoaId: z.number().optional(),
   pessoa: pessoaInlineSchema.optional(),
-  cursoId: z.number({ required_error: 'Selecione um curso' }).min(1, 'Selecione um curso'),
+  cursoId: z.number({ message: 'Selecione um curso' }).min(1, 'Selecione um curso'),
   turnoId: z.number().optional(),
   coorteId: z.number().optional(),
-  periodoId: z.number({ required_error: 'Selecione um período' }).min(1, 'Selecione um período'),
+  periodoId: z.number({ message: 'Selecione um período' }).min(1, 'Selecione um período'),
   igreja: z.string().max(120).optional(),
   situacao: z.enum(['ATIVO', 'TRANCADO', 'CONCLUIDO', 'CANCELADO']),
   coeficienteAcad: z.number().min(0).max(10).optional(),
   createUser: z.boolean().default(true),
   username: z
-    .string({ required_error: 'Username é obrigatório', invalid_type_error: 'Username inválido' })
+    .string({ message: 'Username é obrigatório' })
     .min(3, 'Username deve ter pelo menos 3 caracteres')
     .max(50, 'Username deve ter no máximo 50 caracteres')
     .optional(),
   password: z
-    .string({ required_error: 'Senha é obrigatória', invalid_type_error: 'Senha inválida' })
+    .string({ message: 'Senha é obrigatória' })
     .min(6, 'Senha deve ter pelo menos 6 caracteres')
     .max(100, 'Senha deve ter no máximo 100 caracteres')
     .optional(),

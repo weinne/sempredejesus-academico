@@ -499,12 +499,6 @@ router.get(
       .from(disciplinas)
       .leftJoin(cursos, eq(disciplinas.cursoId, cursos.id));
 
-    if (conditions.length === 1) {
-      query = query.where(conditions[0]);
-    } else if (conditions.length > 1) {
-      query = query.where(and(...conditions));
-    }
-
     const sortableColumns: Record<string, any> = {
       id: disciplinas.id,
       nome: disciplinas.nome,
@@ -515,9 +509,14 @@ router.get(
     };
     const orderColumn = typeof sortBy === 'string' && sortableColumns[sortBy] ? sortableColumns[sortBy] : disciplinas.nome;
     const orderExpr = sortOrder === 'desc' ? desc(orderColumn) : asc(orderColumn);
-    query = query.orderBy(orderExpr).limit(limitNum).offset(offset);
+    
+    const finalQuery = conditions.length === 1
+      ? query.where(conditions[0]).orderBy(orderExpr).limit(limitNum).offset(offset)
+      : conditions.length > 1
+      ? query.where(and(...conditions)).orderBy(orderExpr).limit(limitNum).offset(offset)
+      : query.orderBy(orderExpr).limit(limitNum).offset(offset);
 
-    const rows = await query;
+    const rows = await finalQuery;
     const disciplinaIds = rows.map((row) => row.id);
 
     const periodosMap = new Map<number, any[]>();
@@ -552,13 +551,11 @@ router.get(
       }
     }
 
-    let countQuery = db.select({ value: sql<number>`count(*)` }).from(disciplinas);
-
-    if (conditions.length === 1) {
-      countQuery = countQuery.where(conditions[0]);
-    } else if (conditions.length > 1) {
-      countQuery = countQuery.where(and(...conditions));
-    }
+    const countQuery = conditions.length === 1
+      ? db.select({ value: sql<number>`count(*)` }).from(disciplinas).where(conditions[0])
+      : conditions.length > 1
+      ? db.select({ value: sql<number>`count(*)` }).from(disciplinas).where(and(...conditions))
+      : db.select({ value: sql<number>`count(*)` }).from(disciplinas);
 
     const countResult = await countQuery;
     const total = countResult[0]?.value ?? 0;

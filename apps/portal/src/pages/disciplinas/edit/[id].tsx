@@ -17,11 +17,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 const disciplinaSchema = z.object({
-  cursoId: z.number({ required_error: 'Curso é obrigatório' }).min(1, 'Selecione um curso'),
+  cursoId: z.number({ message: 'Curso é obrigatório' }).min(1, 'Selecione um curso'),
   codigo: z.string().min(1, 'Código é obrigatório').max(10, 'Código deve ter no máximo 10 caracteres'),
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres').max(120, 'Nome deve ter no máximo 120 caracteres'),
-  creditos: z.number({ required_error: 'Créditos são obrigatórios' }).min(1, 'Créditos devem ser pelo menos 1').max(32767),
-  cargaHoraria: z.number({ required_error: 'Carga horária é obrigatória' }).min(1, 'Carga horária deve ser pelo menos 1'),
+  creditos: z.number({ message: 'Créditos são obrigatórios' }).min(1, 'Créditos devem ser pelo menos 1').max(32767),
+  cargaHoraria: z.number({ message: 'Carga horária é obrigatória' }).min(1, 'Carga horária deve ser pelo menos 1'),
   ementa: z.string().optional(),
   bibliografia: z.string().optional(),
   objetivos: z.string().optional(),
