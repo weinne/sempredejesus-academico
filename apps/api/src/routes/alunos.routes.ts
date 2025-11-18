@@ -7,7 +7,7 @@ import { validateParams, validateBody } from '../middleware/validation.middlewar
 import { eq, and, like, asc, desc, sql, or } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 /**
  * @swagger

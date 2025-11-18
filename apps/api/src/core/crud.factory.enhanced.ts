@@ -3,7 +3,7 @@ import { eq, or, like, desc, asc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
 import { ZodObject } from 'zod';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 interface EnhancedCrudOptions {
   table: any;

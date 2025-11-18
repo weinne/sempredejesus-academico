@@ -2,7 +2,7 @@ import dotenvFlow from 'dotenv-flow';
 import { Config } from './types';
 
 // Load environment variables
-dotenvFlow.config();
+dotenvFlow.config({ silent: true });
 
 export const config: Config = {
   database: {

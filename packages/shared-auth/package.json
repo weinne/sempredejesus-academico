@@ -12,13 +12,13 @@
     "test": "echo \"No tests configured for shared-auth\""
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
     "passport": "^0.6.0",
     "passport-jwt": "^4.0.1"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.2",
     "@types/node": "^22.10.2",
     "@types/passport": "^1.0.12",

@@ -160,7 +160,7 @@ router.post('/login', validateBody(LoginSchema), asyncHandler(async (req: Reques
   }
 
   // Verify password against stored hash
-  const bcrypt = require('bcrypt');
+  const bcrypt = require('bcryptjs');
   const isValidPassword = await bcrypt.compare(password, userData.passwordHash);
 
   if (!isValidPassword) {
@@ -379,7 +379,7 @@ router.post('/bootstrap-admin', asyncHandler(async (req: Request, res: Response)
     pessoaId = newPessoa.id;
   }
 
-  const bcrypt = require('bcrypt');
+  const bcrypt = require('bcryptjs');
   const passwordHash = await bcrypt.hash(password, 12);
 
   const username = email;

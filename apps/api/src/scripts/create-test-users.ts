@@ -58,7 +58,7 @@ async function createTestUsers() {
       }
 
       // Hash password
-      const bcrypt = require('bcrypt');
+      const bcrypt = require('bcryptjs');
       const hashedPassword = await bcrypt.hash('test123', 12);
 
       // Create user

@@ -6,7 +6,7 @@ import { pessoas, users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { validateBody } from '../middleware/validation.middleware';
 import { ChangePasswordSchema, UpdatePessoaSchema } from '@seminario/shared-dtos';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 const router = Router();
 

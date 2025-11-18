@@ -193,7 +193,7 @@ async function seedMockUsers() {
       }
 
       // 3. Hash password
-      const bcrypt = require('bcrypt');
+      const bcrypt = require('bcryptjs');
       const hashedPassword = await bcrypt.hash(userData.password, 12);
 
       // 4. Create user

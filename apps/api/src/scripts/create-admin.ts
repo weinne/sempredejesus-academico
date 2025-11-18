@@ -54,7 +54,7 @@ async function createAdminUser() {
     // Step 4: Hash password - using a simple password for development
     console.log('🔐 Hashing password...');
     // Bypass validation for development by using direct bcrypt
-    const bcrypt = require('bcrypt');
+    const bcrypt = require('bcryptjs');
     const hashedPassword = await bcrypt.hash('admin123', 12);
 
     // Step 5: Create user (login credentials)
