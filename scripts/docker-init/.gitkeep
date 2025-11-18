@@ -1,0 +1,7 @@
+# Este diretório pode conter scripts SQL que serão executados automaticamente
+# quando o container PostgreSQL for criado pela primeira vez.
+# 
+# Exemplo: criar extensões, configurações iniciais, etc.
+# 
+# Arquivos .sql neste diretório são executados em ordem alfabética.
+

@@ -1,7 +1,34 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database for development
+  # Container de desenvolvimento
+  dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    container_name: seminario_dev
+    volumes:
+      - ..:/workspace:cached
+      - node_modules:/workspace/node_modules
+      - api_node_modules:/workspace/apps/api/node_modules
+      - portal_node_modules:/workspace/apps/portal/node_modules
+    command: sleep infinity
+    networks:
+      - seminario-dev-network
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgresql://postgres:passwd@db:5432/seminario_db
+      - NODE_ENV=development
+      - PORT=4000
+      - APP_URL=http://localhost:3001
+      - API_URL=http://localhost:4000
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - JWT_EXPIRES_IN=7d
+      - REFRESH_TOKEN_SECRET=your-refresh-token-secret-change-in-production
+
+  # PostgreSQL Database
   db:
     image: postgres:15-alpine
     container_name: seminario_db_dev
@@ -10,14 +37,11 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: passwd
       PGDATA: /var/lib/postgresql/data/pgdata
-      # Configurações de performance para desenvolvimento
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=pt_BR.UTF-8"
-      # Timezone para Brasil
       TZ: America/Sao_Paulo
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
-      # Script de inicialização (extensões e configurações)
-      - ./scripts/docker-init:/docker-entrypoint-initdb.d:ro
+      - ../../scripts/docker-init:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
     networks:
@@ -29,7 +53,6 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
-    # Configurações de memória para desenvolvimento
     shm_size: '256mb'
     command:
       - "postgres"
@@ -46,7 +69,7 @@ services:
       - "-c"
       - "timezone=America/Sao_Paulo"
 
-  # Adminer for database management (GUI web)
+  # Adminer (opcional)
   adminer:
     image: adminer:latest
     container_name: seminario_adminer
@@ -62,38 +85,16 @@ services:
       ADMINER_DESIGN: pepa-linha-dark
     restart: unless-stopped
     profiles:
-      - tools  # Só inicia se usar --profile tools
-
-  # pgAdmin for advanced database management (opcional)
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: seminario_pgadmin
-    depends_on:
-      db:
-        condition: service_healthy
-    ports:
-      - "5050:80"
-    networks:
-      - seminario-dev-network
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@seminario.edu
-      PGADMIN_DEFAULT_PASSWORD: admin123
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-    volumes:
-      - pgadmin_dev_data:/var/lib/pgadmin
-    restart: unless-stopped
-    profiles:
-      - tools  # Só inicia se usar --profile tools
+      - tools
 
 volumes:
   postgres_dev_data:
     driver: local
-    name: seminario_postgres_dev_data
-  pgadmin_dev_data:
-    driver: local
-    name: seminario_pgadmin_dev_data
+  node_modules:
+  api_node_modules:
+  portal_node_modules:
 
 networks:
   seminario-dev-network:
     driver: bridge
-    name: seminario-dev-network 
+

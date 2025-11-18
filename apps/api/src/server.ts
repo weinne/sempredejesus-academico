@@ -10,6 +10,7 @@ import { config, logger } from '@seminario/shared-config';
 import { testConnection, closeConnection } from './db';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import swaggerSpec from './config/swagger';
+import { ensureLoginTestUsers } from './scripts/seed-mock-users';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -199,6 +200,16 @@ async function startServer() {
     if (!dbConnected) {
       logger.error('Failed to connect to database. Exiting...');
       process.exit(1);
+    }
+
+    // Em desenvolvimento, garantir que os usuários de teste da tela de login existam
+    if (config.server.nodeEnv === 'development') {
+      try {
+        await ensureLoginTestUsers();
+      } catch (error) {
+        logger.warn('Failed to ensure login test users (non-critical):', error);
+        // Não bloqueia o startup se falhar
+      }
     }
 
     // Start server

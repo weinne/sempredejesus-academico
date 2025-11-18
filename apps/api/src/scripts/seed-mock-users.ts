@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db';
 import { pessoas, users } from '../db/schema';
+import { logger } from '@seminario/shared-config';
 
 /**
  * Script para inserir usuários mock no banco de dados
@@ -134,6 +135,101 @@ const mockUsersForSeeding = [
   }
 ];
 
+/**
+ * Cria apenas os usuários que aparecem na tela de login em desenvolvimento.
+ * Esta função pode ser chamada sem fazer process.exit().
+ */
+async function ensureLoginTestUsers() {
+  try {
+    // Emails dos usuários que aparecem na tela de login
+    const loginTestUserEmails = [
+      'admin@seminario.edu',
+      'secretaria@seminario.edu',
+      'professor@seminario.edu',
+      'aluno@seminario.edu',
+    ];
+
+    // Filtrar apenas os usuários que aparecem na tela de login
+    const loginTestUsers = mockUsersForSeeding.filter(
+      (mockData) => loginTestUserEmails.includes(mockData.pessoa.email!)
+    );
+
+    let created = 0;
+    let existing = 0;
+
+    for (const mockData of loginTestUsers) {
+      const { pessoa: pessoaData, user: userData } = mockData;
+      
+      // 1. Check if pessoa already exists
+      const existingPessoa = await db
+        .select()
+        .from(pessoas)
+        .where(eq(pessoas.email, pessoaData.email!))
+        .limit(1);
+
+      let pessoaId;
+
+      if (existingPessoa.length > 0) {
+        pessoaId = existingPessoa[0].id;
+        existing++;
+      } else {
+        // Create pessoa
+        const [newPessoa] = await db
+          .insert(pessoas)
+          .values({
+            nomeCompleto: pessoaData.nomeCompleto,
+            sexo: pessoaData.sexo,
+            email: pessoaData.email,
+            cpf: pessoaData.cpf,
+            dataNasc: pessoaData.dataNasc,
+            telefone: pessoaData.telefone,
+            endereco: pessoaData.endereco
+          })
+          .returning();
+        
+        pessoaId = newPessoa.id;
+        created++;
+      }
+
+      // 2. Check if user already exists
+      const existingUser = await db
+        .select()
+        .from(users)
+        .where(eq(users.pessoaId, pessoaId))
+        .limit(1);
+
+      if (existingUser.length > 0) {
+        continue;
+      }
+
+      // 3. Hash password
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = await bcrypt.hash(userData.password, 12);
+
+      // 4. Create user
+      await db
+        .insert(users)
+        .values({
+          pessoaId: pessoaId,
+          username: userData.username,
+          passwordHash: hashedPassword,
+          role: userData.role,
+          isActive: userData.isActive,
+        })
+        .returning();
+    }
+
+    if (created > 0) {
+      logger.info(`✅ Created ${created} login test user(s) automatically`);
+    }
+
+    return { created, existing };
+  } catch (error) {
+    logger.error('❌ Error ensuring login test users:', error);
+    throw error;
+  }
+}
+
 async function seedMockUsers() {
   try {
     console.log('🌱 Seeding mock users...');
@@ -238,4 +334,4 @@ if (require.main === module) {
   seedMockUsers();
 }
 
-export { seedMockUsers }; 
+export { seedMockUsers, ensureLoginTestUsers }; 

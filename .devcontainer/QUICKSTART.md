@@ -1,0 +1,52 @@
+# 🚀 Quick Start - Dev Container
+
+## Passo a Passo Rápido
+
+### 1️⃣ Abrir o Projeto
+```bash
+cd sempredejesus-academico
+code .  # ou cursor .
+```
+
+### 2️⃣ Abrir em Container
+- **Opção A**: Clique no botão verde `><` no canto inferior esquerdo → `Reopen in Container`
+- **Opção B**: `F1` → Digite `Dev Containers: Reopen in Container` → Enter
+
+### 3️⃣ Aguardar
+- Primeira vez: ~5-10 minutos (construção do container)
+- Próximas vezes: ~30 segundos (container já existe)
+
+### 4️⃣ Desenvolver
+```bash
+# No terminal integrado (já está no container!)
+pnpm dev
+```
+
+### 5️⃣ Acessar
+- Portal: http://localhost:3001
+- API: http://localhost:4000
+- Docs: http://localhost:4000/docs
+
+## ✅ Pronto!
+
+Tudo configurado automaticamente:
+- ✅ Node.js 20 instalado
+- ✅ pnpm instalado
+- ✅ Dependências instaladas
+- ✅ PostgreSQL rodando
+- ✅ Schema aplicado
+- ✅ Usuários de teste criados automaticamente
+
+## 🔧 Comandos Úteis
+
+```bash
+pnpm dev              # Iniciar desenvolvimento
+pnpm db:studio        # Abrir Drizzle Studio
+pnpm test             # Executar testes
+pnpm lint             # Verificar código
+```
+
+## 📚 Documentação Completa
+
+Veja [docs/devcontainer-guide.md](../../docs/devcontainer-guide.md) para guia detalhado.
+

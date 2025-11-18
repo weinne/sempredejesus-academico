@@ -40,7 +40,7 @@
 **Dependências**: ✅ Backend Core funcionando  
 
 #### Subtarefas Completadas:
-- [x] **Admin User Creation** ✅ - Script create-admin.ts funcionando
+- [x] **Admin User Creation** ✅ - Script seed-mock-users.ts funcionando (criação automática em desenvolvimento)
   - [x] Usuário administrador criado: admin@seminario.edu
   - [x] Validação de dados existentes
   - [x] Logs estruturados implementados

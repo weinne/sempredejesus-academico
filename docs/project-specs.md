@@ -42,7 +42,7 @@
 
 #### **Funcionalidades Implementadas:**
 - [x] **👤 Admin User Creation**
-  - [x] Script create-admin.ts funcionando
+  - [x] Script seed-mock-users.ts funcionando (criação automática em desenvolvimento)
   - [x] Usuário admin@seminario.edu criado
   - [x] Validação de dados existentes
 

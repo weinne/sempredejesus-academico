@@ -13,7 +13,13 @@
     "db:push": "turbo run db:push",
     "db:migrate": "turbo run db:migrate",
     "db:seed": "turbo run db:seed",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "docker:dev": "docker compose -f docker-compose.dev.yml up -d db",
+    "docker:dev:down": "docker compose -f docker-compose.dev.yml down",
+    "docker:dev:logs": "docker compose -f docker-compose.dev.yml logs -f db",
+    "docker:dev:tools": "docker compose -f docker-compose.dev.yml --profile tools up -d",
+    "dev-setup": "bash scripts/dev-setup.sh",
+    "docker:setup": "bash scripts/docker-dev-setup.sh"
   },
   "devDependencies": {
     "@commitlint/cli": "^17.7.1",

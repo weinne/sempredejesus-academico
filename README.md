@@ -67,20 +67,56 @@ pnpm install
 ```
 
 ### **2. Configuração**
+
+#### **Opção A: Docker (Recomendado)**
+```bash
+# Setup completo automático (recomendado)
+# Linux/macOS:
+./scripts/docker-dev-setup.sh
+
+# Windows PowerShell:
+.\scripts\docker-dev-setup.ps1
+
+# Ou usando npm script:
+pnpm docker:setup
+
+# O script configura tudo automaticamente:
+# - Cria arquivo .env se não existir
+# - Inicia PostgreSQL no Docker
+# - Instala dependências
+# - Aplica schema do banco
+# - Os usuários de teste serão criados automaticamente ao iniciar o servidor!
+```
+
+**Setup Manual (alternativa):**
 ```bash
 # Copiar variáveis de ambiente
 cp .env.example .env
-# Editar .env com suas configurações
 
-# Subir banco de dados
-docker-compose -f docker-compose.dev.yml up db -d
+# Subir banco de dados PostgreSQL
+pnpm docker:dev
 
-# Aplicar migrações
-pnpm db:push
-
-# Criar usuários de desenvolvimento (inclui admin + test users)
-pnpm --filter @seminario/api seed:users
+# Configurar banco automaticamente (aplica schema)
+pnpm dev-setup
+# Ou no Windows PowerShell: .\scripts\dev-setup.ps1
 ```
+
+#### **Opção B: PostgreSQL Local**
+```bash
+# Instalar PostgreSQL 15+ localmente
+# Criar database: createdb seminario_db
+
+# Copiar variáveis de ambiente
+cp .env.example .env
+# Ajustar DATABASE_URL no .env
+
+# Aplicar schema
+pnpm db:push
+```
+
+📖 **Documentação completa**: 
+- [Docker Setup](./docs/docker-dev-setup.md) - Configuração Docker tradicional
+- [Dev Container Guide](./docs/devcontainer-guide.md) - Desenvolvimento com Dev Containers (VS Code/Cursor)
 
 ### **3. Executar**
 ```bash
@@ -136,9 +172,8 @@ pnpm db:push          # Aplicar schema
 pnpm db:studio        # GUI do banco
 
 # Usuários
-pnpm --filter @seminario/api run script create-admin.ts       # Criar admin apenas
-pnpm --filter @seminario/api seed:users                       # Criar todos os usuários mock (RECOMENDADO)
-pnpm --filter @seminario/api run script create-test-users.ts  # Script legado (não usar)
+pnpm --filter @seminario/api seed:users                       # Criar todos os usuários mock
+# Nota: Em desenvolvimento, os usuários de teste da tela de login são criados automaticamente ao iniciar o servidor
 ```
 
 ---

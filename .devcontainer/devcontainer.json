@@ -1,0 +1,92 @@
+{
+  "name": "Sistema Acadêmico - Desenvolvimento",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+  
+  // Configurações do container
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "bradlc.vscode-tailwindcss",
+        "ms-azuretools.vscode-docker",
+        "cweijan.vscode-database-client2",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        },
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "typescript.enablePromptUseWorkspaceTsdk": true,
+        "files.exclude": {
+          "**/.git": true,
+          "**/.DS_Store": true,
+          "**/node_modules": true,
+          "**/dist": true
+        }
+      }
+    }
+  },
+
+  // Comandos pós-criação
+  "postCreateCommand": "pnpm install && pnpm db:push || true",
+  
+  // Comandos pós-start
+  "postStartCommand": "pnpm docker:dev || true",
+  
+  // Variáveis de ambiente
+  "remoteEnv": {
+    "DATABASE_URL": "postgresql://postgres:passwd@db:5432/seminario_db",
+    "NODE_ENV": "development",
+    "PORT": "4000",
+    "APP_URL": "http://localhost:3001",
+    "API_URL": "http://localhost:4000"
+  },
+
+  // Features opcionais
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20",
+      "nodeGypDependencies": true,
+      "installYarnUsingApt": false
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest"
+    }
+  },
+
+  // Portas forward automático
+  "forwardPorts": [3001, 4000, 5432, 8080],
+  "portsAttributes": {
+    "3001": {
+      "label": "Portal (Frontend)",
+      "onAutoForward": "notify"
+    },
+    "4000": {
+      "label": "API",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL",
+      "onAutoForward": "silent"
+    },
+    "8080": {
+      "label": "Adminer",
+      "onAutoForward": "silent"
+    }
+  },
+
+  // Configurações de terminal
+  "remoteUser": "node"
+}
+
