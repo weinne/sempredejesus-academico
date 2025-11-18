@@ -56,8 +56,7 @@ Senha: test123
 ### **Pré-requisitos**
 - Node.js ≥18.0.0
 - pnpm ≥8.0.0
-- Docker e Docker Compose
-- PostgreSQL 15
+- Docker e Docker Compose (para Docker) OU PostgreSQL instalado (para setup nativo)
 
 ### **1. Instalação**
 ```bash
@@ -101,20 +100,20 @@ pnpm dev-setup
 # Ou no Windows PowerShell: .\scripts\dev-setup.ps1
 ```
 
-#### **Opção B: PostgreSQL Local**
+#### **Opção B: PostgreSQL Local (Ubuntu/Xubuntu)**
 ```bash
-# Instalar PostgreSQL 15+ localmente
-# Criar database: createdb seminario_db
+# Para setup completo em ambiente nativo Ubuntu/Xubuntu, veja:
+# 📖 docs/setup-nativo-ubuntu.md
 
-# Copiar variáveis de ambiente
-cp .env.example .env
-# Ajustar DATABASE_URL no .env
+# Ou use o script automatizado:
+./scripts/native-dev-setup.sh
 
-# Aplicar schema
-pnpm db:push
+# IMPORTANTE: Verifique a porta do PostgreSQL antes de configurar o .env
+pg_lsclusters
 ```
 
 📖 **Documentação completa**: 
+- [Setup Nativo Ubuntu/Xubuntu](./docs/setup-nativo-ubuntu.md) - **Guia completo para ambiente nativo**
 - [Docker Setup](./docs/docker-dev-setup.md) - Configuração Docker tradicional
 - [Dev Container Guide](./docs/devcontainer-guide.md) - Desenvolvimento com Dev Containers (VS Code/Cursor)
 

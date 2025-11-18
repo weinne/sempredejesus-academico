@@ -1,8 +1,12 @@
 import { defineConfig } from 'drizzle-kit';
 import dotenvFlow from 'dotenv-flow';
+import { resolve } from 'path';
 
-// Load environment variables
-dotenvFlow.config({ silent: true });
+// Load environment variables from project root
+dotenvFlow.config({ 
+  silent: true,
+  path: resolve(__dirname, '../..'),
+});
 
 export default defineConfig({
   schema: './src/db/schema/index.ts',

@@ -1,8 +1,14 @@
 import dotenvFlow from 'dotenv-flow';
+import { resolve } from 'path';
 import { Config } from './types';
 
-// Load environment variables
-dotenvFlow.config({ silent: true });
+// Load environment variables from project root
+// Try to find project root by going up from node_modules or current dir
+const projectRoot = resolve(__dirname, '../../..');
+dotenvFlow.config({ 
+  silent: true,
+  path: projectRoot,
+});
 
 export const config: Config = {
   database: {
