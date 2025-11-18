@@ -3,12 +3,12 @@ NODE_ENV = "production"
 TURBO_TELEMETRY_DISABLED = "1"
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "pnpm"]
+nixPkgs = ["nodejs_20", "pnpm", "python3", "make", "gcc"]
 
 [phases.install]
 cmds = [
   "corepack enable",
-  "pnpm install --frozen-lockfile --filter \"@seminario/api...\" --filter \"@seminario/portal...\" --filter \"@seminario/shared-auth...\" --filter \"@seminario/shared-config...\" --filter \"@seminario/shared-dtos...\" --filter '!@seminario/shared-tests'"
+  "pnpm install --frozen-lockfile --ignore-scripts=false --filter \"@seminario/api...\" --filter \"@seminario/portal...\" --filter \"@seminario/shared-auth...\" --filter \"@seminario/shared-config...\" --filter \"@seminario/shared-dtos...\" --filter '!@seminario/shared-tests'"
 ]
 
 [phases.build]

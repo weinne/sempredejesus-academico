@@ -19,8 +19,8 @@ RUN pnpm run build
 # Stage 4: Production API image
 FROM node:20-alpine AS production
 
-# Install production dependencies
-RUN apk add --no-cache curl
+# Install production dependencies and build tools for native modules
+RUN apk add --no-cache curl python3 make g++
 
 # Create app directory
 WORKDIR /app
@@ -31,9 +31,14 @@ COPY turbo.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY packages/*/package.json ./packages/*/
 
-# Install dependencies
+# Install pnpm
 RUN npm install -g pnpm
-RUN pnpm install --frozen-lockfile --prod
+
+# Install production dependencies (with scripts to compile native modules like bcrypt)
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts=false
+
+# Remove build tools to reduce image size (optional, but recommended)
+RUN apk del python3 make g++
 
 # Copy built packages
 COPY --from=builder /app/packages/*/dist ./packages/*/dist
