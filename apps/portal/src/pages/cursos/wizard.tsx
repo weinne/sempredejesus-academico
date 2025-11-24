@@ -23,6 +23,7 @@ import {
   Loader2,
   Plus,
   Trash2,
+  X,
 } from 'lucide-react';
 
 interface DisciplineDraft {
@@ -96,6 +97,55 @@ const steps = [
   { id: 3, label: 'Resumo' },
 ];
 
+// Palavras que devem ser ignoradas ao gerar siglas
+const IGNORED_WORDS = new Set(['em', 'de', 'da', 'do', 'das', 'dos', 'a', 'o', 'e', 'para', 'com', 'por']);
+
+/**
+ * Gera uma sigla a partir de um texto, pegando a primeira letra de cada palavra significativa
+ */
+const generateAcronym = (text: string): string => {
+  if (!text || !text.trim()) return '';
+  
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter(word => word.length > 0 && !IGNORED_WORDS.has(word.toLowerCase()));
+  
+  if (words.length === 0) return '';
+  
+  // Se tiver apenas uma palavra, pega a primeira letra
+  if (words.length === 1) {
+    return words[0].charAt(0).toUpperCase();
+  }
+  
+  // Se tiver múltiplas palavras, pega a primeira letra de cada uma (máximo 3 letras)
+  return words
+    .slice(0, 3)
+    .map(word => word.charAt(0).toUpperCase())
+    .join('');
+};
+
+/**
+ * Gera o nome do período com sigla baseada no curso e turno
+ */
+const generatePeriodName = (cursoNome: string, turnoNome: string, numero: number): string => {
+  const cursoSigla = generateAcronym(cursoNome);
+  const turnoSigla = generateAcronym(turnoNome);
+  
+  if (!cursoSigla && !turnoSigla) {
+    return `Periodo ${numero}`;
+  }
+  
+  const sigla = cursoSigla && turnoSigla 
+    ? `${cursoSigla}${turnoSigla}` 
+    : cursoSigla || turnoSigla;
+  
+  // Formata o número como ordinal (1ª, 2ª, 3ª, etc.)
+  const ordinal = numero === 1 ? '1ª' : `${numero}ª`;
+  
+  return `${sigla} - ${ordinal} Período`;
+};
+
 const emptyDiscipline = (): DisciplineDraft => ({
   id: Math.random().toString(36).slice(2),
   persistedId: undefined,
@@ -111,19 +161,26 @@ const emptyDiscipline = (): DisciplineDraft => ({
   expanded: true,
 });
 
-const emptyPeriod = (numero: number): PeriodDraft => ({
+const emptyPeriod = (numero: number, cursoNome?: string, turnoNome?: string): PeriodDraft => ({
   id: Math.random().toString(36).slice(2),
   persistedId: undefined,
   numero: numero.toString(),
-  nome: `Periodo ${numero}`,
+  nome: cursoNome && turnoNome 
+    ? generatePeriodName(cursoNome, turnoNome, numero)
+    : `Periodo ${numero}`,
   descricao: '',
   disciplinas: [],
 });
 
-const buildPeriods = (count: number): PeriodDraft[] =>
-  Array.from({ length: count }, (_, index) => emptyPeriod(index + 1));
+const buildPeriods = (count: number, cursoNome?: string, turnoNome?: string): PeriodDraft[] =>
+  Array.from({ length: count }, (_, index) => emptyPeriod(index + 1, cursoNome, turnoNome));
 
-const createCurriculoDraft = (turnoId: number, overrides: Partial<CurriculoDraft> = {}): CurriculoDraft => ({
+const createCurriculoDraft = (
+  turnoId: number,
+  overrides: Partial<CurriculoDraft> = {},
+  cursoNome?: string,
+  turnoNome?: string,
+): CurriculoDraft => ({
   id: overrides.id ?? Math.random().toString(36).slice(2),
   curriculoId: overrides.curriculoId,
   turnoId,
@@ -134,7 +191,7 @@ const createCurriculoDraft = (turnoId: number, overrides: Partial<CurriculoDraft
   isPersisted: overrides.isPersisted ?? false,
   periodos: overrides.periodos
     ? [...overrides.periodos].sort((a, b) => Number(a.numero || 0) - Number(b.numero || 0))
-    : buildPeriods(DEFAULT_PERIOD_COUNT),
+    : buildPeriods(DEFAULT_PERIOD_COUNT, cursoNome, turnoNome),
 });
 
 const isPositiveNumber = (value: string): boolean => {
@@ -197,6 +254,8 @@ export default function CursoWizardPage() {
 
   const [mode, setMode] = React.useState<WizardMode>('new');
   const [selectedExistingCourseId, setSelectedExistingCourseId] = React.useState<number | null>(null);
+  const [isCreateTurnoModalOpen, setIsCreateTurnoModalOpen] = React.useState(false);
+  const [newTurnoNome, setNewTurnoNome] = React.useState('');
   const resetWizardToInitialState = React.useCallback(() => {
     setWizardData(() => createInitialWizardState());
   }, []);
@@ -237,6 +296,57 @@ export default function CursoWizardPage() {
 
   const availableTurnos = turnosData || [];
   const availableCourses = cursosResponse?.data || [];
+
+  const createTurnoMutation = useMutation({
+    mutationFn: (payload: { nome: string }) => apiService.createTurno(payload),
+    onSuccess: async (newTurno) => {
+      // Atualizar o cache imediatamente
+      queryClient.setQueryData<Turno[]>(['turnos'], (oldData = []) => {
+        // Verificar se o turno já existe para evitar duplicatas
+        if (oldData.some((t) => t.id === newTurno.id)) {
+          return oldData;
+        }
+        return [...oldData, newTurno].sort((a, b) => a.id - b.id);
+      });
+      
+      toast({
+        title: 'Turno criado',
+        description: `Turno "${newTurno.nome}" criado com sucesso!`,
+      });
+      setIsCreateTurnoModalOpen(false);
+      setNewTurnoNome('');
+      
+      // Selecionar automaticamente o novo turno após um pequeno delay
+      // para garantir que o estado foi atualizado
+      setTimeout(() => {
+        const turno: Turno = { id: newTurno.id, nome: newTurno.nome };
+        toggleTurno(turno);
+      }, 100);
+      
+      // Invalidar a query para garantir sincronização com o servidor
+      queryClient.invalidateQueries({ queryKey: ['turnos'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao criar turno',
+        description: error?.message || 'Não foi possível criar o turno.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleCreateTurno = () => {
+    const nome = newTurnoNome.trim();
+    if (!nome || nome.length < 2) {
+      toast({
+        title: 'Nome inválido',
+        description: 'O nome do turno deve ter pelo menos 2 caracteres.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    createTurnoMutation.mutate({ nome });
+  };
 
   React.useEffect(() => {
     const cursoIdParam = searchParams.get('cursoId');
@@ -551,9 +661,11 @@ export default function CursoWizardPage() {
         };
       }
 
+      const cursoNome = prev.course.nome.trim() || undefined;
+      const turnoNome = turno.nome || undefined;
       const draft: TurnoDraft = {
         turnoId: turno.id,
-        curriculos: [createCurriculoDraft(turno.id)],
+        curriculos: [createCurriculoDraft(turno.id, {}, cursoNome, turnoNome)],
       };
 
       return {
@@ -609,38 +721,42 @@ const updatePeriodField = (
 
 const addPeriod = (turnoId: number, curriculoDraftId: string) => {
   let limitReached = false;
-  setWizardData((prev) => ({
-    ...prev,
-    turnos: prev.turnos.map((turno) => {
-      if (turno.turnoId !== turnoId) {
-        return turno;
-      }
-      return {
-        ...turno,
-        curriculos: turno.curriculos.map((curriculo) => {
-          if (curriculo.id !== curriculoDraftId) {
-            return curriculo;
-          }
-          if (curriculo.periodos.length >= MAX_PERIOD_COUNT) {
-            limitReached = true;
-            return curriculo;
-          }
-          const highestNumero = curriculo.periodos.reduce((acc, periodo) => {
-            const parsed = Number(periodo.numero);
-            return Number.isFinite(parsed) ? Math.max(acc, parsed) : acc;
-          }, 0);
-          const nextNumero = highestNumero + 1;
-          const newPeriod = emptyPeriod(nextNumero);
-          return {
-            ...curriculo,
-            periodos: [...curriculo.periodos, newPeriod].sort(
-              (a, b) => Number(a.numero || 0) - Number(b.numero || 0),
-            ),
-          };
-        }),
-      };
-    }),
-  }));
+  setWizardData((prev) => {
+    const cursoNome = prev.course.nome.trim() || undefined;
+    const turnoInfo = availableTurnos.find((t) => t.id === turnoId);
+    const turnoNome = turnoInfo?.nome || undefined;
+    
+    return {
+      ...prev,
+      turnos: prev.turnos.map((turno) => {
+        if (turno.turnoId !== turnoId) {
+          return turno;
+        }
+        return {
+          ...turno,
+          curriculos: turno.curriculos.map((curriculo) => {
+            if (curriculo.id !== curriculoDraftId) {
+              return curriculo;
+            }
+            if (curriculo.periodos.length >= MAX_PERIOD_COUNT) {
+              limitReached = true;
+              return curriculo;
+            }
+            // Usar a quantidade de períodos + 1 para garantir sequência correta
+            // Se não há períodos, começa do 1
+            const nextNumero = curriculo.periodos.length === 0 ? 1 : curriculo.periodos.length + 1;
+            const newPeriod = emptyPeriod(nextNumero, cursoNome, turnoNome);
+            return {
+              ...curriculo,
+              periodos: [...curriculo.periodos, newPeriod].sort(
+                (a, b) => Number(a.numero || 0) - Number(b.numero || 0),
+              ),
+            };
+          }),
+        };
+      }),
+    };
+  });
   if (limitReached) {
     toast({
       title: 'Limite de periodos',
@@ -651,17 +767,23 @@ const addPeriod = (turnoId: number, curriculoDraftId: string) => {
 };
 
 const addCurriculo = (turnoId: number) => {
-  setWizardData((prev) => ({
-    ...prev,
-    turnos: prev.turnos.map((turno) =>
-      turno.turnoId === turnoId
-        ? {
-            ...turno,
-            curriculos: [...turno.curriculos, createCurriculoDraft(turnoId)],
-          }
-        : turno,
-    ),
-  }));
+  setWizardData((prev) => {
+    const cursoNome = prev.course.nome.trim() || undefined;
+    const turnoInfo = availableTurnos.find((t) => t.id === turnoId);
+    const turnoNome = turnoInfo?.nome || undefined;
+    
+    return {
+      ...prev,
+      turnos: prev.turnos.map((turno) =>
+        turno.turnoId === turnoId
+          ? {
+              ...turno,
+              curriculos: [...turno.curriculos, createCurriculoDraft(turnoId, {}, cursoNome, turnoNome)],
+            }
+          : turno,
+      ),
+    };
+  });
 };
 
 const removeCurriculo = (turnoId: number, curriculoDraftId: string) => {
@@ -734,51 +856,56 @@ const updateCurriculoPeriodCount = (turnoId: number, curriculoDraftId: string, v
   const parsed = Number(value);
   const desired = Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_PERIOD_COUNT, Math.floor(parsed))) : 1;
   let shrinkBlocked = false;
-  setWizardData((prev) => ({
-    ...prev,
-    turnos: prev.turnos.map((turno) => {
-      if (turno.turnoId !== turnoId) {
-        return turno;
-      }
-      return {
-        ...turno,
-        curriculos: turno.curriculos.map((curriculo) => {
-          if (curriculo.id !== curriculoDraftId) {
-            return curriculo;
-          }
-          const persisted = curriculo.periodos.filter((periodo) => periodo.persistedId).length;
-          if (persisted > desired) {
-            shrinkBlocked = true;
-            return curriculo;
-          }
-          let periodos = curriculo.periodos;
-          if (desired > periodos.length) {
-            const highestNumero = periodos.reduce((acc, periodo) => {
-              const numeroParsed = Number(periodo.numero);
-              return Number.isFinite(numeroParsed) ? Math.max(acc, numeroParsed) : acc;
-            }, 0);
-            const additions = Array.from({ length: desired - periodos.length }, (_, index) =>
-              emptyPeriod(highestNumero + index + 1),
-            );
-            periodos = [...periodos, ...additions];
-          } else if (desired < periodos.length) {
-            const removable = periodos.filter((periodo) => !periodo.persistedId);
-            const toRemove = periodos.length - desired;
-            if (removable.length < toRemove) {
+  setWizardData((prev) => {
+    const cursoNome = prev.course.nome.trim() || undefined;
+    const turnoInfo = availableTurnos.find((t) => t.id === turnoId);
+    const turnoNome = turnoInfo?.nome || undefined;
+    
+    return {
+      ...prev,
+      turnos: prev.turnos.map((turno) => {
+        if (turno.turnoId !== turnoId) {
+          return turno;
+        }
+        return {
+          ...turno,
+          curriculos: turno.curriculos.map((curriculo) => {
+            if (curriculo.id !== curriculoDraftId) {
+              return curriculo;
+            }
+            const persisted = curriculo.periodos.filter((periodo) => periodo.persistedId).length;
+            if (persisted > desired) {
               shrinkBlocked = true;
               return curriculo;
             }
-            const removableIds = new Set(removable.slice(0, toRemove).map((periodo) => periodo.id));
-            periodos = periodos.filter((periodo) => !removableIds.has(periodo.id));
-          }
-          return {
-            ...curriculo,
-            periodos: [...periodos].sort((a, b) => Number(a.numero || 0) - Number(b.numero || 0)),
-          };
-        }),
-      };
-    }),
-  }));
+            let periodos = curriculo.periodos;
+            if (desired > periodos.length) {
+              // Calcular o próximo número baseado na quantidade de períodos existentes
+              // Se não há períodos, começa do 1. Caso contrário, continua a sequência
+              const nextNumero = periodos.length === 0 ? 1 : periodos.length + 1;
+              const additions = Array.from({ length: desired - periodos.length }, (_, index) =>
+                emptyPeriod(nextNumero + index, cursoNome, turnoNome),
+              );
+              periodos = [...periodos, ...additions];
+            } else if (desired < periodos.length) {
+              const removable = periodos.filter((periodo) => !periodo.persistedId);
+              const toRemove = periodos.length - desired;
+              if (removable.length < toRemove) {
+                shrinkBlocked = true;
+                return curriculo;
+              }
+              const removableIds = new Set(removable.slice(0, toRemove).map((periodo) => periodo.id));
+              periodos = periodos.filter((periodo) => !removableIds.has(periodo.id));
+            }
+            return {
+              ...curriculo,
+              periodos: [...periodos].sort((a, b) => Number(a.numero || 0) - Number(b.numero || 0)),
+            };
+          }),
+        };
+      }),
+    };
+  });
   if (shrinkBlocked) {
     toast({
       title: 'Periodos existentes',
@@ -1289,6 +1416,23 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
               <CardDescription>Selecione os turnos ofertados e configure os curriculos de cada turno antes de definir os periodos.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">
+                    {availableTurnos.length === 0
+                      ? 'Nenhum turno cadastrado ainda.'
+                      : `${availableTurnos.length} turno(s) disponível(is).`}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateTurnoModalOpen(true)}
+                >
+                  <Plus className="h-4 w-4 mr-2" /> Criar novo turno
+                </Button>
+              </div>
               {isLoadingTurnos ? (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1854,6 +1998,85 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
           </div>
         </div>
       </main>
+
+      {/* Modal de criação de turno */}
+      {isCreateTurnoModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-md w-full mx-4 shadow-lg">
+            <Card className="border-0 shadow-none">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div>
+                  <CardTitle>Criar novo turno</CardTitle>
+                  <CardDescription>
+                    Adicione um novo turno ao sistema
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setIsCreateTurnoModalOpen(false);
+                    setNewTurnoNome('');
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label htmlFor="new-turno-nome" className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome do turno *
+                  </label>
+                  <Input
+                    id="new-turno-nome"
+                    value={newTurnoNome}
+                    onChange={(e) => setNewTurnoNome(e.target.value)}
+                    placeholder="Ex: Matutino, Vespertino, Noturno"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateTurno();
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    O nome deve ter pelo menos 2 caracteres.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsCreateTurnoModalOpen(false);
+                      setNewTurnoNome('');
+                    }}
+                    disabled={createTurnoMutation.isPending}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleCreateTurno}
+                    disabled={createTurnoMutation.isPending || !newTurnoNome.trim() || newTurnoNome.trim().length < 2}
+                  >
+                    {createTurnoMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Criando...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Criar turno
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
