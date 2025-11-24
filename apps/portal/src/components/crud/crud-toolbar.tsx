@@ -37,22 +37,26 @@ export function CrudToolbar({
         ) : null}
       </div>
       <div className="flex items-center gap-1 self-end md:self-auto">
-        <Button
-          variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => onViewModeChange('table')}
-          title="Tabela"
-        >
-          <List className="h-4 w-4" />
-        </Button>
-        <Button
-          variant={viewMode === 'card' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => onViewModeChange('card')}
-          title="Cartões"
-        >
-          <LayoutGrid className="h-4 w-4" />
-        </Button>
+        {/* Ocultar botões de modo de visualização em telas menores (< 1024px) 
+            pois o modo cards é usado automaticamente para evitar overflow */}
+        <div className="hidden xl:flex items-center gap-1">
+          <Button
+            variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => onViewModeChange('table')}
+            title="Tabela"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === 'card' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => onViewModeChange('card')}
+            title="Cartões"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

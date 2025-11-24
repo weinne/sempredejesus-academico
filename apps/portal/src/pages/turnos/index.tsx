@@ -4,6 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
@@ -26,7 +36,8 @@ import {
   ArrowRight,
   TrendingUp,
   CheckCircle,
-  XCircle
+  XCircle,
+  AlertTriangle
 } from 'lucide-react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -47,6 +58,8 @@ export default function TurnosPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingTurno, setEditingTurno] = useState<Turno | null>(null);
   const [page, setPage] = useState(1);
+  const [deletingTurno, setDeletingTurno] = useState<Turno | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const canCreate = useCan('create', 'turnos');
   const canEdit = useCan('edit', 'turnos');
@@ -151,6 +164,8 @@ export default function TurnosPage() {
         title: 'Turno removido',
         description: 'Turno removido com sucesso!',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingTurno(null);
     },
     onError: (error: any) => {
       // Verificar se é erro de restrição de FK
@@ -163,6 +178,8 @@ export default function TurnosPage() {
           description: 'Este turno possui currículos ou períodos relacionados. Remova primeiro os dados relacionados para poder excluir o turno.',
           variant: 'destructive',
         });
+        setIsDeleteDialogOpen(false);
+        setDeletingTurno(null);
         return;
       }
       
@@ -171,6 +188,8 @@ export default function TurnosPage() {
         description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingTurno(null);
     },
   });
 
@@ -198,10 +217,9 @@ export default function TurnosPage() {
   };
 
   // Handle delete
-  const handleDelete = (id: number) => {
-    if (window.confirm('Tem certeza que deseja remover este turno? Esta ação pode afetar currículos e períodos vinculados.')) {
-      deleteMutation.mutate(id);
-    }
+  const handleDelete = (turno: Turno) => {
+    setDeletingTurno(turno);
+    setIsDeleteDialogOpen(true);
   };
 
   // Handle new turno
@@ -331,7 +349,7 @@ export default function TurnosPage() {
                             <Edit className="h-4 w-4" />
                           </Button>
                           {canDelete && (
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(t.id)} disabled={deleteMutation.isPending} title="Remover">
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(t)} disabled={deleteMutation.isPending} title="Remover">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
@@ -393,6 +411,49 @@ export default function TurnosPage() {
           </Card>
         </div>
       </main>
+
+      {/* Dialog para exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+          setDeletingTurno(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o turno <strong>{deletingTurno?.nome}</strong>?
+              <br />
+              <br />
+              <span className="text-red-600 font-medium">Esta ação não pode ser desfeita.</span>
+              <br />
+              <br />
+              <span className="text-sm text-gray-600">
+                Esta ação pode afetar currículos e períodos vinculados.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setIsDeleteDialogOpen(false);
+              setDeletingTurno(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingTurno && deleteMutation.mutate(deletingTurno.id)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

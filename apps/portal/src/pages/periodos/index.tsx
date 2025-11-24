@@ -4,6 +4,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { usePageHero } from '@/hooks/use-page-hero';
 import CrudToolbar from '@/components/crud/crud-toolbar';
 import { DataList } from '@/components/crud/data-list';
@@ -25,6 +35,7 @@ import {
   Wand2,
   Clock,
   ArrowRight,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function PeriodosPage() {
@@ -36,15 +47,18 @@ export default function PeriodosPage() {
   const [page, setPage] = useState(1);
   const [turnoFiltro, setTurnoFiltro] = useState<number | ''>('');
   const [curriculoFiltro, setCurriculoFiltro] = useState<number | ''>('');
+  // Automaticamente usar cards em telas menores para evitar barra de rolagem lateral
   const [viewMode, setViewMode] = useState<'table' | 'card'>(() =>
-    typeof window !== 'undefined' && window.innerWidth < 768 ? 'card' : 'table'
+    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'card' : 'table'
   );
 
   useEffect(() => {
     const onResize = () => {
-      if (window.innerWidth < 768) {
+      // Em telas menores que 1024px, usar cards automaticamente
+      if (window.innerWidth < 1024) {
         setViewMode('card');
       } else {
+        // Só permitir tabela em telas grandes (>= 1024px)
         setViewMode('table');
       }
     };
@@ -55,6 +69,9 @@ export default function PeriodosPage() {
   const canCreate = useCan('create', 'periodos');
   const canEdit = useCan('edit', 'periodos');
   const canDelete = useCan('delete', 'periodos');
+
+  const [deletingPeriodo, setDeletingPeriodo] = useState<Periodo | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const { data: cursosResponse, isLoading: isLoadingCursos, error: cursosError } = useQuery({
     queryKey: ['cursos'],
@@ -152,27 +169,6 @@ export default function PeriodosPage() {
       </Button>
     ) : undefined
   });
-  const selectedCourse = useMemo(() => {
-    if (cursoFiltro === '') {
-      return undefined;
-    }
-    const cursoId = Number(cursoFiltro);
-    return cursos.find((curso) => curso.id === cursoId);
-  }, [cursoFiltro, cursos]);
-  const selectedTurno = useMemo(() => {
-    if (turnoFiltro === '') {
-      return undefined;
-    }
-    const turnoId = Number(turnoFiltro);
-    return turnosDisponiveis.find((turno) => turno.id === turnoId) || turnos.find((turno) => turno.id === turnoId);
-  }, [turnoFiltro, turnosDisponiveis, turnos]);
-  const selectedCurriculo = useMemo(() => {
-    if (curriculoFiltro === '') {
-      return undefined;
-    }
-    const curriculoId = Number(curriculoFiltro);
-    return curriculosDisponiveis.find((curriculo) => curriculo.id === curriculoId);
-  }, [curriculoFiltro, curriculosDisponiveis]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiService.deletePeriodo(id),
@@ -182,6 +178,8 @@ export default function PeriodosPage() {
         title: 'Período removido',
         description: 'Período removido com sucesso!',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingPeriodo(null);
     },
     onError: (error) => {
       const apiError = error as { response?: { status?: number }; message?: string };
@@ -197,6 +195,8 @@ export default function PeriodosPage() {
           description: 'Este período possui disciplinas ou turmas relacionadas. Remova primeiro os dados relacionados para poder excluir o período.',
           variant: 'destructive',
         });
+        setIsDeleteDialogOpen(false);
+        setDeletingPeriodo(null);
         return;
       }
       
@@ -205,13 +205,14 @@ export default function PeriodosPage() {
         description: apiError.message || 'Erro desconhecido',
         variant: 'destructive',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingPeriodo(null);
     },
   });
 
-  const handleDelete = (id: number) => {
-    if (window.confirm('Tem certeza que deseja remover este perodo?')) {
-      deleteMutation.mutate(id);
-    }
+  const handleDelete = (periodo: Periodo) => {
+    setDeletingPeriodo(periodo);
+    setIsDeleteDialogOpen(true);
   };
 
   // Only show error if it's from the periodos query and we have an active curso
@@ -238,14 +239,14 @@ export default function PeriodosPage() {
     <div className="min-h-screen bg-slate-50">
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="space-y-6">
+        <div className="space-y-6 overflow-x-hidden">
           <Card className="border-0 shadow-sm">
             <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <h2 className="text-lg font-semibold text-slate-800">Escolha um curso para explorar os periodos</h2>
                 <p className="text-sm text-slate-500">Os filtros de turno e curriculo serao habilitados apos selecionar o curso desejado.</p>
               </div>
-              <div className="flex w-full md:w-auto items-center gap-2">
+              <div className="flex w-full md:w-auto items-center gap-2 shrink-0">
                 <select
                   value={cursoFiltro ? String(cursoFiltro) : ''}
                   onChange={(event) => {
@@ -293,7 +294,12 @@ export default function PeriodosPage() {
             }}
             searchPlaceholder="Buscar por nome, numero ou descricao..."
             viewMode={viewMode}
-            onViewModeChange={setViewMode}
+            onViewModeChange={(mode) => {
+              // Só permitir mudar manualmente em telas grandes (>= 1024px)
+              if (window.innerWidth >= 1024) {
+                setViewMode(mode);
+              }
+            }}
             filtersSlot={
               <div className="flex gap-2 items-center">
                 <select
@@ -330,63 +336,18 @@ export default function PeriodosPage() {
             }
           />
 
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4 flex flex-col gap-1">
-                <span className="text-xs font-medium uppercase text-slate-500">Curso ativo</span>
-                <span className="text-lg font-semibold text-slate-900">{selectedCourse?.nome ?? 'Selecione um curso'}</span>
-                <span className="text-sm text-slate-500">
-                  {selectedCourse ? `Grau ${selectedCourse.grau}` : 'Os indicadores aparecem apos a selecao.'}
-                </span>
-              </div>
-              <div className="rounded-lg border border-slate-200 p-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase text-slate-500">Curriculos associados</p>
-                    <p className="text-2xl font-semibold text-slate-900">{curriculosDisponiveis.length}</p>
-                  </div>
-                  <Layers3 className="h-5 w-5 text-slate-400" />
-                </div>
-                <p className="text-xs text-slate-500">
-                  Filtro: {selectedCurriculo ? `Versao ${selectedCurriculo.versao}` : 'Todos'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-slate-200 p-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase text-slate-500">Turnos disponiveis</p>
-                    <p className="text-2xl font-semibold text-slate-900">{turnosConectados}</p>
-                  </div>
-                  <Clock className="h-5 w-5 text-slate-400" />
-                </div>
-                <p className="text-xs text-slate-500">
-                  Filtro: {selectedTurno ? selectedTurno.nome : 'Todos'}
-                </p>
-              </div>
-              <div className="rounded-lg border border-slate-200 p-4 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs uppercase text-slate-500">Periodos listados</p>
-                    <p className="text-2xl font-semibold text-slate-900">{periodosTotal}</p>
-                  </div>
-                  <ListOrdered className="h-5 w-5 text-slate-400" />
-                </div>
-                <p className="text-xs text-slate-500">Disciplinas vinculadas: {totalDisciplinasCurso}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ListOrdered className="h-5 w-5" />
-                Períodos Acadêmicos
-              </CardTitle>
-              <CardDescription>
-                Acompanhe os perodos cadastrados e seu volume de disciplinas e alunos
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          {hasActiveCurso && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ListOrdered className="h-5 w-5" />
+                  Períodos Acadêmicos
+                </CardTitle>
+                <CardDescription>
+                  Acompanhe os perodos cadastrados e seu volume de disciplinas e alunos
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="overflow-x-hidden">
               <DataList
                 items={periodos}
                 isLoading={isLoading}
@@ -464,7 +425,7 @@ export default function PeriodosPage() {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleDelete(p.id)}
+                                onClick={() => handleDelete(p)}
                                 disabled={deleteMutation.isPending}
                                 title="Remover"
                               >
@@ -523,7 +484,7 @@ export default function PeriodosPage() {
                                 <Button
                                   variant="destructive"
                                   size="sm"
-                                  onClick={() => handleDelete(periodo.id)}
+                                  onClick={() => handleDelete(periodo)}
                                   disabled={deleteMutation.isPending}
                                   title="Remover"
                                 >
@@ -581,8 +542,47 @@ export default function PeriodosPage() {
               />
             </CardContent>
           </Card>
+          )}
         </div>
       </main>
+
+      {/* Dialog para exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+          setDeletingPeriodo(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o período <strong>{deletingPeriodo?.nome || `Período ${deletingPeriodo?.numero}`}</strong>?
+              <br />
+              <br />
+              <span className="text-red-600 font-medium">Esta ação não pode ser desfeita.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setIsDeleteDialogOpen(false);
+              setDeletingPeriodo(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingPeriodo && deleteMutation.mutate(deletingPeriodo.id)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -203,10 +203,62 @@ describe('CursoWizardPage', () => {
         }),
       ),
     );
-    expect(apiMocks.createPeriodo).not.toHaveBeenCalled();
-    expect(apiMocks.createDisciplina).not.toHaveBeenCalled();
+    expect(apiMocks.createPeriodo).toHaveBeenCalledTimes(1);
+    expect(apiMocks.createDisciplina).toHaveBeenCalledTimes(1);
+    expect(apiMocks.addDisciplinaAoPeriodo).toHaveBeenCalledTimes(1);
     expect(apiMocks.updateDisciplina).not.toHaveBeenCalled();
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/cursos/view/55'));
+  });
+
+  it('cria disciplina nova em periodo ja existente quando curso e editado', async () => {
+    const existingCourse = { id: 77, nome: 'Curso Clássico', grau: 'BACHARELADO' };
+    const existingCurriculo = { id: 88, cursoId: 77, turnoId: 1, versao: 'v1.0', ativo: true };
+    const existingPeriodo = { id: 99, cursoId: 77, turnoId: 1, curriculoId: 88, numero: 1, nome: 'Primeiro período' };
+
+    apiMocks.getCursos.mockResolvedValue({ data: [existingCourse] });
+    apiMocks.getCurso.mockResolvedValue(existingCourse);
+    apiMocks.getCurriculos.mockResolvedValue([existingCurriculo]);
+    apiMocks.getPeriodos.mockResolvedValue({ data: [existingPeriodo] });
+    apiMocks.getDisciplinas.mockResolvedValue({ data: [] });
+
+    renderWizard('/cursos/wizard?cursoId=77');
+    const user = userEvent.setup();
+
+    await waitFor(() => expect(screen.getByText(/Estrutura carregada/i)).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Avancar/i }));
+    await user.click(screen.getByRole('button', { name: /Avancar/i }));
+
+    const periodHeading = await screen.findByText(/Configuracao do periodo/i);
+    let container: HTMLElement | null = periodHeading.closest('div');
+    while (container && !container.classList.contains('border')) {
+      container = container.parentElement as HTMLElement | null;
+    }
+    if (!container) {
+      throw new Error('Nao foi possivel localizar o container do periodo existente');
+    }
+    const scoped = within(container);
+
+    await user.click(scoped.getByRole('button', { name: /Nova disciplina/i }));
+    await user.type(scoped.getByLabelText(/Codigo \*/i), 'DISC100');
+    await user.type(scoped.getByLabelText(/Nome \*/i), 'Disciplina Nova');
+    await user.type(scoped.getByLabelText(/Creditos \*/i), '3');
+    await user.type(scoped.getByLabelText(/Carga horaria \(horas\) \*/i), '60');
+
+    await user.click(screen.getByRole('button', { name: /Avancar/i }));
+    await user.click(screen.getByRole('button', { name: /Concluir wizard/i }));
+
+    await waitFor(() => expect(apiMocks.updateCurso).toHaveBeenCalledWith(77, expect.any(Object)));
+    expect(apiMocks.createCurriculo).not.toHaveBeenCalled();
+    expect(apiMocks.createPeriodo).not.toHaveBeenCalled();
+    expect(apiMocks.createDisciplina).toHaveBeenCalledTimes(1);
+    expect(apiMocks.addDisciplinaAoPeriodo).toHaveBeenCalledWith(
+      existingPeriodo.id,
+      expect.objectContaining({
+        disciplinaId: expect.any(Number),
+        obrigatoria: true,
+      }),
+    );
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/cursos/view/77'));
   });
 
   it('permite reutilizar disciplinas ja cadastradas entre periodos', async () => {

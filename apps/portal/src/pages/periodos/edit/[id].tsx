@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { Layers3, ListOrdered, CalendarRange } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Layers3, ListOrdered, CalendarRange, BookOpen, Plus, Trash2, ExternalLink, Loader2 } from 'lucide-react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,9 +11,23 @@ import CrudHeader from '@/components/crud/crud-header';
 import { FormSection, FieldError, ActionsBar } from '@/components/forms';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { SearchSelect } from '@/components/form/search-select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiService } from '@/services/api';
-import { UpdatePeriodo } from '@/types/api';
+import { UpdatePeriodo, Disciplina } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const schema = z.object({
   curriculoId: z.number().int().positive(),
@@ -55,6 +69,111 @@ const PeriodoEditPage: React.FC = () => {
     queryFn: () => apiService.getPeriodo(Number(id)),
     enabled: !!id,
   });
+
+  // Buscar disciplinas do mesmo curso
+  const cursoId = periodo?.curso?.id;
+  const { data: disciplinasData } = useQuery({
+    queryKey: ['disciplinas', cursoId],
+    queryFn: () => apiService.getDisciplinas({ cursoId: cursoId, limit: 1000 }),
+    enabled: !!cursoId,
+  });
+
+  const [selectedDisciplinaId, setSelectedDisciplinaId] = useState<string>('');
+  const [removingDisciplinaId, setRemovingDisciplinaId] = useState<number | null>(null);
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
+
+  // Disciplinas disponíveis para adicionar (que não estão já relacionadas)
+  const disciplinasRelacionadasIds = useMemo(() => {
+    return new Set((periodo?.disciplinas || []).map((d) => d.id));
+  }, [periodo?.disciplinas]);
+
+  const disciplinasDisponiveis = useMemo(() => {
+    if (!disciplinasData?.data) return [];
+    return disciplinasData.data.filter((d) => !disciplinasRelacionadasIds.has(d.id));
+  }, [disciplinasData?.data, disciplinasRelacionadasIds]);
+
+  const disciplinasOptions = useMemo(() => {
+    return disciplinasDisponiveis.map((d) => ({
+      label: `${d.codigo} - ${d.nome}`,
+      value: d.id.toString(),
+    }));
+  }, [disciplinasDisponiveis]);
+
+  // Mutations para gerenciar disciplinas
+  const addDisciplinaMutation = useMutation({
+    mutationFn: (disciplinaId: number) =>
+      apiService.addDisciplinaAoPeriodo(Number(id), {
+        disciplinaId,
+        obrigatoria: true,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['periodo', id] });
+      queryClient.invalidateQueries({ queryKey: ['periodos'] });
+      setSelectedDisciplinaId('');
+      toast({
+        title: 'Disciplina adicionada',
+        description: 'A disciplina foi relacionada ao período com sucesso.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao adicionar disciplina',
+        description: error.message || 'Não foi possível adicionar a disciplina ao período.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const removeDisciplinaMutation = useMutation({
+    mutationFn: (disciplinaId: number) =>
+      apiService.removeDisciplinaDoPeriodo(Number(id), disciplinaId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['periodo', id] });
+      queryClient.invalidateQueries({ queryKey: ['periodos'] });
+      setIsRemoveDialogOpen(false);
+      setRemovingDisciplinaId(null);
+      toast({
+        title: 'Disciplina removida',
+        description: 'A disciplina foi removida do período com sucesso.',
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Erro ao remover disciplina',
+        description: error.message || 'Não foi possível remover a disciplina do período.',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleAddDisciplina = () => {
+    const disciplinaId = Number(selectedDisciplinaId);
+    if (!disciplinaId || isNaN(disciplinaId)) {
+      toast({
+        title: 'Selecione uma disciplina',
+        description: 'Por favor, selecione uma disciplina para adicionar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    addDisciplinaMutation.mutate(disciplinaId);
+  };
+
+  const handleRemoveDisciplina = (disciplinaId: number) => {
+    setRemovingDisciplinaId(disciplinaId);
+    setIsRemoveDialogOpen(true);
+  };
+
+  const confirmRemoveDisciplina = () => {
+    if (removingDisciplinaId) {
+      removeDisciplinaMutation.mutate(removingDisciplinaId);
+    }
+  };
+
+  const disciplinaParaRemover = useMemo(() => {
+    if (!removingDisciplinaId || !periodo?.disciplinas) return null;
+    return periodo.disciplinas.find((d) => d.id === removingDisciplinaId);
+  }, [removingDisciplinaId, periodo?.disciplinas]);
 
   useEffect(() => {
     if (periodo) {
@@ -259,6 +378,126 @@ const PeriodoEditPage: React.FC = () => {
             </div>
           </FormSection>
 
+          <FormSection
+            icon={BookOpen}
+            title="Disciplinas do período"
+            description="Relacione as disciplinas que compõem este período. Apenas disciplinas já cadastradas podem ser relacionadas."
+          >
+            <div className="md:col-span-2 space-y-4">
+              {/* Seletor de disciplina para adicionar */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Adicionar disciplina
+                  </label>
+                  <SearchSelect
+                    value={selectedDisciplinaId}
+                    onChange={setSelectedDisciplinaId}
+                    options={disciplinasOptions}
+                    placeholder={
+                      disciplinasDisponiveis.length === 0
+                        ? 'Nenhuma disciplina disponível'
+                        : 'Selecione uma disciplina...'
+                    }
+                    emptyMessage="Nenhuma disciplina disponível"
+                  />
+                  {disciplinasDisponiveis.length === 0 && periodo?.curso?.id && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      Todas as disciplinas do curso já estão relacionadas, ou não há disciplinas cadastradas.
+                    </p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleAddDisciplina}
+                  disabled={!selectedDisciplinaId || addDisciplinaMutation.isPending}
+                  className="h-10"
+                >
+                  {addDisciplinaMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Adicionar
+                    </>
+                  )}
+                </Button>
+                {periodo?.curso?.id && (
+                  <Link to="/disciplinas/new" target="_blank">
+                    <Button type="button" variant="outline" className="h-10" title="Cadastrar nova disciplina">
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Nova
+                    </Button>
+                  </Link>
+                )}
+              </div>
+
+              {/* Lista de disciplinas relacionadas */}
+              {periodo?.disciplinas && periodo.disciplinas.length > 0 ? (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Disciplinas relacionadas ({periodo.disciplinas.length})
+                  </label>
+                  <div className="space-y-2">
+                    {periodo.disciplinas.map((disciplina) => (
+                      <Card key={disciplina.id} className="border border-slate-200">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-slate-900">
+                                  {disciplina.codigo} - {disciplina.nome}
+                                </span>
+                                {disciplina.obrigatoria !== false && (
+                                  <Badge variant="default" className="text-xs">
+                                    Obrigatória
+                                  </Badge>
+                                )}
+                                {disciplina.obrigatoria === false && (
+                                  <Badge variant="outline" className="text-xs">
+                                    Optativa
+                                  </Badge>
+                                )}
+                                {!disciplina.ativo && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    Inativa
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-500 space-y-0.5">
+                                <div>
+                                  {disciplina.creditos} créditos • {disciplina.cargaHoraria}h
+                                </div>
+                                {disciplina.ordem && (
+                                  <div>Ordem: {disciplina.ordem}</div>
+                                )}
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveDisciplina(disciplina.id)}
+                              disabled={removeDisciplinaMutation.isPending}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              title="Remover disciplina do período"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-slate-500 text-sm border border-dashed border-slate-300 rounded-md">
+                  Nenhuma disciplina relacionada a este período.
+                </div>
+              )}
+            </div>
+          </FormSection>
+
           <ActionsBar
             isSubmitting={updateMutation.isPending}
             submitLabel="Salvar alterações"
@@ -267,6 +506,41 @@ const PeriodoEditPage: React.FC = () => {
           />
         </form>
       </main>
+
+      {/* Dialog de confirmação de remoção */}
+      <AlertDialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover disciplina do período?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover a disciplina{' '}
+              <strong>
+                {disciplinaParaRemover?.codigo} - {disciplinaParaRemover?.nome}
+              </strong>{' '}
+              deste período? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setRemovingDisciplinaId(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemoveDisciplina}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={removeDisciplinaMutation.isPending}
+            >
+              {removeDisciplinaMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Removendo...
+                </>
+              ) : (
+                'Remover'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

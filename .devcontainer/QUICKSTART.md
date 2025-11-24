@@ -8,21 +8,28 @@ cd sempredejesus-academico
 code .  # ou cursor .
 ```
 
-### 2️⃣ Abrir em Container
+### 2️⃣ Limpar Containers Antigos (se necessário)
+
+Se você receber erro de "container name already in use":
+```bash
+.devcontainer/cleanup.sh
+```
+
+### 3️⃣ Abrir em Container
 - **Opção A**: Clique no botão verde `><` no canto inferior esquerdo → `Reopen in Container`
 - **Opção B**: `F1` → Digite `Dev Containers: Reopen in Container` → Enter
 
-### 3️⃣ Aguardar
+### 4️⃣ Aguardar
 - Primeira vez: ~5-10 minutos (construção do container)
 - Próximas vezes: ~30 segundos (container já existe)
 
-### 4️⃣ Desenvolver
+### 5️⃣ Desenvolver
 ```bash
 # No terminal integrado (já está no container!)
 pnpm dev
 ```
 
-### 5️⃣ Acessar
+### 6️⃣ Acessar
 - Portal: http://localhost:3001
 - API: http://localhost:4000
 - Docs: http://localhost:4000/docs
@@ -31,11 +38,12 @@ pnpm dev
 
 Tudo configurado automaticamente:
 - ✅ Node.js 20 instalado
-- ✅ pnpm instalado
+- ✅ pnpm 10.22.0 instalado
 - ✅ Dependências instaladas
-- ✅ PostgreSQL rodando
+- ✅ PostgreSQL 15 rodando
 - ✅ Schema aplicado
-- ✅ Usuários de teste criados automaticamente
+- ✅ Variáveis de ambiente configuradas
+- ✅ Docker-in-Docker habilitado
 
 ## 🔧 Comandos Úteis
 
@@ -45,6 +53,29 @@ pnpm db:studio        # Abrir Drizzle Studio
 pnpm test             # Executar testes
 pnpm lint             # Verificar código
 ```
+
+## ⚠️ Problema Comum: Porta 5432 Ocupada
+
+Se você receber o erro `address already in use` na porta 5432:
+
+**Solução rápida (antes de abrir o container):**
+```bash
+export POSTGRES_PORT=5433
+# Depois abra o container normalmente
+```
+
+**Solução permanente:**
+Crie `.devcontainer/.env`:
+```
+POSTGRES_PORT=5433
+```
+
+**Verificar porta disponível:**
+```bash
+.devcontainer/check-port.sh
+```
+
+Veja [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) para mais soluções.
 
 ## 📚 Documentação Completa
 

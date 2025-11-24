@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { SimpleCrudFactory } from '../core/crud.factory.simple';
-import { curriculos } from '../db/schema';
+import { curriculos, cursos, turnos } from '../db/schema';
 import { requireAuth, requireSecretaria } from '../middleware/auth.middleware';
 import { CreateCurriculoSchema, UpdateCurriculoSchema, IdParamSchema } from '@seminario/shared-dtos';
 import { validateParams } from '../middleware/validation.middleware';
@@ -31,14 +31,52 @@ router.get(
       conditions.push(eq(curriculos.ativo, ativoBool));
     }
 
-    const query = conditions.length === 1
-      ? db.select().from(curriculos).where(conditions[0])
-      : conditions.length > 1
-      ? db.select().from(curriculos).where(and(...conditions))
-      : db.select().from(curriculos);
+    const baseQuery = db
+      .select({
+        id: curriculos.id,
+        cursoId: curriculos.cursoId,
+        turnoId: curriculos.turnoId,
+        versao: curriculos.versao,
+        vigenteDe: curriculos.vigenteDe,
+        vigenteAte: curriculos.vigenteAte,
+        ativo: curriculos.ativo,
+        curso: {
+          id: cursos.id,
+          nome: cursos.nome,
+          grau: cursos.grau,
+        },
+        turno: {
+          id: turnos.id,
+          nome: turnos.nome,
+        },
+      })
+      .from(curriculos)
+      .leftJoin(cursos, eq(curriculos.cursoId, cursos.id))
+      .leftJoin(turnos, eq(curriculos.turnoId, turnos.id));
 
-    // Order by id for stable results
-    const data = await query;
+    const rows = conditions.length === 1
+      ? await baseQuery.where(conditions[0])
+      : conditions.length > 1
+      ? await baseQuery.where(and(...conditions))
+      : await baseQuery;
+
+    const data = rows.map((row) => ({
+      id: row.id,
+      cursoId: row.cursoId,
+      turnoId: row.turnoId,
+      versao: row.versao,
+      vigenteDe: row.vigenteDe,
+      vigenteAte: row.vigenteAte,
+      ativo: row.ativo,
+      curso: row.curso?.id
+        ? {
+            id: row.curso.id,
+            nome: row.curso.nome,
+            grau: row.curso.grau,
+          }
+        : null,
+      turno: row.turno?.id ? { id: row.turno.id, nome: row.turno.nome } : null,
+    }));
 
     res.json({ success: true, data });
   })

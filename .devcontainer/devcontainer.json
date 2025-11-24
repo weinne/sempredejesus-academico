@@ -36,10 +36,10 @@
   },
 
   // Comandos pós-criação
-  "postCreateCommand": "pnpm install && pnpm db:push || true",
+  "postCreateCommand": "chmod +x .devcontainer/*.sh && bash .devcontainer/post-create.sh",
   
-  // Comandos pós-start
-  "postStartCommand": "pnpm docker:dev || true",
+  // Comandos pós-start (executado sempre que o container inicia)
+  "postStartCommand": "echo 'Container iniciado com sucesso!'",
   
   // Variáveis de ambiente
   "remoteEnv": {
@@ -47,26 +47,25 @@
     "NODE_ENV": "development",
     "PORT": "4000",
     "APP_URL": "http://localhost:3001",
-    "API_URL": "http://localhost:4000"
+    "API_URL": "http://localhost:4000",
+    "JWT_SECRET": "dev-jwt-secret-change-in-production",
+    "JWT_EXPIRES_IN": "7d",
+    "REFRESH_TOKEN_SECRET": "dev-refresh-secret-change-in-production"
   },
 
   // Features opcionais
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20",
-      "nodeGypDependencies": true,
-      "installYarnUsingApt": false
-    },
     "ghcr.io/devcontainers/features/git:1": {
       "version": "latest"
     },
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "version": "latest"
+      "version": "latest",
+      "moby": true
     }
   },
 
   // Portas forward automático
-  "forwardPorts": [3001, 4000, 5432, 8080],
+  "forwardPorts": [3001, 4000, 5432, 5433, 5434, 8080],
   "portsAttributes": {
     "3001": {
       "label": "Portal (Frontend)",
@@ -77,7 +76,15 @@
       "onAutoForward": "notify"
     },
     "5432": {
-      "label": "PostgreSQL",
+      "label": "PostgreSQL (padrão)",
+      "onAutoForward": "silent"
+    },
+    "5433": {
+      "label": "PostgreSQL (alternativa 1)",
+      "onAutoForward": "silent"
+    },
+    "5434": {
+      "label": "PostgreSQL (alternativa 2)",
       "onAutoForward": "silent"
     },
     "8080": {

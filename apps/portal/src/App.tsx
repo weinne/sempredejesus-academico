@@ -50,6 +50,7 @@ import CurriculoDetailPage from '@/pages/curriculos/view/[id]';
 import CoortesPage from '@/pages/coortes';
 import CoorteDetailPage from '@/pages/coortes/view/[id]';
 import CoorteNewPage from '@/pages/coortes/new';
+import CoorteEditPage from '@/pages/coortes/edit/[id]';
 import TurnosPage from '@/pages/turnos';
 import TurnoNewPage from '@/pages/turnos/new';
 import TurnoEditPage from '@/pages/turnos/edit/[id]';
@@ -128,6 +129,7 @@ function App() {
             <Route path="/curriculos/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'periodos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CurriculoDetailPage /></ProtectedRoute>} />
             <Route path="/coortes" element={<ProtectedRoute permission={{ action: 'view', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoortesPage /></ProtectedRoute>} />
             <Route path="/coortes/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteNewPage /></ProtectedRoute>} />
+            <Route path="/coortes/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteEditPage /></ProtectedRoute>} />
             <Route path="/coortes/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteDetailPage /></ProtectedRoute>} />
             <Route path="/turnos" element={<ProtectedRoute permission={{ action: 'view', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnosPage /></ProtectedRoute>} />
             <Route path="/turnos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoNewPage /></ProtectedRoute>} />

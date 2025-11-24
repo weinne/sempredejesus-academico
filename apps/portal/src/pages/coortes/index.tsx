@@ -4,6 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
@@ -11,7 +21,6 @@ import { Coorte, CreateCoorte, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePageHero } from '@/hooks/use-page-hero';
-import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import {
@@ -28,7 +37,8 @@ import {
   ArrowRight,
   TrendingUp,
   Clock,
-  Award
+  Award,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function CoortesPage() {
@@ -42,6 +52,9 @@ export default function CoortesPage() {
   const canCreate = useCan('create', 'coortes');
   const canEdit = useCan('edit', 'coortes');
   const canDelete = useCan('delete', 'coortes');
+
+  const [deletingCoorte, setDeletingCoorte] = useState<Coorte | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   // Fetch coortes
   const {
@@ -95,6 +108,8 @@ export default function CoortesPage() {
         title: 'Coorte removida',
         description: 'Coorte removida com sucesso!',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingCoorte(null);
     },
     onError: (error: any) => {
       // Verificar se é erro de restrição de FK
@@ -107,6 +122,8 @@ export default function CoortesPage() {
           description: 'Esta coorte possui alunos relacionados. Remova primeiro os alunos relacionados para poder excluir a coorte.',
           variant: 'destructive',
         });
+        setIsDeleteDialogOpen(false);
+        setDeletingCoorte(null);
         return;
       }
       
@@ -115,6 +132,8 @@ export default function CoortesPage() {
         description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingCoorte(null);
     },
   });
 
@@ -126,10 +145,9 @@ export default function CoortesPage() {
   );
 
   // Handle delete
-  const handleDelete = (id: number) => {
-    if (window.confirm('Tem certeza que deseja remover esta coorte? Esta ação pode afetar alunos vinculados.')) {
-      deleteMutation.mutate(id);
-    }
+  const handleDelete = (coorte: Coorte) => {
+    setDeletingCoorte(coorte);
+    setIsDeleteDialogOpen(true);
   };
 
   if (error) {
@@ -184,34 +202,6 @@ export default function CoortesPage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Estatísticas */}
-          <StatsGrid>
-            <StatCard
-              title="Total de Coortes"
-              value={coortes.length}
-              icon={Users}
-              iconColor="text-blue-600"
-            />
-            <StatCard
-              title="Coortes Ativas"
-              value={coortes.filter(c => c.ativo).length}
-              icon={CheckCircle}
-              iconColor="text-green-600"
-            />
-            <StatCard
-              title="Cursos"
-              value={cursos.length}
-              icon={Award}
-              iconColor="text-purple-600"
-            />
-            <StatCard
-              title="Coortes"
-              value={coortes.length}
-              icon={Clock}
-              iconColor="text-orange-600"
-            />
-          </StatsGrid>
 
           <Card>
             <CardHeader>
@@ -276,7 +266,7 @@ export default function CoortesPage() {
                             <Edit className="h-4 w-4" />
                           </Button>
                           {canDelete && (
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(c.id)} disabled={deleteMutation.isPending} title="Remover">
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(c)} disabled={deleteMutation.isPending} title="Remover">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           )}
@@ -308,7 +298,7 @@ export default function CoortesPage() {
                               <Edit className="h-4 w-4" />
                             </Button>
                             {canDelete && (
-                              <Button variant="destructive" size="sm" onClick={() => handleDelete(coorte.id)} disabled={deleteMutation.isPending} title="Remover">
+                              <Button variant="destructive" size="sm" onClick={() => handleDelete(coorte)} disabled={deleteMutation.isPending} title="Remover">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             )}
@@ -352,6 +342,49 @@ export default function CoortesPage() {
           </Card>
         </div>
       </main>
+
+      {/* Dialog para exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+          setDeletingCoorte(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a coorte <strong>{deletingCoorte?.rotulo}</strong>?
+              <br />
+              <br />
+              <span className="text-red-600 font-medium">Esta ação não pode ser desfeita.</span>
+              <br />
+              <br />
+              <span className="text-sm text-gray-600">
+                Esta ação pode afetar alunos vinculados a esta coorte.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setIsDeleteDialogOpen(false);
+              setDeletingCoorte(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingCoorte && deleteMutation.mutate(deletingCoorte.id)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

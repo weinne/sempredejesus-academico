@@ -4,13 +4,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Curso, Curriculo, Disciplina, DisciplinaPeriodo, Periodo, Role, Turno } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, Plus, Search, Trash2, BookOpen, Wand2, ArrowRight, ChevronRight, Calendar, Layers3 } from 'lucide-react';
+import { Loader2, Plus, Search, Trash2, BookOpen, Wand2, ArrowRight, ChevronRight, Calendar, Layers3, AlertTriangle } from 'lucide-react';
 import { usePageHero } from '@/hooks/use-page-hero';
 import { Pagination } from '@/components/crud/pagination';
 
@@ -51,6 +61,8 @@ export default function CursosPage() {
  const queryClient = useQueryClient();
  const [searchTerm, setSearchTerm] = useState('');
  const [page, setPage] = useState(1);
+ const [deletingCurso, setDeletingCurso] = useState<Curso | null>(null);
+ const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
  const canCreate = useCan('create', 'cursos');
  const canEdit = useCan('edit', 'cursos');
@@ -192,6 +204,8 @@ export default function CursosPage() {
     title: 'Curso removido',
     description: 'Curso removido com sucesso!',
    });
+   setIsDeleteDialogOpen(false);
+   setDeletingCurso(null);
   },
   onError: (error: any) => {
    // Verificar se é erro de restrição de FK
@@ -204,6 +218,8 @@ export default function CursosPage() {
        description: 'Este curso possui alunos, disciplinas ou currículos relacionados. Remova primeiro os dados relacionados para poder excluir o curso.',
        variant: 'destructive',
      });
+     setIsDeleteDialogOpen(false);
+     setDeletingCurso(null);
      return;
    }
    
@@ -212,6 +228,8 @@ export default function CursosPage() {
     description: error?.message || 'Erro desconhecido',
     variant: 'destructive',
    });
+   setIsDeleteDialogOpen(false);
+   setDeletingCurso(null);
   },
  });
 
@@ -226,10 +244,9 @@ export default function CursosPage() {
   );
  }
 
-const handleDelete = (id: number) => {
-  if (window.confirm('Tem certeza que deseja remover este curso? Esta acao pode afetar alunos e disciplinas vinculadas.')) {
-   deleteMutation.mutate(id);
-  }
+const handleDelete = (curso: Curso) => {
+  setDeletingCurso(curso);
+  setIsDeleteDialogOpen(true);
 };
 
 // Configure Hero via hook
@@ -430,7 +447,7 @@ return (
                variant="ghost"
                size="sm"
                className="text-red-600 hover:text-red-700"
-               onClick={() => handleDelete(curso.id)}
+               onClick={() => handleDelete(curso)}
                disabled={deleteMutation.isPending}
               >
                <Trash2 className="h-4 w-4 mr-1" />
@@ -451,6 +468,49 @@ return (
      <Pagination page={page} totalPages={pagination?.totalPages || 0} onChange={setPage} />
     </div>
    </main>
+
+   {/* Dialog para exclusão */}
+   <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+     setIsDeleteDialogOpen(open);
+     if (!open) {
+       setDeletingCurso(null);
+     }
+   }}>
+     <AlertDialogContent>
+       <AlertDialogHeader>
+         <AlertDialogTitle className="flex items-center">
+           <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+           Confirmar Exclusão
+         </AlertDialogTitle>
+         <AlertDialogDescription>
+           Tem certeza que deseja excluir o curso <strong>{deletingCurso?.nome}</strong>?
+           <br />
+           <br />
+           <span className="text-red-600 font-medium">Esta ação não pode ser desfeita.</span>
+           <br />
+           <br />
+           <span className="text-sm text-gray-600">
+             Esta ação pode afetar alunos e disciplinas vinculadas.
+           </span>
+         </AlertDialogDescription>
+       </AlertDialogHeader>
+       <AlertDialogFooter>
+         <AlertDialogCancel onClick={() => {
+           setIsDeleteDialogOpen(false);
+           setDeletingCurso(null);
+         }}>
+           Cancelar
+         </AlertDialogCancel>
+         <AlertDialogAction
+           onClick={() => deletingCurso && deleteMutation.mutate(deletingCurso.id)}
+           className="bg-red-600 hover:bg-red-700"
+           disabled={deleteMutation.isPending}
+         >
+           Excluir
+         </AlertDialogAction>
+       </AlertDialogFooter>
+     </AlertDialogContent>
+   </AlertDialog>
   </div>
  );
 }

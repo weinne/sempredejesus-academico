@@ -3,12 +3,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { User, Role, Pessoa } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
-import { Edit, Trash2, User as UserIcon, Mail, Key, Eye, UserPlus, Plus, Shield, ArrowLeft, Users, CheckCircle, XCircle, Clock, ArrowRight } from 'lucide-react';
+import { Edit, Trash2, User as UserIcon, Mail, Key, Eye, UserPlus, Plus, Shield, ArrowLeft, Users, CheckCircle, XCircle, Clock, ArrowRight, AlertTriangle } from 'lucide-react';
 import PessoaFormModal from '@/components/modals/pessoa-form-modal';
 import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
@@ -24,6 +34,8 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [showPessoaModal, setShowPessoaModal] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'card'>(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'card' : 'table'));
+  const [deletingUser, setDeletingUser] = useState<User | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const canEdit = hasRole([Role.ADMIN]);
 
@@ -137,6 +149,8 @@ export default function UsersPage() {
         title: 'Usuário removido',
         description: 'Usuário removido com sucesso!',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingUser(null);
     },
     onError: (error: any) => {
       // Verificar se é erro de restrição de FK
@@ -149,6 +163,8 @@ export default function UsersPage() {
           description: 'Este usuário possui dados relacionados (aluno ou professor). Remova primeiro os dados relacionados para poder excluir o usuário.',
           variant: 'destructive',
         });
+        setIsDeleteDialogOpen(false);
+        setDeletingUser(null);
         return;
       }
       
@@ -157,6 +173,8 @@ export default function UsersPage() {
         description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingUser(null);
     },
   });
 
@@ -172,10 +190,9 @@ export default function UsersPage() {
   const handleEdit = (user: User) => navigate(`/users/edit/${user.id}`);
 
   // Handle delete
-  const handleDelete = (id: number) => {
-    if (window.confirm('Tem certeza que deseja remover este usuário?')) {
-      deleteMutation.mutate(id);
-    }
+  const handleDelete = (user: User) => {
+    setDeletingUser(user);
+    setIsDeleteDialogOpen(true);
   };
   const handleChangePassword = (user: User) => navigate(`/users/edit/${user.id}#password`);
 
@@ -297,7 +314,7 @@ export default function UsersPage() {
                       <Button variant="ghost" size="sm" onClick={() => handleChangePassword(u)} title="Alterar senha">
                         <Key className="h-4 w-4" />
                       </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(u.id)} disabled={deleteMutation.isPending} title="Remover">
+                      <Button variant="destructive" size="sm" onClick={() => handleDelete(u)} disabled={deleteMutation.isPending} title="Remover">
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -321,7 +338,7 @@ export default function UsersPage() {
                           <Button variant="ghost" size="sm" onClick={() => handleChangePassword(u)} title="Alterar senha">
                             <Key className="h-4 w-4" />
                           </Button>
-                          <Button variant="destructive" size="sm" onClick={() => handleDelete(u.id)} disabled={deleteMutation.isPending} title="Remover">
+                          <Button variant="destructive" size="sm" onClick={() => handleDelete(u)} disabled={deleteMutation.isPending} title="Remover">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
@@ -378,6 +395,44 @@ export default function UsersPage() {
           } as any);
         }}
       />
+
+      {/* Dialog para exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+          setDeletingUser(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o usuário <strong>{deletingUser?.username || ((deletingUser as any)?.pessoa?.nome || '')}</strong>?
+              <br />
+              <br />
+              <span className="text-red-600 font-medium">Esta ação não pode ser desfeita.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setIsDeleteDialogOpen(false);
+              setDeletingUser(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingUser && deleteMutation.mutate(deletingUser.id)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

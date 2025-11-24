@@ -1148,6 +1148,11 @@ class ApiService {
     return response.data.data as import('@/types/api').Coorte[];
   }
 
+  async getCoorte(id: number): Promise<import('@/types/api').Coorte> {
+    const response = await this.api.get(`/api/coortes/${id}`);
+    return response.data.data as import('@/types/api').Coorte;
+  }
+
   async createCoorte(payload: Partial<import('@/types/api').Coorte>): Promise<import('@/types/api').Coorte> {
     const response = await this.api.post(`/api/coortes`, payload);
     return response.data.data as import('@/types/api').Coorte;

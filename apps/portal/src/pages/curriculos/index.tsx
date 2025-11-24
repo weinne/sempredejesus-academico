@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,14 +18,14 @@ import {
 // import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
-import { Curriculo } from '@/types/api';
+import { Curriculo, Curso } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePageHero } from '@/hooks/use-page-hero';
-import { StatCard, StatsGrid } from '@/components/ui/stats-card';
 import { DataList } from '@/components/crud/data-list';
 // import { Pagination } from '@/components/crud/pagination';
-import { Plus, Edit, Trash2, FileText, Eye, Users, CheckCircle, XCircle, Clock, Award, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, FileText, Eye, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { formatDateToBR } from '@/lib/date-utils';
 // import { z } from 'zod';
 
 // Schema removido (criação/edição ocorre em páginas dedicadas)
@@ -36,6 +36,7 @@ export default function CurriculosPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
+  const [cursoFiltro, setCursoFiltro] = useState<number | ''>('');
   // inline form removido
   const [deletingCurriculo, setDeletingCurriculo] = useState<Curriculo | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -48,27 +49,29 @@ export default function CurriculosPage() {
   // Form setup
   // Inline form removido
 
-  // Fetch curriculos
-  const {
-    data: curriculosResponse,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ['curriculos'],
-    queryFn: () => apiService.getCurriculos(),
-    retry: false,
-  });
-
-  const curriculos = curriculosResponse || [];
-
   // Fetch cursos and turnos for dropdowns
-  const { data: cursosResponse } = useQuery({
+  const { data: cursosResponse, isLoading: isLoadingCursos } = useQuery({
     queryKey: ['cursos'],
     queryFn: () => apiService.getCursos({ limit: 200 }),
   });
   const cursos = cursosResponse?.data || [];
 
   const { data: turnos = [] } = useQuery({ queryKey: ['turnos'], queryFn: () => apiService.getTurnos() });
+
+  // Fetch curriculos
+  const {
+    data: curriculosResponse,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['curriculos', cursoFiltro],
+    queryFn: () => apiService.getCurriculos({
+      ...(cursoFiltro ? { cursoId: Number(cursoFiltro) } : {}),
+    }),
+    retry: false,
+  });
+
+  const curriculos = curriculosResponse || [];
 
   // Configure Hero via hook
   usePageHero({
@@ -136,11 +139,13 @@ export default function CurriculosPage() {
   });
 
   // Filter curriculos by search term
-  const filteredCurriculos = curriculos.filter((curriculo) =>
-    curriculo.versao.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (curriculo.curso?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (curriculo.turno?.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCurriculos = useMemo(() => {
+    return curriculos.filter((curriculo) =>
+      curriculo.versao.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (curriculo.curso?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (curriculo.turno?.nome || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [curriculos, searchTerm]);
 
   // Inline submit removed; creation/edition happens on dedicated pages
 
@@ -198,6 +203,32 @@ export default function CurriculosPage() {
               </div>
               <div className="flex flex-wrap gap-4">
                 <div className="flex flex-col gap-1">
+                  <label className="text-sm text-slate-600">Curso</label>
+                  <select
+                    value={cursoFiltro ? String(cursoFiltro) : ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setCursoFiltro(value ? Number(value) : '');
+                      setSearchTerm('');
+                    }}
+                    disabled={isLoadingCursos}
+                    className="w-full md:w-64 rounded-md border px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {isLoadingCursos 
+                        ? 'Carregando cursos...' 
+                        : cursos.length === 0 
+                          ? 'Nenhum curso disponível' 
+                          : 'Todos os cursos'}
+                    </option>
+                    {cursos.map((curso: Curso) => (
+                      <option key={curso.id} value={curso.id}>
+                        {curso.nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
                   <label className="text-sm text-slate-600">Buscar</label>
                   <Input
                     placeholder="Busque por versão, curso ou turno..."
@@ -207,41 +238,16 @@ export default function CurriculosPage() {
                   />
                 </div>
                 <div className="flex items-end gap-2">
-                  <Button onClick={() => setSearchTerm('')}>
+                  <Button onClick={() => {
+                    setSearchTerm('');
+                    setCursoFiltro('');
+                  }}>
                     Limpar filtros
                   </Button>
                 </div>
               </div>
             </CardContent>
           </Card>
-
-          {/* Estatísticas */}
-          <StatsGrid>
-            <StatCard
-              title="Total de Currículos"
-              value={curriculos.length}
-              icon={FileText}
-              iconColor="text-blue-600"
-            />
-            <StatCard
-              title="Currículos Ativos"
-              value={curriculos.filter(c => c.ativo).length}
-              icon={CheckCircle}
-              iconColor="text-green-600"
-            />
-            <StatCard
-              title="Cursos"
-              value={cursos.length}
-              icon={Award}
-              iconColor="text-purple-600"
-            />
-            <StatCard
-              title="Turnos"
-              value={turnos.length}
-              icon={Clock}
-              iconColor="text-orange-600"
-            />
-          </StatsGrid>
 
           <Card>
             <CardHeader>
@@ -283,7 +289,10 @@ export default function CurriculosPage() {
                     header: 'Vigência',
                     render: (c: any) => {
                       if (!c.vigenteDe && !c.vigenteAte) return '—';
-                      return `${c.vigenteDe || '...'} até ${c.vigenteAte || '...'}`;
+                      const de = formatDateToBR(c.vigenteDe);
+                      const ate = formatDateToBR(c.vigenteAte);
+                      if (!de && !ate) return '—';
+                      return `${de || '...'} até ${ate || '...'}`;
                     },
                   },
                   {
@@ -381,9 +390,9 @@ export default function CurriculosPage() {
                         </div>
                         {(curriculo.vigenteDe || curriculo.vigenteAte) && (
                           <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <Users className="h-4 w-4" />
+                            <FileText className="h-4 w-4" />
                             <span>
-                              {curriculo.vigenteDe ? `De ${curriculo.vigenteDe}` : '...'} até {curriculo.vigenteAte || '...'}
+                              {formatDateToBR(curriculo.vigenteDe) ? `De ${formatDateToBR(curriculo.vigenteDe)}` : '...'} até {formatDateToBR(curriculo.vigenteAte) || '...'}
                             </span>
                           </div>
                         )}

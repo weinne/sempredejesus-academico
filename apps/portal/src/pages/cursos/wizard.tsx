@@ -471,9 +471,15 @@ export default function CursoWizardPage() {
       const createdDisciplinas: number[] = [];
       const createdPeriodos: number[] = [];
       const createdCurriculos: number[] = [];
+      const createdDisciplinePeriodLinks: { periodoId: number; disciplinaId: number }[] = [];
       let createdCursoId: number | undefined;
 
       const rollback = async () => {
+        for (const link of createdDisciplinePeriodLinks.reverse()) {
+          try {
+            await apiService.removeDisciplinaDoPeriodo(link.periodoId, link.disciplinaId);
+          } catch {}
+        }
         for (const disciplinaId of createdDisciplinas.reverse()) {
           try {
             await apiService.deleteDisciplina(disciplinaId);
@@ -592,6 +598,10 @@ export default function CursoWizardPage() {
           throw new Error('Selecione um curso existente para continuar a configuracao.');
         }
 
+        if (!existingCourseStructure) {
+          throw new Error('Nao foi possivel carregar a estrutura atual do curso. Reabra o wizard e tente novamente.');
+        }
+
         const courseId = wizardData.course.id;
         const normalizedName = wizardData.course.nome.trim();
         const normalizedDegree = wizardData.course.grau.trim();
@@ -605,7 +615,143 @@ export default function CursoWizardPage() {
           grau: normalizedDegree,
         });
 
-        // TODO: implementar edição (fora do escopo atual)
+        const disciplinaCodigoMap = new Map<string, number>();
+        const associationSet = new Set<string>();
+
+        for (const disciplina of existingCourseStructure.disciplinas || []) {
+          const codigoKey = disciplina.codigo?.trim().toUpperCase();
+          if (codigoKey) {
+            disciplinaCodigoMap.set(codigoKey, disciplina.id);
+          }
+          (disciplina.periodos || []).forEach((vinculo) => {
+            if (!vinculo) {
+              return;
+            }
+            const periodoIdValue = Number(vinculo.periodoId ?? vinculo.periodo?.id);
+            if (Number.isFinite(periodoIdValue)) {
+              associationSet.add(`${periodoIdValue}:${disciplina.id}`);
+            }
+          });
+        }
+
+        const normalizeOptionalDate = (value?: string) => {
+          if (!value) {
+            return undefined;
+          }
+          const trimmed = value.trim();
+          return trimmed.length > 0 ? trimmed : undefined;
+        };
+
+        for (const turnoConfig of wizardData.turnos) {
+          for (const curriculoDraft of turnoConfig.curriculos) {
+            let curriculoId: number;
+            if (curriculoDraft.curriculoId) {
+              curriculoId = curriculoDraft.curriculoId;
+            } else {
+              const createdCurriculo = await apiService.createCurriculo({
+                cursoId: courseId,
+                turnoId: turnoConfig.turnoId,
+                versao: curriculoDraft.versao?.trim() || 'v1.0',
+                vigenteDe: normalizeOptionalDate(curriculoDraft.vigenteDe),
+                vigenteAte: normalizeOptionalDate(curriculoDraft.vigenteAte),
+                ativo: curriculoDraft.ativo,
+              });
+              curriculoId = createdCurriculo.id;
+              createdCurriculos.push(curriculoId);
+            }
+            for (let index = 0; index < curriculoDraft.periodos.length; index++) {
+              const periodoDraft = curriculoDraft.periodos[index];
+              const numeroParsed = Number(periodoDraft.numero);
+              const fallbackNumero = index + 1;
+              const numeroValue =
+                Number.isFinite(numeroParsed) && numeroParsed > 0 ? Math.floor(numeroParsed) : fallbackNumero;
+
+              let periodoId: number | null = null;
+              if (periodoDraft.persistedId) {
+                periodoId = periodoDraft.persistedId;
+              } else if (periodoDraft.disciplinas.length > 0) {
+                const createdPeriodo = await apiService.createPeriodo({
+                  curriculoId,
+                  numero: numeroValue,
+                  nome: periodoDraft.nome || undefined,
+                  descricao: periodoDraft.descricao || undefined,
+                });
+                periodoId = createdPeriodo.id;
+                createdPeriodos.push(periodoId);
+              }
+
+              if (!periodoId) {
+                continue;
+              }
+              const seenCodigos = new Set<string>();
+              for (const disciplinaDraft of periodoDraft.disciplinas) {
+                const isExistingAssociation =
+                  disciplinaDraft.persistedId && disciplinaDraft.id.startsWith('disciplina-');
+                if (isExistingAssociation) {
+                  continue;
+                }
+
+                let disciplinaId = disciplinaDraft.persistedId;
+                const codigo = disciplinaDraft.codigo.trim();
+                const nome = disciplinaDraft.nome.trim();
+                const creditos = Number(disciplinaDraft.creditos);
+                const cargaHoraria = Number(disciplinaDraft.cargaHoraria);
+
+                if (!disciplinaId) {
+                  if (!codigo || !nome || !Number.isFinite(creditos) || !Number.isFinite(cargaHoraria)) {
+                    continue;
+                  }
+
+                  const codigoKey = codigo.toUpperCase();
+                  if (seenCodigos.has(codigoKey)) {
+                    continue;
+                  }
+                  seenCodigos.add(codigoKey);
+
+                  disciplinaId = disciplinaCodigoMap.get(codigoKey);
+                  if (!disciplinaId) {
+                    const createdDisciplina = await apiService.createDisciplina({
+                      cursoId: courseId,
+                      codigo,
+                      nome,
+                      creditos,
+                      cargaHoraria,
+                      ementa: disciplinaDraft.ementa || undefined,
+                      bibliografia: disciplinaDraft.bibliografia || undefined,
+                      ativo: true,
+                    });
+                    disciplinaId = createdDisciplina.id;
+                    disciplinaCodigoMap.set(codigoKey, disciplinaId);
+                    createdDisciplinas.push(disciplinaId);
+                  }
+                }
+
+                if (!disciplinaId) {
+                  continue;
+                }
+
+                const ordemParsed = Number(disciplinaDraft.ordem);
+                const ordemValue =
+                  Number.isFinite(ordemParsed) && ordemParsed > 0 ? Math.floor(ordemParsed) : undefined;
+                const obrigatoriaValue = disciplinaDraft.obrigatoria !== false;
+                const associationKey = `${periodoId}:${disciplinaId}`;
+
+                if (associationSet.has(associationKey)) {
+                  continue;
+                }
+
+                await apiService.addDisciplinaAoPeriodo(periodoId, {
+                  disciplinaId,
+                  ordem: ordemValue,
+                  obrigatoria: obrigatoriaValue,
+                });
+                associationSet.add(associationKey);
+                createdDisciplinePeriodLinks.push({ periodoId, disciplinaId });
+              }
+            }
+          }
+        }
+
         return courseId;
       } catch (error) {
         await rollback();
@@ -1572,6 +1718,30 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
       case 2:
         return (
           <div className="space-y-6">
+            <div className="rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+              <p className="font-semibold">Períodos e disciplinas existentes estão em modo somente leitura.</p>
+              <p className="mt-1">
+                Para alterar registros já cadastrados, utilize as telas dedicadas de{' '}
+                <a
+                  href="/periodos"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  períodos
+                </a>{' '}
+                e{' '}
+                <a
+                  href="/disciplinas"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-2"
+                >
+                  disciplinas
+                </a>
+                . Novas entradas criadas aqui serão adicionadas ao final da configuração existente.
+              </p>
+            </div>
             {totalCurriculos === 0 ? (
               <Card>
                 <CardContent className="p-6 text-sm text-gray-600">
@@ -1611,6 +1781,22 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                                 <div className="flex flex-col gap-1">
                                   <h4 className="text-sm font-semibold text-gray-800">Configuracao do periodo</h4>
                                   <p className="text-xs text-gray-500">Cadastre as disciplinas que compoem este periodo neste curriculo.</p>
+                                  {periodo.persistedId ? (
+                                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                                      <span className="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 font-semibold uppercase tracking-wide text-gray-700">
+                                        Periodo existente
+                                      </span>
+                                      <span>Edite-o na tela de períodos.</span>
+                                      <a
+                                        href={`/periodos/view/${periodo.persistedId}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 underline underline-offset-2"
+                                      >
+                                        Abrir período
+                                      </a>
+                                    </div>
+                                  ) : null}
                                 </div>
                                 <Button
                                   type="button"
@@ -1664,7 +1850,9 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                                 const disciplinaNomeFieldId = `${disciplinaPrefix}-nome`;
                                 const disciplinaCreditosFieldId = `${disciplinaPrefix}-creditos`;
                                 const disciplinaCargaFieldId = `${disciplinaPrefix}-carga`;
-                                const isCollapsed = disciplina.isLinkedFromExisting && !disciplina.expanded;
+                                const isPersisted = Boolean(disciplina.persistedId);
+                                const isCollapsed =
+                                  isPersisted || (disciplina.isLinkedFromExisting && !disciplina.expanded);
 
                                 return (
                                   <div key={disciplina.id} className="border border-dashed border-gray-300 rounded-md p-4 space-y-3 bg-gray-50">
@@ -1673,6 +1861,22 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                                         <h5 className="text-sm font-medium text-gray-700">
                                           Disciplina {disciplina.isLinkedFromExisting ? '(existente)' : ''}
                                         </h5>
+                                        {disciplina.persistedId ? (
+                                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
+                                            <span className="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 font-semibold uppercase tracking-wide text-gray-700">
+                                              Registro existente
+                                            </span>
+                                            <span>Atualize esta disciplina fora do wizard.</span>
+                                            <a
+                                              href={`/disciplinas/view/${disciplina.persistedId}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-blue-600 underline underline-offset-2"
+                                            >
+                                              Abrir disciplina
+                                            </a>
+                                          </div>
+                                        ) : null}
                                         {isCollapsed && (
                                           <p className="text-xs text-gray-500">
                                             {disciplina.codigo} • {disciplina.nome} • {disciplina.creditos} créditos • {disciplina.cargaHoraria}h
@@ -1680,24 +1884,40 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                                         )}
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        {disciplina.isLinkedFromExisting && (
-                                          <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() =>
-                                              toggleDisciplineExpanded(turno.turnoId, curriculo.id, periodo.id, disciplina.id)
-                                            }
+                                        {isPersisted ? (
+                                          <a
+                                            href={`/disciplinas/edit/${disciplina.persistedId}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
                                           >
-                                            {isCollapsed ? 'Editar' : 'Recolher'}
-                                          </Button>
+                                            Editar na tela de disciplinas
+                                          </a>
+                                        ) : (
+                                          disciplina.isLinkedFromExisting && (
+                                            <Button
+                                              variant="secondary"
+                                              size="sm"
+                                              onClick={() =>
+                                                toggleDisciplineExpanded(
+                                                  turno.turnoId,
+                                                  curriculo.id,
+                                                  periodo.id,
+                                                  disciplina.id,
+                                                )
+                                              }
+                                            >
+                                              {isCollapsed ? 'Editar' : 'Recolher'}
+                                            </Button>
+                                          )
                                         )}
                                         <Button
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => removeDiscipline(turno.turnoId, curriculo.id, periodo.id, disciplina.id)}
-                                          className={`text-red-600 hover:text-red-700 ${disciplina.persistedId ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                          disabled={Boolean(disciplina.persistedId)}
-                                          title={disciplina.persistedId ? 'Remova disciplinas existentes na tela de disciplinas.' : 'Remover disciplina'}
+                                          className={`text-red-600 hover:text-red-700 ${isPersisted ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                          disabled={isPersisted}
+                                          title={isPersisted ? 'Remova disciplinas existentes na tela de disciplinas.' : 'Remover disciplina'}
                                         >
                                           <Trash2 className="h-4 w-4 mr-1" /> Remover
                                         </Button>

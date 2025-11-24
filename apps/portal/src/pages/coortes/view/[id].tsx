@@ -25,7 +25,7 @@ export default function CoorteDetailPage() {
     error,
   } = useQuery({
     queryKey: ['coorte', id],
-    queryFn: () => apiService.getCoortes().then(coortes => coortes.find(c => c.id === Number(id))),
+    queryFn: () => apiService.getCoorte(Number(id)),
     enabled: !!id,
     retry: false,
   });

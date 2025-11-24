@@ -4,6 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/providers/auth-provider';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
@@ -30,7 +40,8 @@ import {
   TrendingUp,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 export default function AlunosPage() {
   const { hasRole, user } = useAuth();
@@ -41,6 +52,8 @@ export default function AlunosPage() {
   const [page, setPage] = useState(1);
   const [cursoFiltro, setCursoFiltro] = useState<number | ''>('');
   const [situacaoFiltro, setSituacaoFiltro] = useState<'' | 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO'>('');
+  const [deletingAluno, setDeletingAluno] = useState<Aluno | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const canCreate = useCan('create', 'alunos');
   const canEdit = useCan('edit', 'alunos');
@@ -120,6 +133,8 @@ export default function AlunosPage() {
           description: 'Este aluno possui inscrições em turmas ou avaliações relacionadas. Remova primeiro os dados relacionados para poder excluir o aluno.',
           variant: 'destructive',
         });
+        setIsDeleteDialogOpen(false);
+        setDeletingAluno(null);
         return;
       }
       
@@ -128,6 +143,8 @@ export default function AlunosPage() {
         description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingAluno(null);
     },
   });
 
@@ -156,10 +173,9 @@ export default function AlunosPage() {
     });
 
   // Handle delete
-  const handleDelete = (ra: string) => {
-    if (window.confirm('Tem certeza que deseja remover este aluno?')) {
-      deleteMutation.mutate(ra);
-    }
+  const handleDelete = (aluno: Aluno) => {
+    setDeletingAluno(aluno);
+    setIsDeleteDialogOpen(true);
   };
 
   const getSituacaoColor = (situacao: string) => {
@@ -349,7 +365,7 @@ export default function AlunosPage() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleDelete(aluno.ra)}
+                                  onClick={() => handleDelete(aluno)}
                                   disabled={deleteMutation.isPending}
                                   title="Remover"
                                   className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -460,6 +476,43 @@ export default function AlunosPage() {
         </div>
       </main>
 
+      {/* Dialog para exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+          setDeletingAluno(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o aluno <strong>{deletingAluno?.pessoa?.nome || deletingAluno?.ra}</strong>?
+              <br />
+              <br />
+              <span className="text-red-600 font-medium">Esta ação não pode ser desfeita.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setIsDeleteDialogOpen(false);
+              setDeletingAluno(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingAluno && deleteMutation.mutate(deletingAluno.ra)}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

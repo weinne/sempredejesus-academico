@@ -3,6 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useCan } from '@/lib/permissions';
 import { apiService } from '@/services/api';
 import { Pessoa } from '@/types/api';
@@ -27,7 +37,8 @@ import {
   TrendingUp,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function PessoasPage() {
@@ -35,6 +46,8 @@ export default function PessoasPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [deletingPessoa, setDeletingPessoa] = useState<Pessoa | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
 
 
@@ -85,6 +98,8 @@ export default function PessoasPage() {
         title: 'Pessoa removida',
         description: 'Pessoa removida com sucesso!',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingPessoa(null);
     },
     onError: (error: any) => {
       // Verificar se é erro de restrição de FK
@@ -97,6 +112,8 @@ export default function PessoasPage() {
           description: 'Esta pessoa possui alunos, professores ou usuários relacionados. Remova primeiro os dados relacionados para poder excluir a pessoa.',
           variant: 'destructive',
         });
+        setIsDeleteDialogOpen(false);
+        setDeletingPessoa(null);
         return;
       }
       
@@ -105,6 +122,8 @@ export default function PessoasPage() {
         description: error.message || 'Erro desconhecido',
         variant: 'destructive',
       });
+      setIsDeleteDialogOpen(false);
+      setDeletingPessoa(null);
     },
   });
 
@@ -116,10 +135,9 @@ export default function PessoasPage() {
   );
 
   // Handle delete
-  const handleDelete = (id: string) => {
-    if (window.confirm('Tem certeza que deseja remover esta pessoa?')) {
-      deleteMutation.mutate(id);
-    }
+  const handleDelete = (pessoa: Pessoa) => {
+    setDeletingPessoa(pessoa);
+    setIsDeleteDialogOpen(true);
   };
 
   if (error) {
@@ -228,7 +246,7 @@ export default function PessoasPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(String(p.id))}
+                          onClick={() => handleDelete(p)}
                           title="Remover"
                           disabled={deleteMutation.isPending}
                         >
@@ -308,6 +326,44 @@ export default function PessoasPage() {
           </Card>
         </div>
       </main>
+
+      {/* Dialog para exclusão */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={(open) => {
+        setIsDeleteDialogOpen(open);
+        if (!open) {
+          setDeletingPessoa(null);
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-red-500" />
+              Confirmar Exclusão
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a pessoa <strong>{deletingPessoa?.nome}</strong>?
+              <br />
+              <br />
+              <span className="text-red-600 font-medium">Esta ação não pode ser desfeita.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setIsDeleteDialogOpen(false);
+              setDeletingPessoa(null);
+            }}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingPessoa && deleteMutation.mutate(String(deletingPessoa.id))}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteMutation.isPending}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
