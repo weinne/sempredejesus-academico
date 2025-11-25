@@ -261,7 +261,7 @@ export default function TurmasPage() {
   const filteredTurmas = professorFilteredTurmas.filter((turma) =>
     (turma.disciplina?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (turma.disciplina?.codigo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (turma.professor?.pessoa?.nomeCompleto || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (turma.professor?.pessoa?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (turma.sala || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -383,7 +383,7 @@ export default function TurmasPage() {
                 isLoading={isLoading}
                 columns={[
                   { key: 'disciplina', header: 'Disciplina', render: (t: any) => t?.disciplina?.nome || 'N/A' },
-                  { key: 'professor', header: 'Professor', render: (t: any) => t?.professor?.pessoa?.nomeCompleto || 'N/A' },
+                  { key: 'professor', header: 'Professor', render: (t: any) => t?.professor?.pessoa?.nome || 'N/A' },
                   {
                     key: 'periodo',
                     header: 'Período (disciplina)',
@@ -470,7 +470,7 @@ export default function TurmasPage() {
                                 <Edit className="h-4 w-4" />
                               </Button>
                               {canDelete && (
-                                <Button variant="destructive" size="sm" onClick={() => handleDelete(turma.id)} disabled={deleteMutation.isPending} title="Remover">
+                                <Button variant="destructive" size="sm" onClick={() => handleDelete(turma)} disabled={deleteMutation.isPending} title="Remover">
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               )}
@@ -480,10 +480,10 @@ export default function TurmasPage() {
                       </div>
                       <div className="space-y-3 text-sm text-gray-600">
                         <div className="grid grid-cols-2 gap-3">
-                          {turma.professor?.pessoa?.nomeCompleto && (
+                          {turma.professor?.pessoa?.nome && (
                             <div className="flex items-center space-x-2">
                               <User className="h-4 w-4" />
-                              <span className="truncate">{turma.professor.pessoa.nomeCompleto}</span>
+                              <span className="truncate">{turma.professor.pessoa.nome}</span>
                             </div>
                           )}
                           <div className="flex items-center space-x-2">

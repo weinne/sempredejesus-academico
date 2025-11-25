@@ -45,8 +45,8 @@ export default function TurmaEditPage() {
   const [diaSemana, setDiaSemana] = React.useState<string>('');
   const [horarioInicio, setHorarioInicio] = React.useState<string>('');
   const [horarioFim, setHorarioFim] = React.useState<string>('');
-  const [dataInicio, setDataInicio] = React.useState<Date | undefined>(undefined);
-  const [dataFim, setDataFim] = React.useState<Date | undefined>(undefined);
+  const [dataInicio, setDataInicio] = React.useState<string | null>(null);
+  const [dataFim, setDataFim] = React.useState<string | null>(null);
   const [overrideFields, setOverrideFields] = React.useState<OverrideFieldsState>({});
 
   const { data: turma, isLoading } = useQuery({
@@ -63,8 +63,8 @@ export default function TurmaEditPage() {
     setDiaSemana(turma.diaSemana !== undefined && turma.diaSemana !== null ? String(turma.diaSemana) : '');
     setHorarioInicio(turma.horarioInicio || '');
     setHorarioFim(turma.horarioFim || '');
-    setDataInicio(turma.dataInicio ? new Date(turma.dataInicio) : undefined);
-    setDataFim(turma.dataFim ? new Date(turma.dataFim) : undefined);
+    setDataInicio(turma.dataInicio || null);
+    setDataFim(turma.dataFim || null);
     setOverrideFields({
       ementa: turma.ementa ?? null,
       bibliografia: turma.bibliografia ?? null,
@@ -188,8 +188,8 @@ export default function TurmaEditPage() {
                   diaSemana: diaSemana ? Number(diaSemana) : undefined,
                   horarioInicio: horarioInicio || undefined,
                   horarioFim: horarioFim || undefined,
-                  dataInicio: dataInicio ? dataInicio.toISOString().split('T')[0] : undefined,
-                  dataFim: dataFim ? dataFim.toISOString().split('T')[0] : undefined,
+                  dataInicio: dataInicio || undefined,
+                  dataFim: dataFim || undefined,
                   secao: String(fd.get('secao') || ''),
                   ementa: overrideFields.ementa ?? null,
                   bibliografia: overrideFields.bibliografia ?? null,

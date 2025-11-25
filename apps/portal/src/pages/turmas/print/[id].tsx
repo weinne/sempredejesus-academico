@@ -184,7 +184,7 @@ export default function TurmaPrintPage() {
             <div className="info-grid">
               <div className="info-item">
                 <span className="info-label">Nome:</span>
-                <span>{turma.professor.pessoa?.nomeCompleto || 'N/A'}</span>
+                <span>{turma.professor.pessoa?.nome || 'N/A'}</span>
               </div>
               <div className="info-item">
                 <span className="info-label">Matrícula:</span>

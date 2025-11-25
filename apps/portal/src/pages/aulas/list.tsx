@@ -415,7 +415,7 @@ export default function AulasListPage() {
                 <CardTitle>Aulas ({aulas.length})</CardTitle>
                 <div className="flex gap-1 border rounded-md p-0.5 bg-muted/30">
                   <Button
-                    variant={viewMode === 'table' ? 'default' : 'ghost'}
+                    variant="default"
                     size="sm"
                     onClick={() => setViewMode('table')}
                     className="h-8 px-2 sm:px-3"
@@ -424,7 +424,7 @@ export default function AulasListPage() {
                     <span className="hidden sm:inline">Tabela</span>
                   </Button>
                   <Button
-                    variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                    variant="ghost"
                     size="sm"
                     onClick={() => setViewMode('calendar')}
                     className="h-8 px-2 sm:px-3"
@@ -503,7 +503,7 @@ export default function AulasListPage() {
                 </div>
                 <div className="flex gap-1 border rounded-md p-0.5 bg-muted/30">
                   <Button
-                    variant={viewMode === 'table' ? 'default' : 'ghost'}
+                    variant="ghost"
                     size="sm"
                     onClick={() => setViewMode('table')}
                     className="h-8 px-2 sm:px-3"
@@ -512,7 +512,7 @@ export default function AulasListPage() {
                     <span className="hidden sm:inline">Tabela</span>
                   </Button>
                   <Button
-                    variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                    variant="default"
                     size="sm"
                     onClick={() => setViewMode('calendar')}
                     className="h-8 px-2 sm:px-3"

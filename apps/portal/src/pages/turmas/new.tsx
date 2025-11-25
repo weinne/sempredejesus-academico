@@ -26,8 +26,8 @@ export default function TurmaNewPage() {
   const [diaSemana, setDiaSemana] = React.useState<string>('');
   const [horarioInicio, setHorarioInicio] = React.useState<string>('');
   const [horarioFim, setHorarioFim] = React.useState<string>('');
-  const [dataInicio, setDataInicio] = React.useState<Date | undefined>(undefined);
-  const [dataFim, setDataFim] = React.useState<Date | undefined>(undefined);
+  const [dataInicio, setDataInicio] = React.useState<string | null>(null);
+  const [dataFim, setDataFim] = React.useState<string | null>(null);
   const [overrideFields, setOverrideFields] = React.useState<{
     ementa?: string;
     bibliografia?: string;
@@ -143,8 +143,8 @@ export default function TurmaNewPage() {
                   diaSemana: diaSemana ? Number(diaSemana) : undefined,
                   horarioInicio: horarioInicio || undefined,
                   horarioFim: horarioFim || undefined,
-                  dataInicio: dataInicio ? dataInicio.toISOString().split('T')[0] : undefined,
-                  dataFim: dataFim ? dataFim.toISOString().split('T')[0] : undefined,
+                  dataInicio: dataInicio || undefined,
+                  dataFim: dataFim || undefined,
                   secao: String(fd.get('secao') || ''),
                   ementa: overrideFields.ementa || null,
                   bibliografia: overrideFields.bibliografia || null,

@@ -294,7 +294,7 @@ export default function TurmaDetailPage() {
                     <div>
                       <p className="text-sm text-gray-500">Nome</p>
                       <p className="font-medium">
-                        {turma.professor?.pessoa?.nomeCompleto || 'Professor não informado'}
+                        {turma.professor?.pessoa?.nome || 'Professor não informado'}
                       </p>
                     </div>
                   </div>

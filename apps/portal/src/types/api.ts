@@ -301,6 +301,11 @@ export interface Turma {
   coorteId?: number;
   sala?: string;
   horario?: string;
+  diaSemana?: number;
+  horarioInicio?: string;
+  horarioFim?: string;
+  dataInicio?: string;
+  dataFim?: string;
   secao?: string;
   ementa?: string | null;
   bibliografia?: string | null;
@@ -320,6 +325,11 @@ export interface CreateTurma {
   coorteId?: number;
   sala?: string;
   horario?: string;
+  diaSemana?: number;
+  horarioInicio?: string;
+  horarioFim?: string;
+  dataInicio?: string;
+  dataFim?: string;
   secao?: string;
   ementa?: string | null;
   bibliografia?: string | null;

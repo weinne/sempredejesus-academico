@@ -287,7 +287,7 @@ export default function PessoasPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleDelete(String(pessoa.id))}
+                                onClick={() => handleDelete(pessoa)}
                                 title="Remover"
                                 disabled={deleteMutation.isPending}
                               >
