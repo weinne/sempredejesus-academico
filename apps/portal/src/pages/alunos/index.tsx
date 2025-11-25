@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { Aluno, Curso, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePageHero } from '@/hooks/use-page-hero';
-import { StatCard, StatsGrid } from '@/components/ui/stats-card';
+import CrudToolbar from '@/components/crud/crud-toolbar';
 import {
   Plus,
   Edit,
@@ -35,12 +35,6 @@ import {
   Award,
   Eye,
   Layers3,
-  ArrowRight,
-  Users,
-  TrendingUp,
-  CheckCircle,
-  XCircle,
-  Clock,
   AlertTriangle
 } from 'lucide-react';
 export default function AlunosPage() {
@@ -54,6 +48,21 @@ export default function AlunosPage() {
   const [situacaoFiltro, setSituacaoFiltro] = useState<'' | 'ATIVO' | 'TRANCADO' | 'CONCLUIDO' | 'CANCELADO'>('');
   const [deletingAluno, setDeletingAluno] = useState<Aluno | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'table' | 'card'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'card' : 'table'
+  );
+
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth < 1024) {
+        setViewMode('card');
+      } else {
+        setViewMode('table');
+      }
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const canCreate = useCan('create', 'alunos');
   const canEdit = useCan('edit', 'alunos');
@@ -208,86 +217,66 @@ export default function AlunosPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">
-          {/* Filtros */}
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-slate-800">Filtros e Busca</h2>
-                <p className="text-sm text-slate-500">Encontre alunos por curso, situação ou informações pessoais</p>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm text-slate-600">Curso</label>
-                  <select
-                    className="border rounded-md px-3 py-2 w-64 text-sm"
-                    value={typeof cursoFiltro === 'number' ? String(cursoFiltro) : ''}
-                    onChange={(e) => setCursoFiltro(e.target.value ? Number(e.target.value) : '')}
+          <CrudToolbar
+            search={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setPage(1);
+            }}
+            searchPlaceholder="Buscar por RA, nome, email ou curso..."
+            viewMode={viewMode}
+            onViewModeChange={(mode) => {
+              if (window.innerWidth >= 1024) {
+                setViewMode(mode);
+              }
+            }}
+            filtersSlot={
+              <div className="flex flex-wrap gap-2 items-center">
+                <select
+                  className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9"
+                  value={typeof cursoFiltro === 'number' ? String(cursoFiltro) : ''}
+                  onChange={(e) => {
+                    setCursoFiltro(e.target.value ? Number(e.target.value) : '');
+                    setPage(1);
+                  }}
+                >
+                  <option value="">Todos os cursos</option>
+                  {cursos.map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.nome}</option>
+                  ))}
+                </select>
+                <select
+                  className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9"
+                  value={situacaoFiltro}
+                  onChange={(e) => {
+                    setSituacaoFiltro((e.target.value || '') as any);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">Todas situações</option>
+                  <option value="ATIVO">ATIVO</option>
+                  <option value="TRANCADO">TRANCADO</option>
+                  <option value="CONCLUIDO">CONCLUIDO</option>
+                  <option value="CANCELADO">CANCELADO</option>
+                </select>
+                {(cursoFiltro || situacaoFiltro || searchTerm) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setCursoFiltro('');
+                      setSituacaoFiltro('');
+                      setSearchTerm('');
+                      setPage(1);
+                    }}
+                    className="h-9 text-xs sm:text-sm"
                   >
-                    <option value="">Todos os cursos</option>
-                    {cursos.map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.nome}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm text-slate-600">Situação</label>
-                  <select
-                    className="border rounded-md px-3 py-2 w-48 text-sm"
-                    value={situacaoFiltro}
-                    onChange={(e) => setSituacaoFiltro((e.target.value || '') as any)}
-                  >
-                    <option value="">Todas</option>
-                    <option value="ATIVO">ATIVO</option>
-                    <option value="TRANCADO">TRANCADO</option>
-                    <option value="CONCLUIDO">CONCLUIDO</option>
-                    <option value="CANCELADO">CANCELADO</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm text-slate-600">Buscar</label>
-                  <Input
-                    placeholder="RA, nome, email ou curso"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-72"
-                  />
-                </div>
-                <div className="flex items-end gap-2">
-                  <Button onClick={() => { setCursoFiltro(''); setSituacaoFiltro(''); setSearchTerm(''); setPage(1); }}>
-                    Limpar filtros
+                    Limpar
                   </Button>
-                </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Estatísticas */}
-          <StatsGrid>
-            <StatCard
-              title="Total de Alunos"
-              value={alunos.length}
-              icon={Users}
-              iconColor="text-blue-600"
-            />
-            <StatCard
-              title="Alunos Ativos"
-              value={alunos.filter(a => a.situacao === 'ATIVO').length}
-              icon={CheckCircle}
-              iconColor="text-green-600"
-            />
-            <StatCard
-              title="Concluídos"
-              value={alunos.filter(a => a.situacao === 'CONCLUIDO').length}
-              icon={Award}
-              iconColor="text-purple-600"
-            />
-            <StatCard
-              title="Trancados"
-              value={alunos.filter(a => a.situacao === 'TRANCADO').length}
-              icon={Clock}
-              iconColor="text-yellow-600"
-            />
-          </StatsGrid>
+            }
+          />
 
           {/* Alunos List */}
           <Card className="border-0 shadow-sm">
@@ -327,28 +316,28 @@ export default function AlunosPage() {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                   {filteredAlunos.map((aluno) => (
-                    <Card key={aluno.ra} className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm">
-                      <CardContent className="p-6">
+                    <Card key={aluno.ra} className="hover:shadow-md transition-shadow border-0 shadow-sm">
+                      <CardContent className="p-4">
                         {/* Header do Card */}
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex items-center space-x-3">
-                            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                              <GraduationCap className="h-6 w-6 text-white" />
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center space-x-3 min-w-0 flex-1">
+                            <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                              <GraduationCap className="h-5 w-5 text-blue-600" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-lg text-slate-800">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-base text-slate-800 truncate">
                                 {aluno.pessoa?.nome || 'Nome não informado'}
                               </h3>
-                              <p className="text-sm text-slate-500">RA: {aluno.ra}</p>
+                              <p className="text-xs text-slate-500">RA: {aluno.ra}</p>
                             </div>
                           </div>
                           {canEdit && (
-                            <div className="flex space-x-1">
+                            <div className="flex space-x-1 shrink-0 ml-2">
                               <Link to={`/alunos/${aluno.ra}`}>
-                                <Button variant="ghost" size="sm" title="Visualizar" className="h-8 w-8 p-0">
-                                  <Eye className="h-4 w-4" />
+                                <Button variant="ghost" size="sm" title="Visualizar" className="h-7 w-7 p-0">
+                                  <Eye className="h-3.5 w-3.5" />
                                 </Button>
                               </Link>
                               <Link to={`/alunos/edit/${aluno.ra}`}>
@@ -356,9 +345,9 @@ export default function AlunosPage() {
                                   variant="ghost"
                                   size="sm"
                                   title="Editar"
-                                  className="h-8 w-8 p-0"
+                                  className="h-7 w-7 p-0"
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  <Edit className="h-3.5 w-3.5" />
                                 </Button>
                               </Link>
                               {canDelete && (
@@ -368,75 +357,74 @@ export default function AlunosPage() {
                                   onClick={() => handleDelete(aluno)}
                                   disabled={deleteMutation.isPending}
                                   title="Remover"
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                             </div>
                           )}
                         </div>
 
-                        {/* Informações do Aluno */}
-                        <div className="space-y-3">
-                          {/* Status e Curso */}
-                          <div className="flex items-center justify-between">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getSituacaoColor(aluno.situacao)}`}>
+                        {/* Badges e Informações Compactas */}
+                        <div className="space-y-2">
+                          {/* Badges principais */}
+                          <div className="flex flex-wrap gap-1.5 items-center">
+                            <Badge 
+                              variant={aluno.situacao === 'ATIVO' ? 'default' : 'secondary'}
+                              className={`text-xs ${
+                                aluno.situacao === 'ATIVO' ? 'bg-green-100 text-green-800 border-green-200' :
+                                aluno.situacao === 'TRANCADO' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                                aluno.situacao === 'CONCLUIDO' ? 'bg-blue-100 text-blue-800 border-blue-200' :
+                                'bg-red-100 text-red-800 border-red-200'
+                              }`}
+                            >
                               {aluno.situacao}
-                            </span>
+                            </Badge>
+                            {aluno.curso?.nome && (
+                              <Badge variant="outline" className="text-xs">
+                                <BookOpen className="h-3 w-3 mr-1" />
+                                {aluno.curso.nome.length > 20 ? `${aluno.curso.nome.substring(0, 20)}...` : aluno.curso.nome}
+                              </Badge>
+                            )}
+                            {aluno.periodo && (
+                              <Badge variant="outline" className="text-xs">
+                                <Layers3 className="h-3 w-3 mr-1" />
+                                {aluno.periodo.nome || `P${aluno.periodo.numero}`}
+                              </Badge>
+                            )}
                             {aluno.coeficienteAcad && (
-                              <div className="flex items-center space-x-1">
-                                <Award className="h-4 w-4 text-yellow-600" />
-                                <span className="text-sm font-medium text-gray-700">
-                                  {parseFloat(aluno.coeficienteAcad?.toString() || '0').toFixed(1)}
-                                </span>
-                              </div>
+                              <Badge variant="outline" className="text-xs">
+                                <Award className="h-3 w-3 mr-1" />
+                                CR: {parseFloat(aluno.coeficienteAcad.toString()).toFixed(1)}
+                              </Badge>
                             )}
                           </div>
 
-                          {/* Curso */}
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <BookOpen className="h-4 w-4" />
-                            <span className="truncate">
-                              {aluno.curso?.nome || 'Curso não informado'}
+                          {/* Informações adicionais em linha */}
+                          <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {aluno.anoIngresso}
                             </span>
-                          </div>
-
-                          {/* Período */}
-                          {aluno.periodo && (
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <Layers3 className="h-4 w-4" />
-                              <span className="truncate">
-                                {aluno.periodo.nome || `Período ${aluno.periodo.numero}`}
+                            {aluno.pessoa?.email && (
+                              <span className="flex items-center gap-1 truncate max-w-[140px]">
+                                <Mail className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{aluno.pessoa.email}</span>
                               </span>
-                            </div>
-                          )}
-
-                          {/* Contato */}
-                          {aluno.pessoa?.email && (
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <Mail className="h-4 w-4" />
-                              <span className="truncate">{aluno.pessoa.email}</span>
-                            </div>
-                          )}
-
-                          {aluno.pessoa?.telefone && (
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <Phone className="h-4 w-4" />
-                              <span>{aluno.pessoa.telefone}</span>
-                            </div>
-                          )}
-
-                          {/* Ano de Ingresso */}
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <Calendar className="h-4 w-4" />
-                            <span>Ingresso: {aluno.anoIngresso}</span>
+                            )}
+                            {aluno.pessoa?.telefone && (
+                              <span className="flex items-center gap-1">
+                                <Phone className="h-3 w-3" />
+                                {aluno.pessoa.telefone}
+                              </span>
+                            )}
                           </div>
 
-                          {/* Igreja */}
+                          {/* Igreja se houver */}
                           {aluno.igreja && (
-                            <div className="flex items-center space-x-2 text-sm text-gray-600">
-                              <MapPin className="h-4 w-4" />
+                            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                              <MapPin className="h-3 w-3" />
                               <span className="truncate">{aluno.igreja}</span>
                             </div>
                           )}

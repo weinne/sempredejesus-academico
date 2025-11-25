@@ -38,28 +38,28 @@ export function DataList<T>({ items, columns, viewMode, cardRender, emptyState, 
       <div className="overflow-x-auto -mx-4 sm:mx-0">
         <div className="inline-block min-w-full align-middle">
           <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 sm:rounded-lg">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  {columns.map((col) => (
-                    <th key={String(col.key)} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {col.header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {items.map((row, idx) => (
-                  <tr key={idx}>
-                    {columns.map((col) => (
-                      <td key={String(col.key)} className={"px-4 py-2 whitespace-nowrap " + (col.className || '')}>
-                        {col.render ? col.render(row) : (row as any)[col.key]}
-                      </td>
-                    ))}
-                  </tr>
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              {columns.map((col) => (
+                <th key={String(col.key)} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {col.header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {items.map((row, idx) => (
+              <tr key={idx}>
+                {columns.map((col) => (
+                  <td key={String(col.key)} className={"px-4 py-2 whitespace-nowrap " + (col.className || '')}>
+                    {col.render ? col.render(row) : (row as any)[col.key]}
+                  </td>
                 ))}
-              </tbody>
-            </table>
+              </tr>
+            ))}
+          </tbody>
+        </table>
           </div>
         </div>
       </div>

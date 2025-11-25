@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
@@ -23,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
+import CrudToolbar from '@/components/crud/crud-toolbar';
 import { 
   ArrowLeft, 
   Plus, 
@@ -251,7 +251,7 @@ export default function TurmasPage() {
   const filteredTurmas = professorFilteredTurmas.filter((turma) =>
     (turma.disciplina?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (turma.disciplina?.codigo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (turma.professor?.pessoa?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (turma.professor?.pessoa?.nomeCompleto || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (turma.sala || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (turma.horario || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -300,9 +300,21 @@ export default function TurmasPage() {
     );
   }
 
-  const [viewMode, setViewMode] = useState<'table' | 'card'>(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'card' : 'table'));
+  // Automaticamente usar cards em telas menores para evitar barra de rolagem lateral
+  const [viewMode, setViewMode] = useState<'table' | 'card'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'card' : 'table'
+  );
+
   useEffect(() => {
-    const onResize = () => setViewMode(window.innerWidth < 768 ? 'card' : 'table');
+    const onResize = () => {
+      // Em telas menores que 1024px, usar cards automaticamente
+      if (window.innerWidth < 1024) {
+        setViewMode('card');
+      } else {
+        // Só permitir tabela em telas grandes (>= 1024px)
+        setViewMode('table');
+      }
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -312,31 +324,38 @@ export default function TurmasPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">
-          {/* Filtros */}
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-slate-800">Filtros e Busca</h2>
-                <p className="text-sm text-slate-500">Encontre turmas por disciplina, professor, sala ou horário</p>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm text-slate-600">Buscar</label>
-                  <Input
-                    placeholder="Busque por disciplina, professor, sala ou horário..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-96"
-                  />
-                </div>
-                <div className="flex items-end gap-2">
-                  <Button onClick={() => setSearchTerm('')}>
-                    Limpar filtros
+          <CrudToolbar
+            search={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setPage(1);
+            }}
+            searchPlaceholder="Busque por disciplina, professor, sala ou horário..."
+            viewMode={viewMode}
+            onViewModeChange={(mode) => {
+              // Só permitir mudar manualmente em telas grandes (>= 1024px)
+              if (window.innerWidth >= 1024) {
+                setViewMode(mode);
+              }
+            }}
+            filtersSlot={
+              <div className="flex flex-wrap gap-2 items-center">
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setPage(1);
+                    }}
+                    className="h-9 text-xs sm:text-sm"
+                  >
+                    Limpar
                   </Button>
-                </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            }
+          />
 
           <Card>
             <CardHeader>
@@ -355,7 +374,7 @@ export default function TurmasPage() {
                 isLoading={isLoading}
                 columns={[
                   { key: 'disciplina', header: 'Disciplina', render: (t: any) => t?.disciplina?.nome || 'N/A' },
-                  { key: 'professor', header: 'Professor', render: (t: any) => t?.professor?.pessoa?.nome || 'N/A' },
+                  { key: 'professor', header: 'Professor', render: (t: any) => t?.professor?.pessoa?.nomeCompleto || 'N/A' },
                   {
                     key: 'periodo',
                     header: 'Período (disciplina)',
@@ -412,8 +431,17 @@ export default function TurmasPage() {
                             <Calendar className="h-5 w-5 text-purple-600" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-lg text-gray-900 leading-tight">{turma.disciplina?.codigo || 'N/A'}</h3>
-                            <p className="text-sm text-gray-500">{turma.secao ? `Seção ${turma.secao}` : 'Turma'}</p>
+                            <h3 className="font-semibold text-lg text-gray-900 leading-tight">
+                              {turma.disciplina?.nome || 'Disciplina não informada'}
+                            </h3>
+                            {turma.disciplina?.codigo && (
+                              <p className="text-sm text-gray-500">{turma.disciplina.codigo}</p>
+                            )}
+                            {turma.secao && (
+                              <Badge variant="secondary" className="text-xs mt-1">
+                                Seção {turma.secao}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <div className="flex space-x-1">
@@ -441,34 +469,36 @@ export default function TurmasPage() {
                           )}
                         </div>
                       </div>
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <BookOpen className="h-4 w-4" />
-                          <span className="truncate">{turma.disciplina?.nome || 'Disciplina não informada'}</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <User className="h-4 w-4" />
-                          <span className="truncate">{turma.professor?.pessoa?.nome || 'Professor não informado'}</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Calendar className="h-4 w-4" />
-                          <span>Período: {getDisciplinaPeriodoLabel(turma.disciplina)}</span>
-                        </div>
-                        {turma.sala && (
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <MapPin className="h-4 w-4" />
-                            <span>{turma.sala}</span>
+                      <div className="space-y-3 text-sm text-gray-600">
+                        <div className="grid grid-cols-2 gap-3">
+                          {turma.professor?.pessoa?.nomeCompleto && (
+                            <div className="flex items-center space-x-2">
+                              <User className="h-4 w-4" />
+                              <span className="truncate">{turma.professor.pessoa.nomeCompleto}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center space-x-2">
+                            <Calendar className="h-4 w-4" />
+                            <span>{getDisciplinaPeriodoLabel(turma.disciplina)}</span>
                           </div>
-                        )}
-                        {turma.horario && (
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
-                            <Clock className="h-4 w-4" />
-                            <span>{turma.horario}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center space-x-2 text-sm text-gray-600">
-                          <Users className="h-4 w-4" />
-                          <span>{turma.totalInscritos || 0} alunos inscritos</span>
+                          {turma.sala && (
+                            <div className="flex items-center space-x-2">
+                              <MapPin className="h-4 w-4" />
+                              <span>{turma.sala}</span>
+                            </div>
+                          )}
+                          {turma.horario && (
+                            <div className="flex items-center space-x-2">
+                              <Clock className="h-4 w-4" />
+                              <span>{turma.horario}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Badge variant="secondary" className="text-xs">
+                            <Users className="h-3 w-3 mr-1" />
+                            {turma.totalInscritos || 0} alunos
+                          </Badge>
                         </div>
                       </div>
                     </CardContent>

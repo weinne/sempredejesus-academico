@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
+import { HorarioSelector } from '@/components/forms/horario-selector';
 import { apiService } from '@/services/api';
 import { CreateTurma } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +40,7 @@ export default function TurmaEditPage() {
   const [selectedCursoId, setSelectedCursoId] = React.useState<number | ''>('');
   const [selectedDisciplinaId, setSelectedDisciplinaId] = React.useState<number | ''>('');
   const [selectedCoorteId, setSelectedCoorteId] = React.useState<number | ''>('');
+  const [horario, setHorario] = React.useState<string>('');
   const [overrideFields, setOverrideFields] = React.useState<OverrideFieldsState>({});
 
   const { data: turma, isLoading } = useQuery({
@@ -52,6 +54,7 @@ export default function TurmaEditPage() {
     setSelectedCursoId(turma.disciplina?.cursoId ?? '');
     setSelectedDisciplinaId(turma.disciplinaId ?? '');
     setSelectedCoorteId(turma.coorteId ?? '');
+    setHorario(turma.horario || '');
     setOverrideFields({
       ementa: turma.ementa ?? null,
       bibliografia: turma.bibliografia ?? null,
@@ -186,7 +189,7 @@ export default function TurmaEditPage() {
                   professorId: String(fd.get('professorId') || ''),
                   coorteId: fd.get('coorteId') ? Number(fd.get('coorteId')) : undefined,
                   sala: String(fd.get('sala') || ''),
-                  horario: String(fd.get('horario') || ''),
+                  horario: horario || '',
                   secao: String(fd.get('secao') || ''),
                   ementa: overrideFields.ementa ?? null,
                   bibliografia: overrideFields.bibliografia ?? null,
@@ -242,11 +245,11 @@ export default function TurmaEditPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="">Selecione um professor...</option>
-                    {professores.map((p: any) => (
-                      <option key={p.matricula} value={p.matricula}>
-                        {p.pessoa?.nome || 'Nome não informado'}
-                      </option>
-                    ))}
+                      {professores.map((p: any) => (
+                        <option key={p.matricula} value={p.matricula}>
+                          {p.pessoa?.nomeCompleto || 'Nome não informado'}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
@@ -276,9 +279,12 @@ export default function TurmaEditPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Sala</label>
                   <Input name="sala" defaultValue={turma.sala || ''} placeholder="Ex: Sala 101, Lab A" />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Horário</label>
-                  <Input name="horario" defaultValue={turma.horario || ''} placeholder="Ex: Seg 08:00-10:00" />
+                <div className="md:col-span-2">
+                  <HorarioSelector
+                    value={horario}
+                    onChange={setHorario}
+                    name="horario"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Seção</label>

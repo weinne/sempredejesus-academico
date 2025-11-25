@@ -240,52 +240,13 @@ export default function PeriodosPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6 overflow-x-hidden">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1 min-w-0">
-                <h2 className="text-lg font-semibold text-slate-800">Escolha um curso para explorar os periodos</h2>
-                <p className="text-sm text-slate-500">Os filtros de turno e curriculo serao habilitados apos selecionar o curso desejado.</p>
-              </div>
-              <div className="flex w-full md:w-auto items-center gap-2 shrink-0">
-                <select
-                  value={cursoFiltro ? String(cursoFiltro) : ''}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setCursoFiltro(value ? Number(value) : '');
-                    setTurnoFiltro('');
-                    setCurriculoFiltro('');
-                    setSearchTerm('');
-                    setPage(1);
-                  }}
-                  disabled={isLoadingCursos}
-                  className="w-full md:w-64 rounded-md border px-3 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <option value="">
-                    {isLoadingCursos 
-                      ? 'Carregando cursos...' 
-                      : cursos.length === 0 
-                        ? 'Nenhum curso disponível' 
-                        : 'Selecione um curso...'}
-                  </option>
-                  {cursos.map((curso: Curso) => (
-                    <option key={curso.id} value={curso.id}>
-                      {curso.nome}
-                    </option>
-                  ))}
-                </select>
-                {canEdit && (
-                  <Button variant="outline" onClick={() => navigate('/cursos/wizard')} title="Abrir wizard de cursos">
-                    <Wand2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              {cursosError && (
-                <p className="text-sm text-red-600 mt-2">
-                  Erro ao carregar cursos. Por favor, recarregue a página.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+          {cursosError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-3">
+              <p className="text-sm text-red-600">
+                Erro ao carregar cursos. Por favor, recarregue a página.
+              </p>
+            </div>
+          )}
           <CrudToolbar
             search={searchTerm}
             onSearchChange={(value) => {
@@ -301,37 +262,95 @@ export default function PeriodosPage() {
               }
             }}
             filtersSlot={
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap gap-2 items-center">
                 <select
-                  value={turnoFiltro ? String(turnoFiltro) : ''}
+                  value={cursoFiltro ? String(cursoFiltro) : ''}
                   onChange={(event) => {
                     const value = event.target.value;
-                    setTurnoFiltro(value ? Number(value) : '');
+                    setCursoFiltro(value ? Number(value) : '');
+                    setTurnoFiltro('');
+                    setCurriculoFiltro('');
+                    setSearchTerm('');
                     setPage(1);
                   }}
-                  className="px-3 py-2 border rounded-md text-sm"
-                  disabled={!hasActiveCurso || turnosDisponiveis.length === 0}
+                  disabled={isLoadingCursos}
+                  className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <option value="">{turnosDisponiveis.length ? 'Todos os turnos' : 'Selecione um curso para ver os turnos'}</option>
-                  {turnosDisponiveis.map((turno: Turno) => (
-                    <option key={turno.id} value={turno.id}>{turno.nome}</option>
+                  <option value="">
+                    {isLoadingCursos 
+                      ? 'Carregando...' 
+                      : cursos.length === 0 
+                        ? 'Nenhum curso' 
+                        : 'Todos os cursos'}
+                  </option>
+                  {cursos.map((curso: Curso) => (
+                    <option key={curso.id} value={curso.id}>
+                      {curso.nome}
+                    </option>
                   ))}
                 </select>
-                <select
-                  value={curriculoFiltro ? String(curriculoFiltro) : ''}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setCurriculoFiltro(value ? Number(value) : '');
-                    setPage(1);
-                  }}
-                  className="px-3 py-2 border rounded-md text-sm"
-                  disabled={!hasActiveCurso || curriculosDisponiveis.length === 0}
-                >
-                  <option value="">{curriculosDisponiveis.length ? 'Todos os curriculos' : 'Selecione um curso para ver os curriculos'}</option>
-                  {curriculosDisponiveis.map((curriculo: Curriculo) => (
-                    <option key={curriculo.id} value={curriculo.id}>{curriculo.versao}</option>
-                  ))}
-                </select>
+                {hasActiveCurso && (
+                  <>
+                    <select
+                      value={turnoFiltro ? String(turnoFiltro) : ''}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setTurnoFiltro(value ? Number(value) : '');
+                        setPage(1);
+                      }}
+                      className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9"
+                      disabled={turnosDisponiveis.length === 0}
+                    >
+                      <option value="">Todos os turnos</option>
+                      {turnosDisponiveis.map((turno: Turno) => (
+                        <option key={turno.id} value={turno.id}>{turno.nome}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={curriculoFiltro ? String(curriculoFiltro) : ''}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setCurriculoFiltro(value ? Number(value) : '');
+                        setPage(1);
+                      }}
+                      className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9"
+                      disabled={curriculosDisponiveis.length === 0}
+                    >
+                      <option value="">Todos os curriculos</option>
+                      {curriculosDisponiveis.map((curriculo: Curriculo) => (
+                        <option key={curriculo.id} value={curriculo.id}>{curriculo.versao}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+                {canEdit && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate('/cursos/wizard')} 
+                    title="Abrir wizard de cursos"
+                    className="h-9 text-xs sm:text-sm"
+                  >
+                    <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
+                    <span className="hidden sm:inline">Wizard</span>
+                  </Button>
+                )}
+                {(cursoFiltro || turnoFiltro || curriculoFiltro || searchTerm) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setCursoFiltro('');
+                      setTurnoFiltro('');
+                      setCurriculoFiltro('');
+                      setSearchTerm('');
+                      setPage(1);
+                    }}
+                    className="h-9 text-xs sm:text-sm"
+                  >
+                    Limpar
+                  </Button>
+                )}
               </div>
             }
           />

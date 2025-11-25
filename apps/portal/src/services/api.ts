@@ -758,7 +758,7 @@ class ApiService {
   }
 
   // === Sprint 8: Aulas & Frequência ===
-  async getAulas(params?: { turmaId?: number; disciplinaId?: number; professorId?: string; page?: number; limit?: number; sortBy?: string; sortOrder?: 'asc'|'desc' }) {
+  async getAulas(params?: { turmaId?: number; disciplinaId?: number; professorId?: string; dataInicio?: string; dataFim?: string; page?: number; limit?: number; sortBy?: string; sortOrder?: 'asc'|'desc' }) {
     const response = await this.api.get(`/api/aulas`, { params });
     // Support both array and { data, pagination }
     const payload = response.data;

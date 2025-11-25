@@ -21,13 +21,11 @@ import { Professor, CreateProfessorWithUser, Pessoa, Role } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePageHero } from '@/hooks/use-page-hero';
-import { StatCard } from '@/components/ui/stats-card';
+import CrudToolbar from '@/components/crud/crud-toolbar';
 import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 import { 
-  ArrowLeft, 
   Plus, 
-  Search, 
   Edit, 
   Trash2, 
   User,
@@ -35,19 +33,6 @@ import {
   Phone,
   Calendar,
   GraduationCap,
-  BookOpen,
-  Award,
-  Briefcase,
-  Eye,
-  EyeOff,
-  List,
-  LayoutGrid,
-  ArrowRight,
-  Users,
-  TrendingUp,
-  CheckCircle,
-  XCircle,
-  Clock,
   AlertTriangle
 } from 'lucide-react';
 import { z } from 'zod';
@@ -360,9 +345,21 @@ export default function ProfessoresPage() {
     );
   }
 
-  const [viewMode, setViewMode] = useState<'table' | 'card'>(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'card' : 'table'));
+  // Automaticamente usar cards em telas menores para evitar barra de rolagem lateral
+  const [viewMode, setViewMode] = useState<'table' | 'card'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'card' : 'table'
+  );
+
   useEffect(() => {
-    const onResize = () => setViewMode(window.innerWidth < 768 ? 'card' : 'table');
+    const onResize = () => {
+      // Em telas menores que 1024px, usar cards automaticamente
+      if (window.innerWidth < 1024) {
+        setViewMode('card');
+      } else {
+        // Só permitir tabela em telas grandes (>= 1024px)
+        setViewMode('table');
+      }
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -372,67 +369,50 @@ export default function ProfessoresPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">
-          {/* Filtros */}
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-slate-800">Filtros e Busca</h2>
-                <p className="text-sm text-slate-500">Encontre professores por situação, nome ou informações acadêmicas</p>
-              </div>
-              <div className="flex flex-wrap gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm text-slate-600">Situação</label>
-                  <select className="border rounded-md px-3 py-2 w-48 text-sm" value={situacaoFiltro} onChange={(e)=>setSituacaoFiltro((e.target.value||'') as any)}>
-                    <option value="">Todas</option>
-                    <option value="ATIVO">ATIVO</option>
-                    <option value="INATIVO">INATIVO</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm text-slate-600">Buscar</label>
-                  <Input
-                    placeholder="Matrícula, nome, email, situação ou formação"
-                    value={searchTerm}
-                    onChange={(e)=>setSearchTerm(e.target.value)}
-                    className="w-96"
-                  />
-                </div>
-                <div className="flex items-end gap-2">
-                  <Button onClick={()=>{ setSituacaoFiltro(''); setSearchTerm(''); setPage(1); }}>
-                    Limpar filtros
+          <CrudToolbar
+            search={searchTerm}
+            onSearchChange={(value) => {
+              setSearchTerm(value);
+              setPage(1);
+            }}
+            searchPlaceholder="Buscar por matrícula, nome, email ou formação..."
+            viewMode={viewMode}
+            onViewModeChange={(mode) => {
+              if (window.innerWidth >= 1024) {
+                setViewMode(mode);
+              }
+            }}
+            filtersSlot={
+              <div className="flex flex-wrap gap-2 items-center">
+                <select
+                  className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9"
+                  value={situacaoFiltro}
+                  onChange={(e) => {
+                    setSituacaoFiltro((e.target.value || '') as any);
+                    setPage(1);
+                  }}
+                >
+                  <option value="">Todas situações</option>
+                  <option value="ATIVO">ATIVO</option>
+                  <option value="INATIVO">INATIVO</option>
+                </select>
+                {(situacaoFiltro || searchTerm) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSituacaoFiltro('');
+                      setSearchTerm('');
+                      setPage(1);
+                    }}
+                    className="h-9 text-xs sm:text-sm"
+                  >
+                    Limpar
                   </Button>
-                </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Estatísticas */}
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              title="Total de Professores"
-              value={professores.length}
-              icon={Users}
-              iconColor="text-blue-600"
-            />
-            <StatCard
-              title="Professores Ativos"
-              value={professores.filter(p => p.situacao === 'ATIVO').length}
-              icon={CheckCircle}
-              iconColor="text-green-600"
-            />
-            <StatCard
-              title="Inativos"
-              value={professores.filter(p => p.situacao === 'INATIVO').length}
-              icon={XCircle}
-              iconColor="text-red-600"
-            />
-            <StatCard
-              title="Com Formação"
-              value={professores.filter(p => p.formacaoAcad).length}
-              icon={Award}
-              iconColor="text-purple-600"
-            />
-          </div>
+            }
+          />
 
           <Card>
             <CardHeader>
@@ -474,45 +454,86 @@ export default function ProfessoresPage() {
                   ) },
                 ]}
                 cardRender={(professor: any) => (
-                  <Card className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-green-100 rounded-full">
+                  <Card className="hover:shadow-md transition-shadow border-0 shadow-sm">
+                    <CardContent className="p-4">
+                      {/* Header do Card */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3 min-w-0 flex-1">
+                          <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
                             <User className="h-5 w-5 text-green-600" />
                           </div>
-                          <div>
-                            <h3 className="font-semibold text-lg text-gray-900">{professor.pessoa?.nome || 'Nome não informado'}</h3>
-                            <p className="text-sm text-gray-500">Mat: {professor.matricula}</p>
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-base text-slate-800 truncate">
+                              {professor.pessoa?.nome || 'Nome não informado'}
+                            </h3>
+                            <p className="text-xs text-slate-500">Mat: {professor.matricula}</p>
                           </div>
                         </div>
                         {canEdit && (
-                          <div className="flex space-x-1">
-                            <Button variant="ghost" size="sm" onClick={() => handleEdit(professor)} title="Editar">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(professor.matricula)} disabled={deleteMutation.isPending} title="Remover">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                          <div className="flex space-x-1 shrink-0 ml-2">
+                            <Link to={`/professores/edit/${professor.matricula}`}>
+                              <Button variant="ghost" size="sm" title="Editar" className="h-7 w-7 p-0">
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                            </Link>
+                            {canDelete && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDelete(professor)}
+                                disabled={deleteMutation.isPending}
+                                title="Remover"
+                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
-                      <div className="space-y-3 text-sm text-gray-600">
-                        {professor.formacaoAcad && (
-                          <div className="flex items-center space-x-2">
-                            <GraduationCap className="h-4 w-4" />
-                            <span className="truncate">{professor.formacaoAcad}</span>
-                          </div>
-                        )}
-                        {professor.pessoa?.email && (
-                          <div className="flex items-center space-x-2">
-                            <Mail className="h-4 w-4" />
-                            <span className="truncate">{professor.pessoa.email}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="h-4 w-4" />
-                          <span>Início: {new Date(professor.dataInicio).toLocaleDateString('pt-BR')}</span>
+
+                      {/* Badges e Informações Compactas */}
+                      <div className="space-y-2">
+                        {/* Badges principais */}
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <Badge 
+                            variant={professor.situacao === 'ATIVO' ? 'default' : 'secondary'}
+                            className={`text-xs ${
+                              professor.situacao === 'ATIVO' 
+                                ? 'bg-green-100 text-green-800 border-green-200' 
+                                : 'bg-red-100 text-red-800 border-red-200'
+                            }`}
+                          >
+                            {professor.situacao}
+                          </Badge>
+                          {professor.formacaoAcad && (
+                            <Badge variant="outline" className="text-xs">
+                              <GraduationCap className="h-3 w-3 mr-1" />
+                              {professor.formacaoAcad.length > 25 
+                                ? `${professor.formacaoAcad.substring(0, 25)}...` 
+                                : professor.formacaoAcad}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Informações adicionais em linha */}
+                        <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+                          <span className="flex items-center gap-1">
+                            <Calendar className="h-3 w-3" />
+                            Início: {new Date(professor.dataInicio).toLocaleDateString('pt-BR')}
+                          </span>
+                          {professor.pessoa?.email && (
+                            <span className="flex items-center gap-1 truncate max-w-[180px]">
+                              <Mail className="h-3 w-3 shrink-0" />
+                              <span className="truncate">{professor.pessoa.email}</span>
+                            </span>
+                          )}
+                          {professor.pessoa?.telefone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {professor.pessoa.telefone}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </CardContent>

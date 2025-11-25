@@ -261,47 +261,6 @@ export default function DisciplinasPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="space-y-6">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold text-slate-800">
-                  {hasActiveCourse ? 'Gerenciar disciplinas do curso' : 'Todas as disciplinas'}
-                </h2>
-                <p className="text-sm text-slate-500">
-                  {hasActiveCourse 
-                    ? 'As listagens e o formulário serão carregados de acordo com o curso escolhido.'
-                    : 'Exibindo todas as disciplinas disponíveis. Selecione um curso para filtrar.'}
-                </p>
-              </div>
-              <div className="flex w-full md:w-auto items-center gap-2">
-                <select
-                  value={activeCursoId ? String(activeCursoId) : ''}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    setActiveCursoId(value ? Number(value) : '');
-                    setPeriodoFiltro('');
-                    setStatusFiltro('all');
-                    setSearchTerm('');
-                    setPage(1);
-                  }}
-                  className="w-full md:w-64 rounded-md border px-3 py-2 text-sm"
-                >
-                  <option value="">Todas as disciplinas</option>
-                  {cursos.map((curso: Curso) => (
-                    <option key={curso.id} value={curso.id}>
-                      {curso.nome}
-                    </option>
-                  ))}
-                </select>
-                {canEdit && (
-                  <Button variant="outline" onClick={() => navigate('/cursos/wizard')} title="Abrir wizard de cursos">
-                    <Wand2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
           <CrudToolbar
             search={searchTerm}
             onSearchChange={(value) => {
@@ -317,7 +276,26 @@ export default function DisciplinasPage() {
               }
             }}
             filtersSlot={
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 items-center">
+                <select
+                  value={activeCursoId ? String(activeCursoId) : ''}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setActiveCursoId(value ? Number(value) : '');
+                    setPeriodoFiltro('');
+                    setStatusFiltro('all');
+                    setSearchTerm('');
+                    setPage(1);
+                  }}
+                  className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9"
+                >
+                  <option value="">Todas as disciplinas</option>
+                  {cursos.map((curso: Curso) => (
+                    <option key={curso.id} value={curso.id}>
+                      {curso.nome}
+                    </option>
+                  ))}
+                </select>
                 {hasActiveCourse && (
                   <select
                     value={periodoFiltro ? String(periodoFiltro) : ''}
@@ -326,7 +304,7 @@ export default function DisciplinasPage() {
                       setPeriodoFiltro(value ? Number(value) : '');
                       setPage(1);
                     }}
-                    className="px-3 py-2 border rounded-md text-sm"
+                    className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9"
                     disabled={!periodos.length}
                   >
                     <option value="">Todos os periodos</option>
@@ -343,12 +321,40 @@ export default function DisciplinasPage() {
                     setStatusFiltro(event.target.value as 'all' | 'active' | 'inactive');
                     setPage(1);
                   }}
-                  className="px-3 py-2 border rounded-md text-sm"
+                  className="border rounded-md px-2.5 py-1.5 text-xs sm:text-sm h-9"
                 >
                   <option value="all">Todos os status</option>
                   <option value="active">Ativas</option>
                   <option value="inactive">Inativas</option>
                 </select>
+                {canEdit && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate('/cursos/wizard')} 
+                    title="Abrir wizard de cursos"
+                    className="h-9 text-xs sm:text-sm"
+                  >
+                    <Wand2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1.5" />
+                    <span className="hidden sm:inline">Wizard</span>
+                  </Button>
+                )}
+                {(activeCursoId || periodoFiltro || statusFiltro !== 'all' || searchTerm) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setActiveCursoId('');
+                      setPeriodoFiltro('');
+                      setStatusFiltro('all');
+                      setSearchTerm('');
+                      setPage(1);
+                    }}
+                    className="h-9 text-xs sm:text-sm"
+                  >
+                    Limpar
+                  </Button>
+                )}
               </div>
             }
           />

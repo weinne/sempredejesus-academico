@@ -33,9 +33,26 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [showPessoaModal, setShowPessoaModal] = useState(false);
-  const [viewMode, setViewMode] = useState<'table' | 'card'>(() => (typeof window !== 'undefined' && window.innerWidth < 768 ? 'card' : 'table'));
+  // Automaticamente usar cards em telas menores para evitar barra de rolagem lateral
+  const [viewMode, setViewMode] = useState<'table' | 'card'>(() =>
+    typeof window !== 'undefined' && window.innerWidth < 1024 ? 'card' : 'table'
+  );
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const onResize = () => {
+      // Em telas menores que 1024px, usar cards automaticamente
+      if (window.innerWidth < 1024) {
+        setViewMode('card');
+      } else {
+        // Só permitir tabela em telas grandes (>= 1024px)
+        setViewMode('table');
+      }
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const canEdit = hasRole([Role.ADMIN]);
 
@@ -63,7 +80,15 @@ export default function UsersPage() {
   }
 
   useEffect(() => {
-    const onResize = () => setViewMode(window.innerWidth < 768 ? 'card' : 'table');
+    const onResize = () => {
+      // Em telas menores que 1024px, usar cards automaticamente
+      if (window.innerWidth < 1024) {
+        setViewMode('card');
+      } else {
+        // Só permitir tabela em telas grandes (>= 1024px)
+        setViewMode('table');
+      }
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);

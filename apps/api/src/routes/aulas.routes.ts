@@ -54,6 +54,8 @@ router.get(
     const turmaId = req.query.turmaId ? Number(req.query.turmaId) : undefined;
     const disciplinaId = req.query.disciplinaId ? Number(req.query.disciplinaId) : undefined;
     const professorId = req.query.professorId ? String(req.query.professorId) : undefined;
+    const dataInicio = req.query.dataInicio ? String(req.query.dataInicio) : undefined;
+    const dataFim = req.query.dataFim ? String(req.query.dataFim) : undefined;
 
     if (
       (!turmaId || Number.isNaN(turmaId)) &&
@@ -63,24 +65,47 @@ router.get(
       throw createError('Informe turmaId, disciplinaId ou professorId', 400);
     }
 
-    const query = turmaId && !Number.isNaN(turmaId)
-      ? db.select({ aula: aulas }).from(aulas).where(eq(aulas.turmaId, turmaId)).orderBy(desc(aulas.data))
-      : (() => {
-          const baseQuery = db.select({ aula: aulas }).from(aulas).leftJoin(turmas, eq(turmas.id, aulas.turmaId)).orderBy(desc(aulas.data));
-          const conditions = [] as any[];
-          if (disciplinaId && !Number.isNaN(disciplinaId)) {
-            conditions.push(eq(turmas.disciplinaId, disciplinaId));
-          }
-          if (professorId && professorId.trim().length > 0) {
-            conditions.push(eq(turmas.professorId, professorId));
-          }
-          return conditions.length === 1 
-            ? baseQuery.where(conditions[0])
-            : conditions.length > 1
-            ? baseQuery.where(and(...conditions))
-            : baseQuery;
-        })();
+    const buildQuery = () => {
+      const conditions = [] as any[];
+      
+      // Date range filter
+      if (dataInicio && dataFim) {
+        conditions.push(and(gte(aulas.data, dataInicio), lte(aulas.data, dataFim)));
+      } else if (dataInicio) {
+        conditions.push(gte(aulas.data, dataInicio));
+      } else if (dataFim) {
+        conditions.push(lte(aulas.data, dataFim));
+      }
 
+      if (turmaId && !Number.isNaN(turmaId)) {
+        if (conditions.length > 0) {
+          return db.select({ aula: aulas }).from(aulas).where(and(eq(aulas.turmaId, turmaId), ...conditions)).orderBy(desc(aulas.data));
+        }
+        return db.select({ aula: aulas }).from(aulas).where(eq(aulas.turmaId, turmaId)).orderBy(desc(aulas.data));
+      }
+
+      const baseQuery = db.select({ aula: aulas }).from(aulas).leftJoin(turmas, eq(turmas.id, aulas.turmaId)).orderBy(desc(aulas.data));
+      const joinConditions = [] as any[];
+      
+      if (disciplinaId && !Number.isNaN(disciplinaId)) {
+        joinConditions.push(eq(turmas.disciplinaId, disciplinaId));
+      }
+      if (professorId && professorId.trim().length > 0) {
+        joinConditions.push(eq(turmas.professorId, professorId));
+      }
+
+      const allConditions = [...joinConditions, ...conditions];
+      
+      if (allConditions.length === 0) {
+        return baseQuery;
+      }
+      if (allConditions.length === 1) {
+        return baseQuery.where(allConditions[0]);
+      }
+      return baseQuery.where(and(...allConditions));
+    };
+
+    const query = buildQuery();
     const rows = await query;
     const data = rows.map((row: any) => row.aula ?? row);
 
