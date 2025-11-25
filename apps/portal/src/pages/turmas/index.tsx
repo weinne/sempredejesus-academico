@@ -51,13 +51,23 @@ const turmaSchema = z.object({
   disciplinaId: z.number().min(1, 'Selecione uma disciplina'),
   professorId: z.string().min(1, 'Selecione um professor'),
   sala: z.string().max(20).optional(),
-  horario: z.string().max(50).optional(),
   secao: z.string().max(6).optional(),
 });
 
 type TurmaFormData = z.infer<typeof turmaSchema>;
 
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
 export default function TurmasPage() {
+  const formatHorario = (t: any) => {
+    if (t.diaSemana === null || t.diaSemana === undefined) return '-';
+    const dia = DIAS_SEMANA[Number(t.diaSemana)];
+    const horario = t.horarioInicio && t.horarioFim 
+      ? `${t.horarioInicio.slice(0, 5)} - ${t.horarioFim.slice(0, 5)}`
+      : '';
+    return `${dia} ${horario}`.trim();
+  };
+
   const getDisciplinaPeriodoLabel = (disciplina?: Disciplina) => {
     if (!disciplina || !Array.isArray(disciplina.periodos) || disciplina.periodos.length === 0) {
       return 'N/A';
@@ -252,8 +262,7 @@ export default function TurmasPage() {
     (turma.disciplina?.nome || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (turma.disciplina?.codigo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (turma.professor?.pessoa?.nomeCompleto || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (turma.sala || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (turma.horario || '').toLowerCase().includes(searchTerm.toLowerCase())
+    (turma.sala || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Handle form submission
@@ -397,7 +406,7 @@ export default function TurmasPage() {
                   },
                   { key: 'coorte', header: 'Coorte', render: (t: any) => t?.coorte?.rotulo || '-' },
                   { key: 'sala', header: 'Sala', render: (t: any) => t?.sala || '-' },
-                  { key: 'horario', header: 'Horário', render: (t: any) => t?.horario || '-' },
+                  { key: 'horario', header: 'Horário', render: (t: any) => formatHorario(t) },
                   { key: 'inscritos', header: 'Inscritos', render: (t: any) => t?.totalInscritos || 0 },
                   { key: 'actions', header: 'Ações', render: (t: any) => (
                     <div className="flex items-center gap-1">
@@ -487,10 +496,10 @@ export default function TurmasPage() {
                               <span>{turma.sala}</span>
                             </div>
                           )}
-                          {turma.horario && (
+                          {(turma.diaSemana !== undefined || turma.horarioInicio) && (
                             <div className="flex items-center space-x-2">
                               <Clock className="h-4 w-4" />
-                              <span>{turma.horario}</span>
+                              <span>{formatHorario(turma)}</span>
                             </div>
                           )}
                         </div>

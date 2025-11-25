@@ -32,9 +32,7 @@ export default function PeriodoViewPage() {
     backTo: "/periodos",
     stats: periodo ? [
       { value: periodo.numero, label: 'Número' },
-      { value: periodo.curso?.nome || 'N/A', label: 'Curso' },
-      { value: periodo.dataInicio ? new Date(periodo.dataInicio).toLocaleDateString() : 'N/A', label: 'Início' },
-      { value: periodo.dataFim ? new Date(periodo.dataFim).toLocaleDateString() : 'N/A', label: 'Fim' }
+      { value: periodo.curso?.nome || 'N/A', label: 'Curso' }
     ] : [],
     actionLink: {
       href: '/periodos',
@@ -65,7 +63,7 @@ export default function PeriodoViewPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Estatísticas */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 mb-6">
+        <div className="grid gap-4 md:grid-cols-2 mb-6">
           <StatCard
             title="Número"
             value={periodo.numero}
@@ -77,18 +75,6 @@ export default function PeriodoViewPage() {
             value={periodo.curso?.nome || 'N/A'}
             icon={BookOpen}
             iconColor="text-green-600"
-          />
-          <StatCard
-            title="Início"
-            value={periodo.dataInicio ? new Date(periodo.dataInicio).toLocaleDateString() : 'N/A'}
-            icon={Calendar}
-            iconColor="text-purple-600"
-          />
-          <StatCard
-            title="Fim"
-            value={periodo.dataFim ? new Date(periodo.dataFim).toLocaleDateString() : 'N/A'}
-            icon={Clock}
-            iconColor="text-orange-600"
           />
         </div>
 

@@ -1,16 +1,18 @@
 import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, BookOpen, MapPin, FileText, Calendar, GraduationCap } from 'lucide-react';
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
-import { HorarioSelector } from '@/components/forms/horario-selector';
+import { DatePicker } from '@/components/ui/date-picker';
 import { apiService } from '@/services/api';
 import { CreateTurma } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
+import CrudHeader from '@/components/crud/crud-header';
+import { FormSection, ActionsBar } from '@/components/forms';
+import { cn } from '@/lib/utils';
 
 const OVERRIDE_KEYS = [
   'ementa',
@@ -40,7 +42,11 @@ export default function TurmaEditPage() {
   const [selectedCursoId, setSelectedCursoId] = React.useState<number | ''>('');
   const [selectedDisciplinaId, setSelectedDisciplinaId] = React.useState<number | ''>('');
   const [selectedCoorteId, setSelectedCoorteId] = React.useState<number | ''>('');
-  const [horario, setHorario] = React.useState<string>('');
+  const [diaSemana, setDiaSemana] = React.useState<string>('');
+  const [horarioInicio, setHorarioInicio] = React.useState<string>('');
+  const [horarioFim, setHorarioFim] = React.useState<string>('');
+  const [dataInicio, setDataInicio] = React.useState<Date | undefined>(undefined);
+  const [dataFim, setDataFim] = React.useState<Date | undefined>(undefined);
   const [overrideFields, setOverrideFields] = React.useState<OverrideFieldsState>({});
 
   const { data: turma, isLoading } = useQuery({
@@ -54,7 +60,11 @@ export default function TurmaEditPage() {
     setSelectedCursoId(turma.disciplina?.cursoId ?? '');
     setSelectedDisciplinaId(turma.disciplinaId ?? '');
     setSelectedCoorteId(turma.coorteId ?? '');
-    setHorario(turma.horario || '');
+    setDiaSemana(turma.diaSemana !== undefined && turma.diaSemana !== null ? String(turma.diaSemana) : '');
+    setHorarioInicio(turma.horarioInicio || '');
+    setHorarioFim(turma.horarioFim || '');
+    setDataInicio(turma.dataInicio ? new Date(turma.dataInicio) : undefined);
+    setDataFim(turma.dataFim ? new Date(turma.dataFim) : undefined);
     setOverrideFields({
       ementa: turma.ementa ?? null,
       bibliografia: turma.bibliografia ?? null,
@@ -138,6 +148,9 @@ export default function TurmaEditPage() {
       }),
   });
 
+  // Estilos comuns
+  const selectClass = "w-full h-11 px-3 py-2 border border-input bg-background rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-input text-sm";
+
   if (isLoading || !turma) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -147,38 +160,21 @@ export default function TurmaEditPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-4">
-              <Link to="/turmas" className="ml-2">
-                <Button variant="ghost" size="icon" title="Voltar">
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">Editar Turma</h1>
-                <nav className="flex items-center gap-2 text-sm text-slate-500 mt-1">
-                  <Link to="/turmas" className="hover:text-slate-700">
-                    Turmas
-                  </Link>
-                  <span>/</span>
-                  <span className="text-slate-900">{turma.disciplina?.codigo || turma.id}</span>
-                </nav>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      <CrudHeader
+        title="Editar Turma"
+        description="Atualize as informações da oferta"
+        backTo="/turmas"
+      />
 
       <main className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Dados da turma</CardTitle>
-            <CardDescription>Atualize as informações da oferta</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+          <div className="px-8 py-6 border-b border-slate-200">
+            <h1 className="text-2xl font-bold text-slate-900">Editar Turma</h1>
+            <p className="mt-1 text-sm text-slate-600">Atualize os dados da turma</p>
+          </div>
+
+          <div className="px-8 py-6">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -189,7 +185,11 @@ export default function TurmaEditPage() {
                   professorId: String(fd.get('professorId') || ''),
                   coorteId: fd.get('coorteId') ? Number(fd.get('coorteId')) : undefined,
                   sala: String(fd.get('sala') || ''),
-                  horario: horario || '',
+                  diaSemana: diaSemana ? Number(diaSemana) : undefined,
+                  horarioInicio: horarioInicio || undefined,
+                  horarioFim: horarioFim || undefined,
+                  dataInicio: dataInicio ? dataInicio.toISOString().split('T')[0] : undefined,
+                  dataFim: dataFim ? dataFim.toISOString().split('T')[0] : undefined,
                   secao: String(fd.get('secao') || ''),
                   ementa: overrideFields.ementa ?? null,
                   bibliografia: overrideFields.bibliografia ?? null,
@@ -200,161 +200,248 @@ export default function TurmaEditPage() {
               }}
               className="space-y-8"
             >
-              <section className="grid gap-4 md:grid-cols-2">
-                <div className="md:col-span-2 space-y-3">
-                  <label className="block text-sm font-medium text-gray-700">Curso e disciplina *</label>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <select
-                      name="cursoId"
-                      value={selectedCursoId === '' ? '' : selectedCursoId}
-                      onChange={(e) => setSelectedCursoId(e.target.value ? Number(e.target.value) : '')}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="">Selecione um curso...</option>
-                      {cursos.map((curso: any) => (
-                        <option key={curso.id} value={curso.id}>
-                          {curso.nome}
+              <FormSection
+                icon={BookOpen}
+                title="Identificação da Turma"
+                description="Selecione a disciplina e o responsável"
+                iconBgColor="bg-blue-100"
+                iconColor="text-blue-600"
+              >
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="md:col-span-2 grid gap-6 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Curso *</label>
+                      <select
+                        name="cursoId"
+                        value={selectedCursoId === '' ? '' : selectedCursoId}
+                        onChange={(e) => setSelectedCursoId(e.target.value ? Number(e.target.value) : '')}
+                        className={selectClass}
+                      >
+                        <option value="">Selecione um curso...</option>
+                        {cursos.map((curso: any) => (
+                          <option key={curso.id} value={curso.id}>
+                            {curso.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Disciplina *</label>
+                      <select
+                        name="disciplinaId"
+                        value={selectedDisciplinaId === '' ? '' : selectedDisciplinaId}
+                        onChange={(e) => setSelectedDisciplinaId(e.target.value ? Number(e.target.value) : '')}
+                        disabled={typeof selectedCursoId !== 'number'}
+                        className={cn(selectClass, "disabled:opacity-50 disabled:bg-slate-100")}
+                      >
+                        <option value="">
+                          {selectedCursoId ? 'Selecione uma disciplina...' : 'Escolha um curso primeiro'}
                         </option>
-                      ))}
-                    </select>
-                    <select
-                      name="disciplinaId"
-                      value={selectedDisciplinaId === '' ? '' : selectedDisciplinaId}
-                      onChange={(e) => setSelectedDisciplinaId(e.target.value ? Number(e.target.value) : '')}
-                      disabled={typeof selectedCursoId !== 'number'}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                    >
-                      <option value="">
-                        {selectedCursoId ? 'Selecione uma disciplina...' : 'Escolha um curso primeiro'}
-                      </option>
-                      {disciplinas.map((d: any) => (
-                        <option key={d.id} value={d.id}>
-                          {d.codigo} · {d.nome}
-                        </option>
-                      ))}
-                    </select>
+                        {disciplinas.map((d: any) => (
+                          <option key={d.id} value={d.id}>
+                            {d.codigo} · {d.nome}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedDisciplina && (
+                        <p className="mt-1.5 text-xs text-blue-600 font-medium flex items-center gap-1">
+                          <GraduationCap className="w-3 h-3" />
+                          {periodoInfo}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500">{periodoInfo}</p>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Professor responsável *</label>
-                  <select
-                    name="professorId"
-                    defaultValue={turma.professorId}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">Selecione um professor...</option>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Professor responsável *</label>
+                    <select
+                      name="professorId"
+                      defaultValue={turma.professorId}
+                      className={selectClass}
+                    >
+                      <option value="">Selecione um professor...</option>
                       {professores.map((p: any) => (
                         <option key={p.matricula} value={p.matricula}>
-                          {p.pessoa?.nomeCompleto || 'Nome não informado'}
+                          {p.pessoa?.nome || 'Nome não informado'}
                         </option>
                       ))}
-                  </select>
-                </div>
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Coorte (opcional)</label>
-                  <select
-                    name="coorteId"
-                    value={selectedCoorteId === '' ? '' : selectedCoorteId}
-                    onChange={(e) => setSelectedCoorteId(e.target.value ? Number(e.target.value) : '')}
-                    disabled={!coortes.length}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  >
-                    <option value="">
-                      {coortes.length ? 'Sem coorte específica (oferta geral)' : 'Escolha um curso com coortes cadastradas'}
-                    </option>
-                    {coortes.map((c: any) => (
-                      <option key={c.id} value={c.id}>
-                        {c.rotulo}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Coorte (opcional)</label>
+                    <select
+                      name="coorteId"
+                      value={selectedCoorteId === '' ? '' : selectedCoorteId}
+                      onChange={(e) => setSelectedCoorteId(e.target.value ? Number(e.target.value) : '')}
+                      disabled={!coortes.length}
+                      className={cn(selectClass, "disabled:opacity-50 disabled:bg-slate-100")}
+                    >
+                      <option value="">
+                        {coortes.length ? 'Sem coorte específica (oferta geral)' : 'Escolha um curso com coortes cadastradas'}
                       </option>
-                    ))}
-                  </select>
+                      {coortes.map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.rotulo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              </section>
+              </FormSection>
 
-              <section className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Sala</label>
-                  <Input name="sala" defaultValue={turma.sala || ''} placeholder="Ex: Sala 101, Lab A" />
+              <div className="border-t border-slate-200"></div>
+
+              <FormSection
+                icon={MapPin}
+                title="Logística"
+                description="Local e horário das aulas"
+                iconBgColor="bg-purple-100"
+                iconColor="text-purple-600"
+              >
+                <div className="grid gap-6 md:grid-cols-12">
+                  <div className="md:col-span-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Sala</label>
+                    <Input name="sala" defaultValue={turma.sala || ''} placeholder="Ex: Sala 101, Lab A" className="h-11" />
+                  </div>
+                  <div className="md:col-span-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Seção</label>
+                    <Input name="secao" defaultValue={turma.secao || ''} placeholder="Ex: A, B, C" className="h-11" />
+                  </div>
+                  <div className="md:col-span-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dia da Semana</label>
+                    <select
+                      value={diaSemana}
+                      onChange={(e) => setDiaSemana(e.target.value)}
+                      className={selectClass}
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="0">Domingo</option>
+                      <option value="1">Segunda-feira</option>
+                      <option value="2">Terça-feira</option>
+                      <option value="3">Quarta-feira</option>
+                      <option value="4">Quinta-feira</option>
+                      <option value="5">Sexta-feira</option>
+                      <option value="6">Sábado</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Horário Início</label>
+                    <Input 
+                      type="time" 
+                      value={horarioInicio} 
+                      onChange={(e) => setHorarioInicio(e.target.value)} 
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="md:col-span-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Horário Fim</label>
+                    <Input 
+                      type="time" 
+                      value={horarioFim} 
+                      onChange={(e) => setHorarioFim(e.target.value)} 
+                      className="h-11"
+                    />
+                  </div>
                 </div>
-                <div className="md:col-span-2">
-                  <HorarioSelector
-                    value={horario}
-                    onChange={setHorario}
-                    name="horario"
-                  />
+              </FormSection>
+
+              <FormSection
+                icon={Calendar}
+                title="Período Letivo"
+                description="Datas de início e fim das aulas"
+                iconBgColor="bg-green-100"
+                iconColor="text-green-600"
+              >
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
+                    <DatePicker 
+                      value={dataInicio} 
+                      onChange={setDataInicio}
+                      placeholder="Selecione a data de início"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de Término</label>
+                    <DatePicker 
+                      value={dataFim} 
+                      onChange={setDataFim}
+                      placeholder="Selecione a data de término"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Seção</label>
-                  <Input name="secao" defaultValue={turma.secao || ''} placeholder="Ex: A, B, C" />
-                </div>
-              </section>
+              </FormSection>
 
               {disciplinaParaEdicao && (
-                <section className="border-t border-gray-200 pt-6 space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">Plano de ensino personalizado</h3>
-                    <p className="text-sm text-gray-600">
-                      Ajuste os campos abaixo apenas se precisar diferenciar esta turma do plano padrão da disciplina.
-                    </p>
-                  </div>
-                  {OVERRIDE_KEYS.map((field) => {
-                    const disciplinaValue = (disciplinaParaEdicao?.[field] as string | undefined) ?? '';
-                    const turmaValue = overrideFields[field];
-                    const displayValue = turmaValue ?? '';
-                    return (
-                      <div key={field}>
-                        <div className="flex items-center justify-between mb-2">
-                          <label className="block text-sm font-medium text-gray-700">{FIELD_LABELS[field]}</label>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setOverrideFields((prev) => ({
-                                ...prev,
-                                [field]: disciplinaValue || null,
-                              }))
-                            }
-                          >
-                            Usar texto da disciplina
-                          </Button>
-                        </div>
-                        <RichTextEditor
-                          value={displayValue}
-                          onChange={(value) =>
-                            setOverrideFields((prev) => ({
-                              ...prev,
-                              [field]: value || null,
-                            }))
-                          }
-                          placeholder={`Personalize ${FIELD_LABELS[field].toLowerCase()} para esta turma...`}
-                          rows={4}
-                        />
-                      </div>
-                    );
-                  })}
-                </section>
+                <>
+                  <div className="border-t border-slate-200"></div>
+                  <FormSection
+                    icon={FileText}
+                    title="Plano de Ensino Personalizado"
+                    description="Ajuste apenas se precisar diferenciar do padrão da disciplina"
+                    iconBgColor="bg-amber-100"
+                    iconColor="text-amber-600"
+                  >
+                    <div className="space-y-6">
+                      {OVERRIDE_KEYS.map((field) => {
+                        const disciplinaValue = (disciplinaParaEdicao?.[field] as string | undefined) ?? '';
+                        const turmaValue = overrideFields[field];
+                        const displayValue = turmaValue ?? '';
+                        return (
+                          <div key={field} className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <div className="flex items-center justify-between mb-3">
+                              <label className="block text-sm font-semibold text-gray-700">{FIELD_LABELS[field]}</label>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setOverrideFields((prev) => ({
+                                    ...prev,
+                                    [field]: disciplinaValue || null,
+                                  }))
+                                }
+                                className="text-xs h-8"
+                              >
+                                Copiar da disciplina
+                              </Button>
+                            </div>
+                            <RichTextEditor
+                              value={displayValue}
+                              onChange={(value) =>
+                                setOverrideFields((prev) => ({
+                                  ...prev,
+                                  [field]: value || null,
+                                }))
+                              }
+                              placeholder={`Personalize ${FIELD_LABELS[field].toLowerCase()} para esta turma...`}
+                              rows={4}
+                              className="bg-white"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </FormSection>
+                </>
               )}
 
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">
-                  Sugestão de nome: <span className="font-medium text-gray-900">{nomeSugestao}</span>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? 'Salvando...' : 'Atualizar turma'}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => navigate('/turmas')}>
-                    Cancelar
-                  </Button>
-                </div>
+              <div className="bg-slate-50 p-4 rounded-md border border-slate-200">
+                <p className="text-sm text-slate-600">
+                  Sugestão de nome: <span className="font-semibold text-slate-900">{nomeSugestao}</span>
+                </p>
               </div>
+
+              <ActionsBar
+                submitLabel="Atualizar Turma"
+                submittingLabel="Salvando..."
+                isSubmitting={updateMutation.isPending}
+                cancelTo="/turmas"
+              />
             </form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </main>
     </div>
   );

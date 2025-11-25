@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, char, varchar, decimal, pgEnum, text } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, char, varchar, decimal, pgEnum, text, date, time } from 'drizzle-orm/pg-core';
 import { disciplinas } from './disciplinas';
 import { professores } from './professores';
 import { alunos } from './alunos';
@@ -11,7 +11,12 @@ export const turmas = pgTable('turmas', {
     .notNull()
     .references(() => professores.matricula, { onDelete: 'cascade' }),
   sala: varchar('sala', { length: 20 }),
-  horario: varchar('horario', { length: 50 }),
+  // horario removido, substitui-se por diaSemana, inicio e fim
+  diaSemana: integer('dia_semana'), // 0=Dom, 1=Seg, ..., 6=Sab
+  horarioInicio: time('horario_inicio'),
+  horarioFim: time('horario_fim'),
+  dataInicio: date('data_inicio'),
+  dataFim: date('data_fim'),
   secao: varchar('secao', { length: 6 }),
   coorteId: integer('coorte_id').references(() => coortes.id, { onDelete: 'cascade' }),
   ementa: text('ementa'),

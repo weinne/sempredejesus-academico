@@ -68,8 +68,6 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
       numero: periodos.numero,
       nome: periodos.nome,
       descricao: periodos.descricao,
-      dataInicio: periodos.dataInicio,
-      dataFim: periodos.dataFim,
       totalDisciplinas: sql<number>`COUNT(DISTINCT ${disciplinasPeriodos.disciplinaId})`,
       curso: {
         id: cursos.id,
@@ -140,8 +138,6 @@ const listPeriodos = asyncHandler(async (req: Request, res: Response) => {
     numero: row.numero,
     nome: row.nome,
     descricao: row.descricao,
-    dataInicio: row.dataInicio as any,
-    dataFim: row.dataFim as any,
     totalDisciplinas: Number(row.totalDisciplinas ?? 0),
     curso: row.curso?.id
       ? {
@@ -186,8 +182,6 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
       numero: periodos.numero,
       nome: periodos.nome,
       descricao: periodos.descricao,
-      dataInicio: periodos.dataInicio,
-      dataFim: periodos.dataFim,
       curso: {
         id: cursos.id,
         nome: cursos.nome,
@@ -266,8 +260,6 @@ const getPeriodo = asyncHandler(async (req: Request, res: Response) => {
       numero: row.numero,
       nome: row.nome,
       descricao: row.descricao,
-      dataInicio: row.dataInicio as any,
-      dataFim: row.dataFim as any,
       totalDisciplinas: disciplinasDoPeriodo.length,
       totalAlunos: Number(row.totalAlunos ?? 0),
       curso: row.curso?.id

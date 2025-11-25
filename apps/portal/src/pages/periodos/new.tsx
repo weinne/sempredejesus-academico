@@ -20,8 +20,6 @@ const schema = z.object({
   numero: z.number().int().min(1, 'Informe o número do período').max(255),
   nome: z.string().max(80).optional(),
   descricao: z.string().max(500).optional(),
-  dataInicio: z.string().optional(),
-  dataFim: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -151,8 +149,6 @@ const PeriodoNewPage: React.FC = () => {
       numero: data.numero,
       nome: nome || undefined,
       descricao: descricao || undefined,
-      dataInicio: data.dataInicio || undefined,
-      dataFim: data.dataFim || undefined,
     };
     createMutation.mutate(payload);
   };
@@ -291,46 +287,6 @@ const PeriodoNewPage: React.FC = () => {
                 className={errors.descricao ? 'border-red-500' : ''}
               />
               <FieldError message={errors.descricao?.message} />
-            </div>
-          </FormSection>
-
-          <FormSection
-            icon={CalendarRange}
-            title="Datas do período"
-            description="Informe as datas para fins de cronograma acadêmico (opcional)."
-          >
-            <div data-field="dataInicio">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Data de início
-              </label>
-              <Controller
-                name="dataInicio"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    value={field.value || null}
-                    onChange={field.onChange}
-                    placeholder="dd/mm/aaaa"
-                  />
-                )}
-              />
-            </div>
-
-            <div data-field="dataFim">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Data de término
-              </label>
-              <Controller
-                name="dataFim"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    value={field.value || null}
-                    onChange={field.onChange}
-                    placeholder="dd/mm/aaaa"
-                  />
-                )}
-              />
             </div>
           </FormSection>
 

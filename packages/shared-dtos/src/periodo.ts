@@ -8,8 +8,6 @@ export const PeriodoSchema = z.object({
   numero: z.number().int().min(1).max(255),
   nome: z.string().max(80).nullable().optional(),
   descricao: z.string().nullable().optional(),
-  dataInicio: z.string().optional(),
-  dataFim: z.string().optional(),
   totalDisciplinas: z.number().int().nonnegative().optional(),
   totalAlunos: z.number().int().nonnegative().optional(),
   curso: CursoSchema.nullable().optional(),
@@ -24,8 +22,6 @@ export const CreatePeriodoSchema = PeriodoSchema.omit({
 }).extend({
   nome: z.string().max(80).optional(),
   descricao: z.string().optional(),
-  dataInicio: z.string().optional(),
-  dataFim: z.string().optional(),
 });
 
 export const UpdatePeriodoSchema = CreatePeriodoSchema.partial();

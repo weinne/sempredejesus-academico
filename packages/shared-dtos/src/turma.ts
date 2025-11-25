@@ -70,7 +70,11 @@ export const TurmaSchema = z.object({
   professorId: z.string().length(8),
   coorteId: z.number().int().optional(),
   sala: z.string().max(20).optional(),
-  horario: z.string().max(50).optional(),
+  diaSemana: z.number().int().min(0).max(6).optional(),
+  horarioInicio: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
+  horarioFim: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
+  dataInicio: z.string().optional(), // ISO Date YYYY-MM-DD
+  dataFim: z.string().optional(),   // ISO Date YYYY-MM-DD
   secao: z.string().max(6).optional(),
   ementa: z.string().nullable().optional(),
   bibliografia: z.string().nullable().optional(),

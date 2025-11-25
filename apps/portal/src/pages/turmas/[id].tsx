@@ -27,9 +27,20 @@ import {
 } from 'lucide-react';
 import type { Disciplina } from '@/types/api';
 
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
 export default function TurmaDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  const formatHorario = (t: any) => {
+    if (t.diaSemana === null || t.diaSemana === undefined) return 'N/A';
+    const dia = DIAS_SEMANA[Number(t.diaSemana)];
+    const horario = t.horarioInicio && t.horarioFim 
+      ? `${t.horarioInicio.slice(0, 5)} - ${t.horarioFim.slice(0, 5)}`
+      : '';
+    return `${dia} ${horario}`.trim();
+  };
 
   const getDisciplinaPeriodoLabel = (disciplina?: Disciplina) => {
     if (!disciplina || !Array.isArray(disciplina.periodos) || disciplina.periodos.length === 0) {
@@ -63,7 +74,7 @@ export default function TurmaDetailPage() {
       { value: turma.disciplina?.codigo || 'N/A', label: 'Código' },
       { value: turma.secao || 'Única', label: 'Seção' },
       { value: turma.sala || 'N/A', label: 'Sala' },
-      { value: turma.horario || 'N/A', label: 'Horário' }
+      { value: formatHorario(turma), label: 'Horário' }
     ] : [],
     actionLink: {
       href: '/turmas',
@@ -151,8 +162,12 @@ export default function TurmaDetailPage() {
                   <div className="flex items-center space-x-3">
                     <Calendar className="h-5 w-5 text-gray-400" />
                     <div>
-                      <p className="text-sm text-gray-500">Período (disciplina)</p>
-                      <p className="font-medium">{getDisciplinaPeriodoLabel(turma.disciplina)}</p>
+                      <p className="text-sm text-gray-500">Período Letivo</p>
+                      <p className="font-medium">
+                        {turma.dataInicio ? new Date(turma.dataInicio).toLocaleDateString() : 'N/A'} 
+                        {' - '} 
+                        {turma.dataFim ? new Date(turma.dataFim).toLocaleDateString() : 'N/A'}
+                      </p>
                     </div>
                   </div>
 

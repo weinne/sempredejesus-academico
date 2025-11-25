@@ -4,14 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
-import { HorarioSelector } from '@/components/forms/horario-selector';
 import { apiService } from '@/services/api';
 import { CreateTurma } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
-import { BookOpen, MapPin, FileText, GraduationCap } from 'lucide-react';
+import { BookOpen, MapPin, FileText, GraduationCap, Calendar, Clock } from 'lucide-react';
 import CrudHeader from '@/components/crud/crud-header';
 import { FormSection, ActionsBar } from '@/components/forms';
 import { cn } from '@/lib/utils';
+import { DatePicker } from '@/components/ui/date-picker';
+import { Label } from '@/components/ui/label';
+import { Controller } from 'react-hook-form';
 
 export default function TurmaNewPage() {
   const navigate = useNavigate();
@@ -21,7 +23,11 @@ export default function TurmaNewPage() {
   const [selectedCursoId, setSelectedCursoId] = React.useState<number | ''>('');
   const [selectedDisciplinaId, setSelectedDisciplinaId] = React.useState<number | ''>('');
   const [selectedCoorteId, setSelectedCoorteId] = React.useState<number | ''>('');
-  const [horario, setHorario] = React.useState<string>('');
+  const [diaSemana, setDiaSemana] = React.useState<string>('');
+  const [horarioInicio, setHorarioInicio] = React.useState<string>('');
+  const [horarioFim, setHorarioFim] = React.useState<string>('');
+  const [dataInicio, setDataInicio] = React.useState<Date | undefined>(undefined);
+  const [dataFim, setDataFim] = React.useState<Date | undefined>(undefined);
   const [overrideFields, setOverrideFields] = React.useState<{
     ementa?: string;
     bibliografia?: string;
@@ -134,7 +140,11 @@ export default function TurmaNewPage() {
                   professorId: professorIdValue,
                   coorteId: fd.get('coorteId') ? Number(fd.get('coorteId')) : undefined,
                   sala: String(fd.get('sala') || ''),
-                  horario: horario || '',
+                  diaSemana: diaSemana ? Number(diaSemana) : undefined,
+                  horarioInicio: horarioInicio || undefined,
+                  horarioFim: horarioFim || undefined,
+                  dataInicio: dataInicio ? dataInicio.toISOString().split('T')[0] : undefined,
+                  dataFim: dataFim ? dataFim.toISOString().split('T')[0] : undefined,
                   secao: String(fd.get('secao') || ''),
                   ementa: overrideFields.ementa || null,
                   bibliografia: overrideFields.bibliografia || null,
@@ -209,7 +219,7 @@ export default function TurmaNewPage() {
                       <option value="">Selecione um professor...</option>
                       {professores.map((p: any) => (
                         <option key={p.matricula} value={p.matricula}>
-                          {p.pessoa?.nomeCompleto || 'Nome não informado'}
+                          {p.pessoa?.nome || 'Nome não informado'}
                         </option>
                       ))}
                     </select>
@@ -248,21 +258,79 @@ export default function TurmaNewPage() {
                 iconColor="text-purple-600"
               >
                 <div className="grid gap-6 md:grid-cols-12">
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-6">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Sala</label>
                     <Input name="sala" placeholder="Ex: Sala 101, Lab A" className="h-11" />
                   </div>
                   
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-6">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Seção</label>
                     <Input name="secao" placeholder="Ex: A, B, C" className="h-11" />
                   </div>
 
                   <div className="md:col-span-4">
-                    <HorarioSelector
-                      value={horario}
-                      onChange={setHorario}
-                      name="horario"
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dia da Semana</label>
+                    <select
+                      value={diaSemana}
+                      onChange={(e) => setDiaSemana(e.target.value)}
+                      className={selectClass}
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="0">Domingo</option>
+                      <option value="1">Segunda-feira</option>
+                      <option value="2">Terça-feira</option>
+                      <option value="3">Quarta-feira</option>
+                      <option value="4">Quinta-feira</option>
+                      <option value="5">Sexta-feira</option>
+                      <option value="6">Sábado</option>
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Horário Início</label>
+                    <Input 
+                      type="time" 
+                      value={horarioInicio} 
+                      onChange={(e) => setHorarioInicio(e.target.value)} 
+                      className="h-11" 
+                    />
+                  </div>
+                  
+                  <div className="md:col-span-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Horário Fim</label>
+                    <Input 
+                      type="time" 
+                      value={horarioFim} 
+                      onChange={(e) => setHorarioFim(e.target.value)} 
+                      className="h-11" 
+                    />
+                  </div>
+                </div>
+              </FormSection>
+
+              {/* Seção 3: Datas */}
+              <FormSection
+                icon={Calendar}
+                title="Período Letivo"
+                description="Datas de início e fim das aulas"
+                iconBgColor="bg-green-100"
+                iconColor="text-green-600"
+              >
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de Início</label>
+                    <DatePicker 
+                      value={dataInicio} 
+                      onChange={setDataInicio}
+                      placeholder="Selecione a data de início"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Data de Término</label>
+                    <DatePicker 
+                      value={dataFim} 
+                      onChange={setDataFim}
+                      placeholder="Selecione a data de término"
                     />
                   </div>
                 </div>

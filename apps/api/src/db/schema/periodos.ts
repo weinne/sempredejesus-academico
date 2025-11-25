@@ -11,8 +11,6 @@ export const periodos = pgTable(
     numero: smallint('numero').notNull(),
     nome: varchar('nome', { length: 80 }),
     descricao: text('descricao'),
-    dataInicio: date('data_inicio'),
-    dataFim: date('data_fim'),
   },
   (table) => ({
     curriculoNumeroIdx: uniqueIndex('periodos_curriculo_numero_unique').on(table.curriculoId, table.numero),
