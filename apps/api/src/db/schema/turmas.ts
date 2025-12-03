@@ -3,6 +3,7 @@ import { disciplinas } from './disciplinas';
 import { professores } from './professores';
 import { alunos } from './alunos';
 import { coortes } from './coortes';
+import { periodos } from './periodos';
 
 export const turmas = pgTable('turmas', {
   id: serial('id').primaryKey(),
@@ -19,6 +20,7 @@ export const turmas = pgTable('turmas', {
   dataFim: date('data_fim'),
   secao: varchar('secao', { length: 6 }),
   coorteId: integer('coorte_id').references(() => coortes.id, { onDelete: 'cascade' }),
+  periodoId: integer('periodo_id').references(() => periodos.id, { onDelete: 'set null' }),
   ementa: text('ementa'),
   bibliografia: text('bibliografia'),
   objetivos: text('objetivos'),

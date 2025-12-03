@@ -406,10 +406,12 @@ const getDisciplinaComplete = asyncHandler(async (req: Request, res: Response) =
         numero: periodos.numero,
         nome: periodos.nome,
         curriculoId: periodos.curriculoId,
+        turnoId: curriculos.turnoId,
       },
     })
     .from(disciplinasPeriodos)
     .innerJoin(periodos, eq(disciplinasPeriodos.periodoId, periodos.id))
+    .innerJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
     .where(eq(disciplinasPeriodos.disciplinaId, id))
     .orderBy(asc(periodos.numero));
 
@@ -530,12 +532,14 @@ router.get(
           periodo: {
             id: periodos.id,
             numero: periodos.numero,
-            nome: periodos.nome,
-            curriculoId: periodos.curriculoId,
+                nome: periodos.nome,
+                curriculoId: periodos.curriculoId,
+                turnoId: curriculos.turnoId,
           },
         })
         .from(disciplinasPeriodos)
         .innerJoin(periodos, eq(disciplinasPeriodos.periodoId, periodos.id))
+        .innerJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
         .where(inArray(disciplinasPeriodos.disciplinaId, disciplinaIds))
         .orderBy(disciplinasPeriodos.disciplinaId, asc(periodos.numero));
 

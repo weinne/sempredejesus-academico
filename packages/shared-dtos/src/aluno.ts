@@ -5,6 +5,7 @@ export const AlunoSchema = z.object({
   ra: z.string().length(8, 'RA deve ter 8 caracteres'),
   pessoaId: z.number().int().positive(),
   cursoId: z.number().int().positive(),
+  coorteId: z.number().int().positive().nullable(),
   periodoId: z.number().int().positive().nullable(),
   turnoId: z.number().int().positive().nullable(),
   anoIngresso: z.number().int().min(1900).max(2100),

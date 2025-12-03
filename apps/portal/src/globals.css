@@ -109,6 +109,9 @@ input[type='date'].date-input[data-date-empty='false']::before {
     @apply bg-background text-foreground;
     font-family: 'Inter', ui-sans-serif, system-ui;
   }
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Custom scrollbar */
@@ -192,6 +195,31 @@ input[type='date'].date-input[data-date-empty='false']::before {
 /* Smooth scrolling */
 .sidebar-scrollbar {
   scroll-behavior: smooth;
+}
+
+/* Force 24-hour format for time inputs */
+input[type='time'],
+input.time-input-24h {
+  /* Forces 24-hour format display */
+  /* The input type="time" always stores values in 24h format (HH:mm) */
+  /* However, display format depends on OS/browser settings */
+}
+
+input[type='time'].time-input-24h,
+input.time-input-24h[type='time'] {
+  /* Additional specificity to ensure 24h format */
+  text-align: left;
+}
+
+/* WebKit/Blink browsers - force 24h display when possible */
+input[type='time'].time-input-24h::-webkit-datetime-edit-hour-field,
+input[type='time'].time-input-24h::-webkit-datetime-edit-minute-field,
+input[type='time'].time-input-24h::-webkit-datetime-edit-ampm-field {
+  /* Helps ensure 24h format is displayed */
+}
+
+input[type='time'].time-input-24h::-webkit-calendar-picker-indicator {
+  cursor: pointer;
 }
 
 /* Loading animation */

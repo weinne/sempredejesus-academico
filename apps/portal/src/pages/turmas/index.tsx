@@ -416,6 +416,11 @@ export default function TurmasPage() {
                       <Link to={`/turmas/inscricoes/${t.id}`} title="Gerenciar alunos">
                         <Button variant="ghost" size="sm"><Users className="h-4 w-4" /></Button>
                       </Link>
+                      {(hasRole(Role.ADMIN) || hasRole(Role.SECRETARIA) || hasRole(Role.PROFESSOR)) && (
+                        <Link to={`/aulas/batch?turmaId=${t.id}`} title="Criar aulas em lote">
+                          <Button variant="ghost" size="sm"><Calendar className="h-4 w-4" /></Button>
+                        </Link>
+                      )}
                       {canEdit && (
                         <>
                           <Button variant="ghost" size="sm" onClick={() => handleEdit(t)} title="Editar">
@@ -464,6 +469,13 @@ export default function TurmasPage() {
                               <Users className="h-4 w-4" />
                             </Button>
                           </Link>
+                          {(hasRole(Role.ADMIN) || hasRole(Role.SECRETARIA) || hasRole(Role.PROFESSOR)) && (
+                            <Link to={`/aulas/batch?turmaId=${turma.id}`}>
+                              <Button variant="ghost" size="sm" title="Criar aulas em lote">
+                                <Calendar className="h-4 w-4" />
+                              </Button>
+                            </Link>
+                          )}
                           {canEdit && (
                             <>
                               <Button variant="ghost" size="sm" onClick={() => handleEdit(turma)} title="Editar">

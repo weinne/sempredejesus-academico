@@ -23,7 +23,8 @@ import {
   XCircle,
   ArrowRight,
   Edit,
-  Printer
+  Printer,
+  Plus
 } from 'lucide-react';
 import type { Disciplina } from '@/types/api';
 
@@ -81,12 +82,20 @@ export default function TurmaDetailPage() {
       label: 'Ver todas as turmas'
     },
     actions: turma ? (
-      <Link to={`/turmas/edit/${turma.id}`}>
-        <Button>
-          <Edit className="h-4 w-4 mr-2" />
-          Editar Turma
-        </Button>
-      </Link>
+      <div className="flex gap-2">
+        <Link to={`/aulas/batch?turmaId=${turma.id}`}>
+          <Button variant="outline">
+            <Plus className="h-4 w-4 mr-2" />
+            Criar Aulas em Lote
+          </Button>
+        </Link>
+        <Link to={`/turmas/edit/${turma.id}`}>
+          <Button>
+            <Edit className="h-4 w-4 mr-2" />
+            Editar Turma
+          </Button>
+        </Link>
+      </div>
     ) : undefined
   });
 
@@ -114,6 +123,13 @@ export default function TurmaDetailPage() {
       </div>
     );
   }
+
+  const professorPessoa = turma.professor?.pessoa;
+  const professorNome =
+    professorPessoa?.nome ||
+    professorPessoa?.nomeCompleto ||
+    turma.professor?.matricula ||
+    'Professor não informado';
 
   // Semestre removido; exibiremos período da disciplina
 
@@ -294,7 +310,7 @@ export default function TurmaDetailPage() {
                     <div>
                       <p className="text-sm text-gray-500">Nome</p>
                       <p className="font-medium">
-                        {turma.professor?.pessoa?.nome || 'Professor não informado'}
+                        {professorNome}
                       </p>
                     </div>
                   </div>
@@ -363,7 +379,7 @@ export default function TurmaDetailPage() {
                           </div>
                           <div>
                             <p className="font-medium">
-                              {inscrito.aluno?.pessoa?.nome || 'Nome não informado'}
+                              {inscrito.aluno?.pessoa?.nome || inscrito.aluno?.pessoa?.nomeCompleto || 'Nome não informado'}
                             </p>
                             <p className="text-sm text-gray-500">RA: {inscrito.alunoId}</p>
                           </div>

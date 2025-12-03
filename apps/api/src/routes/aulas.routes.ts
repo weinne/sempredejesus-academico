@@ -13,6 +13,7 @@ import {
   turmas,
   turmasInscritos,
   alunos,
+  professores,
   pessoas,
   calendario,
 } from '../db/schema';
@@ -53,60 +54,106 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const turmaId = req.query.turmaId ? Number(req.query.turmaId) : undefined;
     const disciplinaId = req.query.disciplinaId ? Number(req.query.disciplinaId) : undefined;
-    const professorId = req.query.professorId ? String(req.query.professorId) : undefined;
+    const professorParam = req.query.professorId ? String(req.query.professorId) : undefined;
     const dataInicio = req.query.dataInicio ? String(req.query.dataInicio) : undefined;
     const dataFim = req.query.dataFim ? String(req.query.dataFim) : undefined;
 
-    if (
+    const authUser = req.user as any;
+    const userRoles = Array.isArray(authUser?.roles) && authUser.roles.length > 0
+      ? new Set(authUser.roles as string[])
+      : new Set([authUser?.role].filter(Boolean) as string[]);
+
+    const pessoaId = authUser?.pessoaId ? Number(authUser.pessoaId) : null;
+    const isPrivileged = userRoles.has('ADMIN') || userRoles.has('SECRETARIA');
+    const shouldApplyProfessorScope = !isPrivileged && userRoles.has('PROFESSOR');
+    const shouldApplyAlunoScope = !isPrivileged && !shouldApplyProfessorScope && userRoles.has('ALUNO');
+
+    let effectiveProfessorId = professorParam;
+    let alunoRa: string | null = null;
+
+    if (shouldApplyProfessorScope) {
+      if (!pessoaId || Number.isNaN(pessoaId)) {
+        throw createError('Usuário não possui pessoa vinculada para aplicar escopo de professor', 400);
+      }
+
+      const professorRow = await db
+        .select({ matricula: professores.matricula })
+        .from(professores)
+        .where(eq(professores.pessoaId, pessoaId))
+        .limit(1);
+
+      if (professorRow.length === 0) {
+        throw createError('Professor não encontrado para o usuário autenticado', 404);
+      }
+
+      effectiveProfessorId = professorRow[0].matricula;
+    }
+
+    if (shouldApplyAlunoScope) {
+      if (!pessoaId || Number.isNaN(pessoaId)) {
+        throw createError('Usuário não possui pessoa vinculada para aplicar escopo de aluno', 400);
+      }
+
+      const alunoRow = await db
+        .select({ ra: alunos.ra })
+        .from(alunos)
+        .where(eq(alunos.pessoaId, pessoaId))
+        .limit(1);
+
+      if (alunoRow.length === 0) {
+        throw createError('Aluno não encontrado para o usuário autenticado', 404);
+      }
+
+      alunoRa = alunoRow[0].ra;
+    }
+
+    const noFiltersProvided =
       (!turmaId || Number.isNaN(turmaId)) &&
       (!disciplinaId || Number.isNaN(disciplinaId)) &&
-      (!professorId || professorId.trim().length === 0)
-    ) {
+      (!effectiveProfessorId || effectiveProfessorId.trim().length === 0) &&
+      !alunoRa;
+
+    if (noFiltersProvided && !isPrivileged) {
       throw createError('Informe turmaId, disciplinaId ou professorId', 400);
     }
 
-    const buildQuery = () => {
-      const conditions = [] as any[];
-      
-      // Date range filter
-      if (dataInicio && dataFim) {
-        conditions.push(and(gte(aulas.data, dataInicio), lte(aulas.data, dataFim)));
-      } else if (dataInicio) {
-        conditions.push(gte(aulas.data, dataInicio));
-      } else if (dataFim) {
-        conditions.push(lte(aulas.data, dataFim));
-      }
+    let query = db
+      .select({ aula: aulas })
+      .from(aulas)
+      .leftJoin(turmas, eq(turmas.id, aulas.turmaId))
+      .orderBy(desc(aulas.data));
 
-      if (turmaId && !Number.isNaN(turmaId)) {
-        if (conditions.length > 0) {
-          return db.select({ aula: aulas }).from(aulas).where(and(eq(aulas.turmaId, turmaId), ...conditions)).orderBy(desc(aulas.data));
-        }
-        return db.select({ aula: aulas }).from(aulas).where(eq(aulas.turmaId, turmaId)).orderBy(desc(aulas.data));
-      }
+    if (alunoRa) {
+      query = query.innerJoin(turmasInscritos, eq(turmasInscritos.turmaId, aulas.turmaId));
+    }
 
-      const baseQuery = db.select({ aula: aulas }).from(aulas).leftJoin(turmas, eq(turmas.id, aulas.turmaId)).orderBy(desc(aulas.data));
-      const joinConditions = [] as any[];
-      
-      if (disciplinaId && !Number.isNaN(disciplinaId)) {
-        joinConditions.push(eq(turmas.disciplinaId, disciplinaId));
-      }
-      if (professorId && professorId.trim().length > 0) {
-        joinConditions.push(eq(turmas.professorId, professorId));
-      }
+    const conditions = [] as any[];
 
-      const allConditions = [...joinConditions, ...conditions];
-      
-      if (allConditions.length === 0) {
-        return baseQuery;
-      }
-      if (allConditions.length === 1) {
-        return baseQuery.where(allConditions[0]);
-      }
-      return baseQuery.where(and(...allConditions));
-    };
+    if (dataInicio && dataFim) {
+      conditions.push(and(gte(aulas.data, dataInicio), lte(aulas.data, dataFim)));
+    } else if (dataInicio) {
+      conditions.push(gte(aulas.data, dataInicio));
+    } else if (dataFim) {
+      conditions.push(lte(aulas.data, dataFim));
+    }
 
-    const query = buildQuery();
-    const rows = await query;
+    if (turmaId && !Number.isNaN(turmaId)) {
+      conditions.push(eq(aulas.turmaId, turmaId));
+    }
+
+    if (disciplinaId && !Number.isNaN(disciplinaId)) {
+      conditions.push(eq(turmas.disciplinaId, disciplinaId));
+    }
+
+    if (effectiveProfessorId && effectiveProfessorId.trim().length > 0) {
+      conditions.push(eq(turmas.professorId, effectiveProfessorId));
+    }
+
+    if (alunoRa) {
+      conditions.push(eq(turmasInscritos.alunoId, alunoRa));
+    }
+
+    const rows = conditions.length > 0 ? await query.where(and(...conditions)) : await query;
     const data = rows.map((row: any) => row.aula ?? row);
 
     res.json({ success: true, data });

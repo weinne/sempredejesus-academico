@@ -20,13 +20,39 @@ import { usePageHero } from '@/hooks/use-page-hero';
 import { apiService } from '@/services/api';
 import { Aula, Role } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
-import { Plus, Calendar as CalendarIcon, List as ListIcon, Filter, X } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, List as ListIcon, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import CrudToolbar from '@/components/crud/crud-toolbar';
 import { cn } from '@/lib/utils';
 
+const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+const getMonthStart = (date: Date) => {
+  const normalized = new Date(date);
+  normalized.setDate(1);
+  normalized.setHours(0, 0, 0, 0);
+  return normalized;
+};
+
+const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const monthNames = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
 export default function AulasListPage() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]);
+  const isPrivileged = hasRole([Role.ADMIN, Role.SECRETARIA]);
   const [searchParams] = useSearchParams();
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
 
@@ -35,7 +61,8 @@ export default function AulasListPage() {
   const [professorId, setProfessorId] = useState<string | ''>('');
   const [globalFilter, setGlobalFilter] = useState('');
   const [sorting, setSorting] = useState<SortingState>([{ id: 'data', desc: true }]);
-  const [periodoFiltro, setPeriodoFiltro] = useState<string>('ultimos-30');
+  const [periodoFiltro, setPeriodoFiltro] = useState<string>('mes-atual');
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => getMonthStart(new Date()));
 
   // Initialize turmaId from URL params
   useEffect(() => {
@@ -62,12 +89,57 @@ export default function AulasListPage() {
 
   // Calcular datas do período selecionado
   const periodoDatas = useMemo(() => {
-    if (viewMode !== 'table') {
-      return { dataInicio: undefined, dataFim: undefined };
-    }
-
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
+
+    if (viewMode === 'calendar') {
+      const inicioMesCalendario = getMonthStart(currentMonth);
+      const fimMesCalendario = new Date(inicioMesCalendario);
+      fimMesCalendario.setMonth(fimMesCalendario.getMonth() + 1);
+      fimMesCalendario.setDate(0);
+
+      return {
+        dataInicio: formatDate(inicioMesCalendario),
+        dataFim: formatDate(fimMesCalendario),
+      };
+    }
+
+    if (periodoFiltro === 'mes-atual') {
+      const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      const fimMes = new Date(inicioMes);
+      fimMes.setMonth(fimMes.getMonth() + 1);
+      fimMes.setDate(0);
+
+      return {
+        dataInicio: formatDate(inicioMes),
+        dataFim: formatDate(fimMes),
+      };
+    }
+
+    if (periodoFiltro === 'semana-atual') {
+      const inicioSemana = new Date(hoje);
+      const day = inicioSemana.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      inicioSemana.setDate(inicioSemana.getDate() + diff);
+      const fimSemana = new Date(inicioSemana);
+      fimSemana.setDate(inicioSemana.getDate() + 6);
+
+      return {
+        dataInicio: formatDate(inicioSemana),
+        dataFim: formatDate(fimSemana),
+      };
+    }
+
+    if (periodoFiltro === 'ano-atual') {
+      const inicioAno = new Date(hoje.getFullYear(), 0, 1);
+      const fimAno = new Date(hoje.getFullYear(), 11, 31);
+
+      return {
+        dataInicio: formatDate(inicioAno),
+        dataFim: formatDate(fimAno),
+      };
+    }
+
     const [tipo, dias] = periodoFiltro.split('-');
     const numDias = Number(dias);
 
@@ -75,37 +147,39 @@ export default function AulasListPage() {
       const dataInicio = new Date(hoje);
       dataInicio.setDate(dataInicio.getDate() - numDias);
       return {
-        dataInicio: dataInicio.toISOString().split('T')[0],
-        dataFim: hoje.toISOString().split('T')[0],
+        dataInicio: formatDate(dataInicio),
+        dataFim: formatDate(hoje),
       };
     } else if (tipo === 'proximos') {
       const dataFim = new Date(hoje);
       dataFim.setDate(dataFim.getDate() + numDias);
       return {
-        dataInicio: hoje.toISOString().split('T')[0],
-        dataFim: dataFim.toISOString().split('T')[0],
+        dataInicio: formatDate(hoje),
+        dataFim: formatDate(dataFim),
       };
     }
 
     return { dataInicio: undefined, dataFim: undefined };
-  }, [periodoFiltro, viewMode]);
+  }, [periodoFiltro, viewMode, currentMonth]);
+
+  const professorFilter = isPrivileged && professorId ? professorId : undefined;
+  const calendarKey = viewMode === 'calendar' ? currentMonth.getTime() : null;
 
   const { data: aulasResp, refetch, isLoading } = useQuery({
-    queryKey: ['aulas', turmaId, disciplinaId, professorId, periodoDatas.dataInicio, periodoDatas.dataFim],
+    queryKey: ['aulas', turmaId, disciplinaId, professorFilter, periodoDatas.dataInicio, periodoDatas.dataFim, calendarKey],
     queryFn: () =>
       apiService
         .getAulas({
           turmaId: typeof turmaId === 'number' ? turmaId : undefined,
           disciplinaId: typeof disciplinaId === 'number' ? disciplinaId : undefined,
-          professorId:
-            hasRole([Role.ADMIN, Role.SECRETARIA]) && professorId ? professorId : undefined,
+          professorId: professorFilter,
           dataInicio: periodoDatas.dataInicio,
           dataFim: periodoDatas.dataFim,
           sortBy: 'data',
           sortOrder: 'desc',
         })
         .then((r) => r.data),
-    enabled: typeof turmaId === 'number' || typeof disciplinaId === 'number' || !!professorId,
+    enabled: !!user,
   });
   const aulas = aulasResp || [];
 
@@ -187,9 +261,20 @@ export default function AulasListPage() {
               <Link to={`/aulas/view/${row.original.id}`}>Ver</Link>
             </Button>
             {canEdit && (
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/aulas/edit/${row.original.id}`}>Editar</Link>
-              </Button>
+              <>
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/aulas/edit/${row.original.id}`}>Editar</Link>
+                </Button>
+                <Button variant="secondary" size="sm" asChild disabled={!row.original.turmaId}>
+                  <Link
+                    to={`/presencas?aulaId=${row.original.id}${
+                      row.original.turmaId ? `&turmaId=${row.original.turmaId}` : ''
+                    }`}
+                  >
+                    Registrar aula
+                  </Link>
+                </Button>
+              </>
             )}
           </div>
         ),
@@ -213,21 +298,42 @@ export default function AulasListPage() {
   });
 
   // Calendar view logic
-  const calendarEvents = useMemo(() => {
-    if (!aulas || aulas.length === 0) return [];
-    
-    // Group by date
-    const grouped: Record<string, Aula[]> = {};
-    aulas.forEach((aula) => {
-      if (!grouped[aula.data]) grouped[aula.data] = [];
-      grouped[aula.data].push(aula);
+  const eventsByDate = useMemo(() => {
+    if (!aulas || aulas.length === 0) return {} as Record<string, Aula[]>;
+
+    const grouped = aulas.reduce((acc, aula) => {
+      if (!aula.data) return acc;
+      if (!acc[aula.data]) acc[aula.data] = [];
+      acc[aula.data].push(aula);
+      return acc;
+    }, {} as Record<string, Aula[]>);
+
+    Object.values(grouped).forEach((aulasDoDia) => {
+      aulasDoDia.sort((a, b) => (a.horaInicio || '').localeCompare(b.horaInicio || ''));
     });
-    
-    return Object.entries(grouped).map(([date, aulasOnDate]) => ({
-      date,
-      aulas: aulasOnDate,
-    }));
+
+    return grouped;
   }, [aulas]);
+
+  const calendarDays = useMemo(() => {
+    const startOfMonth = getMonthStart(currentMonth);
+    const firstWeekday = startOfMonth.getDay();
+    const firstGridDate = new Date(startOfMonth);
+    firstGridDate.setDate(firstGridDate.getDate() - firstWeekday);
+
+    const days: { date: Date; inCurrentMonth: boolean; iso: string }[] = [];
+    for (let i = 0; i < 42; i++) {
+      const day = new Date(firstGridDate);
+      day.setDate(firstGridDate.getDate() + i);
+      days.push({
+        date: day,
+        inCurrentMonth: day.getMonth() === startOfMonth.getMonth(),
+        iso: formatDate(day),
+      });
+    }
+
+    return days;
+  }, [currentMonth]);
 
   const activeFiltersCount = [turmaId, disciplinaId, professorId].filter(Boolean).length;
 
@@ -236,7 +342,37 @@ export default function AulasListPage() {
     setDisciplinaId('');
     setProfessorId('');
     setGlobalFilter('');
-    setPeriodoFiltro('ultimos-30');
+    setPeriodoFiltro('mes-atual');
+    setCurrentMonth(getMonthStart(new Date()));
+  };
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth((prev) => {
+      const next = new Date(prev);
+      next.setMonth(next.getMonth() - 1);
+      return getMonthStart(next);
+    });
+  };
+
+  const goToNextMonth = () => {
+    setCurrentMonth((prev) => {
+      const next = new Date(prev);
+      next.setMonth(next.getMonth() + 1);
+      return getMonthStart(next);
+    });
+  };
+
+  const handleMonthSelect = (monthIndex: number) => {
+    setCurrentMonth((prev) => getMonthStart(new Date(prev.getFullYear(), monthIndex, 1)));
+  };
+
+  const handleYearChange = (yearValue: number) => {
+    if (Number.isNaN(yearValue)) return;
+    setCurrentMonth((prev) => getMonthStart(new Date(yearValue, prev.getMonth(), 1)));
+  };
+
+  const goToCurrentMonth = () => {
+    setCurrentMonth(getMonthStart(new Date()));
   };
 
   // Configure Hero via hook
@@ -288,6 +424,11 @@ export default function AulasListPage() {
                     value={periodoFiltro}
                     onChange={(e) => setPeriodoFiltro(e.target.value)}
                   >
+                    <optgroup label="Períodos atuais">
+                      <option value="semana-atual">Semana Atual</option>
+                      <option value="mes-atual">Mês Atual</option>
+                      <option value="ano-atual">Ano Atual</option>
+                    </optgroup>
                     <optgroup label="Últimos dias">
                       <option value="ultimos-30">Últimos 30 dias</option>
                       <option value="ultimos-60">Últimos 60 dias</option>
@@ -392,7 +533,7 @@ export default function AulasListPage() {
                    )}
                 </div>
 
-                {(turmaId || disciplinaId || professorId || globalFilter || (viewMode === 'table' && periodoFiltro !== 'ultimos-30')) && (
+                {(turmaId || disciplinaId || professorId || globalFilter || (viewMode === 'table' && periodoFiltro !== 'mes-atual')) && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -443,50 +584,108 @@ export default function AulasListPage() {
                   Nenhuma aula encontrada. Selecione filtros ou crie uma nova aula.
                 </div>
               ) : (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      {table.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                          {headerGroup.headers.map((header) => (
-                            <TableHead key={header.id}>
-                              {header.isPlaceholder ? null : (
-                                <div
-                                  {...{
-                                    className: header.column.getCanSort()
-                                      ? 'cursor-pointer select-none'
-                                      : '',
-                                    onClick: header.column.getToggleSortingHandler(),
-                                  }}
+                <>
+                  <div className="space-y-3 lg:hidden">
+                    {aulas.map((aula) => (
+                      <div key={aula.id} className="rounded-lg border p-4 shadow-sm bg-white">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Data</p>
+                            <p className="font-semibold">
+                              {aula.data ? new Date(aula.data).toLocaleDateString('pt-BR') : '-'}
+                            </p>
+                          </div>
+                          <Badge variant="outline">{aula.turmaId ? `Turma #${aula.turmaId}` : 'Sem turma'}</Badge>
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Início</p>
+                            <p className="font-medium">{aula.horaInicio || '-'}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Fim</p>
+                            <p className="font-medium">{aula.horaFim || '-'}</p>
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <p className="text-muted-foreground text-sm">Tópico</p>
+                          <p className="text-sm font-medium">{aula.topico || 'Sem tópico definido'}</p>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/aulas/view/${aula.id}`}>Ver</Link>
+                          </Button>
+                          {canEdit && (
+                            <>
+                              <Button variant="outline" size="sm" asChild>
+                                <Link to={`/aulas/edit/${aula.id}`}>Editar</Link>
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                asChild
+                                disabled={!aula.turmaId}
+                              >
+                                <Link
+                                  to={`/presencas?aulaId=${aula.id}${
+                                    aula.turmaId ? `&turmaId=${aula.turmaId}` : ''
+                                  }`}
                                 >
-                                  {flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext()
-                                  )}
-                                  {{
-                                    asc: ' 🔼',
-                                    desc: ' 🔽',
-                                  }[header.column.getIsSorted() as string] ?? null}
-                                </div>
-                              )}
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableHeader>
-                    <TableBody>
-                      {table.getRowModel().rows.map((row) => (
-                        <TableRow key={row.id}>
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                                  Registrar aula
+                                </Link>
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="hidden lg:block rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                          <TableRow key={headerGroup.id}>
+                            {headerGroup.headers.map((header) => (
+                              <TableHead key={header.id}>
+                                {header.isPlaceholder ? null : (
+                                  <div
+                                    {...{
+                                      className: header.column.getCanSort()
+                                        ? 'cursor-pointer select-none'
+                                        : '',
+                                      onClick: header.column.getToggleSortingHandler(),
+                                    }}
+                                  >
+                                    {flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext()
+                                    )}
+                                    {{
+                                      asc: ' 🔼',
+                                      desc: ' 🔽',
+                                    }[header.column.getIsSorted() as string] ?? null}
+                                  </div>
+                                )}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableHeader>
+                      <TableBody>
+                        {table.getRowModel().rows.map((row) => (
+                          <TableRow key={row.id}>
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell key={cell.id}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -499,7 +698,7 @@ export default function AulasListPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Calendário de Aulas</CardTitle>
-                  <CardDescription>Visualização mensal</CardDescription>
+                  <CardDescription>Visualização mensal estilo agenda</CardDescription>
                 </div>
                 <div className="flex gap-1 border rounded-md p-0.5 bg-muted/30">
                   <Button
@@ -526,56 +725,106 @@ export default function AulasListPage() {
             <CardContent>
               {isLoading ? (
                 <div className="text-center py-8">Carregando...</div>
-              ) : calendarEvents.length === 0 ? (
+              ) : aulas.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   Nenhuma aula encontrada. Selecione filtros ou crie uma nova aula.
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {calendarEvents.map(({ date, aulas: aulasOnDate }) => {
-                    const dateObj = new Date(date);
-                    return (
-                      <Card key={date} className="border-l-4 border-l-blue-500">
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base">
-                            {dateObj.toLocaleDateString('pt-BR', {
-                              weekday: 'long',
-                              day: 'numeric',
-                              month: 'long',
-                            })}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                          {aulasOnDate.map((aula) => (
-                            <div
-                              key={aula.id}
-                              className="p-2 bg-gray-50 rounded border border-gray-200"
-                            >
-                              <div className="font-medium text-sm">
-                                {aula.horaInicio && aula.horaFim
-                                  ? `${aula.horaInicio} - ${aula.horaFim}`
-                                  : 'Horário não definido'}
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {aula.topico || 'Sem tópico'}
-                              </div>
-                              <div className="mt-2 flex gap-2">
-                                <Button variant="outline" size="sm" asChild>
-                                  <Link to={`/aulas/view/${aula.id}`}>Ver</Link>
-                                </Button>
-                                {canEdit && (
-                                  <Button variant="outline" size="sm" asChild>
-                                    <Link to={`/aulas/edit/${aula.id}`}>Editar</Link>
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="icon" onClick={goToPreviousMonth} aria-label="Mês anterior">
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="text-lg font-semibold capitalize">
+                        {currentMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={goToNextMonth} aria-label="Próximo mês">
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={goToCurrentMonth}>
+                        Hoje
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <select
+                        className="rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={currentMonth.getMonth()}
+                        onChange={(e) => handleMonthSelect(Number(e.target.value))}
+                      >
+                        {monthNames.map((name, index) => (
+                          <option key={name} value={index}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="number"
+                        className="w-24 rounded-md border border-input bg-transparent px-3 py-1 shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        value={currentMonth.getFullYear()}
+                        onChange={(e) => {
+                          if (e.target.value === '') return;
+                          handleYearChange(Number(e.target.value));
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-7 text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    {weekDays.map((day) => (
+                      <div key={day} className="text-center py-1">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1">
+                    {calendarDays.map(({ date, inCurrentMonth, iso }) => {
+                      const dayEvents = eventsByDate[iso] || [];
+                      return (
+                        <div
+                          key={`${iso}-${inCurrentMonth ? 'current' : 'adjacent'}`}
+                          className={cn(
+                            "min-h-[120px] border rounded-md p-2 flex flex-col gap-1 bg-white",
+                            !inCurrentMonth && "bg-muted/40 text-muted-foreground"
+                          )}
+                        >
+                          <div className="flex items-center justify-between text-sm font-medium">
+                            <span>{date.getDate()}</span>
+                            {dayEvents.length > 0 && (
+                              <Badge variant="secondary" className="ml-2 text-[10px]">
+                                {dayEvents.length}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-1 overflow-y-auto">
+                            {dayEvents.length === 0 ? (
+                              <span className="text-[11px] text-muted-foreground">Sem aulas</span>
+                            ) : (
+                              dayEvents.map((aula) => (
+                                <Link
+                                  key={aula.id}
+                                  to={`/aulas/view/${aula.id}`}
+                                  className={cn(
+                                    "block rounded border px-2 py-1 text-xs truncate",
+                                    canEdit
+                                      ? "bg-blue-50 text-blue-900 border-blue-100 hover:bg-blue-100"
+                                      : "bg-slate-100 text-slate-900 border-slate-200"
+                                  )}
+                                >
+                                  <span className="font-semibold">
+                                    {aula.horaInicio ? aula.horaInicio : 'Sem horário'}
+                                  </span>
+                                  {aula.topico && <span className="ml-1">• {aula.topico}</span>}
+                                </Link>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

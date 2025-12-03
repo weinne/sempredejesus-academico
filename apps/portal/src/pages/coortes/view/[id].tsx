@@ -205,6 +205,14 @@ export default function CoorteDetailPage() {
                     </Button>
                   </Link>
                 )}
+                {canEdit && (
+                  <Link to={`/coortes/vincular/${coorte.id}`}>
+                    <Button className="w-full justify-start">
+                      <Users className="h-4 w-4 mr-2" />
+                      Vincular Alunos
+                    </Button>
+                  </Link>
+                )}
                 <Link to="/coortes">
                   <Button variant="outline" className="w-full justify-start">
                     <Users className="h-4 w-4 mr-2" />

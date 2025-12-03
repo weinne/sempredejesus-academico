@@ -703,7 +703,8 @@ class ApiService {
     limit?: number; 
     search?: string; 
     sortBy?: string; 
-    sortOrder?: 'asc' | 'desc' 
+    sortOrder?: 'asc' | 'desc';
+    coorteId?: number;
   }): Promise<{ data: Aluno[]; pagination: any }> {
     try {
       const queryParams = new URLSearchParams();
@@ -712,6 +713,7 @@ class ApiService {
       if (params?.search) queryParams.append('search', params.search);
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+      if (params?.coorteId !== undefined) queryParams.append('coorteId', params.coorteId.toString());
 
       const response = await this.api.get(`/api/alunos?${queryParams.toString()}`);
       return response.data;
@@ -727,9 +729,19 @@ class ApiService {
   async getAluno(ra: string): Promise<Aluno> {
     const response = await this.api.get(`/api/alunos/${ra}`);
     const aluno = response.data.data || response.data;
+
+    const normalizeId = (value: unknown): number | undefined => {
+      if (typeof value === 'number') return value;
+      if (value === null || value === undefined || value === '') return undefined;
+      const parsed = Number(value);
+      return Number.isNaN(parsed) ? undefined : parsed;
+    };
+
     return {
       ...aluno,
-      periodoId: typeof aluno.periodoId === 'number' ? aluno.periodoId : Number(aluno.periodoId ?? 0),
+      turnoId: normalizeId(aluno.turnoId),
+      coorteId: normalizeId(aluno.coorteId),
+      periodoId: normalizeId(aluno.periodoId),
       periodo: aluno.periodo
         ? {
             ...aluno.periodo,
@@ -1089,12 +1101,20 @@ class ApiService {
     return response.data.data as import('@/types/api').Turno[];
   }
 
-  async createTurno(payload: { nome: string }): Promise<import('@/types/api').Turno> {
+  async getTurno(id: number): Promise<import('@/types/api').Turno> {
+    const response = await this.api.get(`/api/turnos/${id}`);
+    return response.data.data as import('@/types/api').Turno;
+  }
+
+  async createTurno(payload: import('@/types/api').CreateTurno): Promise<import('@/types/api').Turno> {
     const response = await this.api.post(`/api/turnos`, payload);
     return response.data.data as import('@/types/api').Turno;
   }
 
-  async updateTurno(id: number, payload: Partial<{ nome: string }>): Promise<import('@/types/api').Turno> {
+  async updateTurno(
+    id: number,
+    payload: Partial<import('@/types/api').CreateTurno>,
+  ): Promise<import('@/types/api').Turno> {
     const response = await this.api.patch(`/api/turnos/${id}`, payload);
     return response.data.data as import('@/types/api').Turno;
   }
@@ -1489,29 +1509,109 @@ class ApiService {
     const professor = turma.professor || row.professor;
     const coorte = turma.coorte || row.coorte;
     const inscritos = turma.inscritos || row.inscritos;
+    const periodoAtual = turma.periodo || row.periodo;
+    const normalizeTime = (value?: string | null) =>
+      typeof value === 'string' && value.length >= 5 ? value.substring(0, 5) : undefined;
+    const professorPessoa = professor?.pessoa
+      ? {
+          ...professor.pessoa,
+          nome:
+            professor.pessoa.nome ??
+            (professor.pessoa as any)?.nomeCompleto ??
+            professor.pessoa.nome ??
+            '',
+          nomeCompleto: (professor.pessoa as any)?.nomeCompleto ?? professor.pessoa.nome ?? undefined,
+        }
+      : undefined;
+
+    const periodoNumeroValue =
+      periodoAtual?.numero ??
+      periodoAtual?.periodoNumero ??
+      row.periodoSelecionadoNumero ??
+      null;
+    const periodoCurriculoValue =
+      periodoAtual?.curriculoId ??
+      row.periodoSelecionadoCurriculoId ??
+      null;
 
     return {
       id: Number(turma.id),
       disciplinaId: Number(turma.disciplinaId),
       professorId: String(turma.professorId),
-      coorteId: turma.coorteId ? Number(turma.coorteId) : undefined,
+      coorteId: turma.coorteId !== undefined && turma.coorteId !== null ? Number(turma.coorteId) : undefined,
+      periodoId: turma.periodoId !== undefined && turma.periodoId !== null ? Number(turma.periodoId) : undefined,
       sala: turma.sala || undefined,
-      horario: turma.horario || undefined,
+      diaSemana:
+        turma.diaSemana !== undefined && turma.diaSemana !== null ? Number(turma.diaSemana) : undefined,
+      horarioInicio: normalizeTime(turma.horarioInicio),
+      horarioFim: normalizeTime(turma.horarioFim),
+      dataInicio: turma.dataInicio || undefined,
+      dataFim: turma.dataFim || undefined,
       secao: turma.secao || undefined,
+      ementa: turma.ementa ?? undefined,
+      bibliografia: turma.bibliografia ?? undefined,
+      objetivos: turma.objetivos ?? undefined,
+      conteudoProgramatico: turma.conteudoProgramatico ?? undefined,
+      instrumentosEAvaliacao: turma.instrumentosEAvaliacao ?? undefined,
       totalInscritos: turma.totalInscritos ? Number(turma.totalInscritos) : turma.totalInscritos,
+      periodo: periodoAtual
+        ? {
+            id: Number(
+              periodoAtual.id ??
+                periodoAtual.periodoId ??
+                periodoAtual.periodo_id ??
+                turma.periodoId ??
+                row.periodoSelecionadoId,
+            ),
+            numero: Number(periodoNumeroValue ?? 0),
+            nome: periodoAtual.nome ?? periodoAtual.periodoNome ?? undefined,
+            curriculoId: Number(periodoCurriculoValue ?? 0),
+            turnoId:
+              periodoAtual.turnoId !== undefined && periodoAtual.turnoId !== null
+                ? Number(periodoAtual.turnoId)
+                : periodoAtual.periodoTurnoId !== undefined && periodoAtual.periodoTurnoId !== null
+                ? Number(periodoAtual.periodoTurnoId)
+                : undefined,
+          }
+        : turma.periodoSelecionadoId
+        ? {
+            id: Number(turma.periodoSelecionadoId),
+            numero:
+              turma.periodoSelecionadoNumero !== undefined && turma.periodoSelecionadoNumero !== null
+                ? Number(turma.periodoSelecionadoNumero)
+                : 0,
+            nome: turma.periodoSelecionadoNome ?? undefined,
+            curriculoId:
+              turma.periodoSelecionadoCurriculoId !== undefined &&
+              turma.periodoSelecionadoCurriculoId !== null
+                ? Number(turma.periodoSelecionadoCurriculoId)
+                : 0,
+            turnoId:
+              turma.periodoSelecionadoTurnoId !== undefined && turma.periodoSelecionadoTurnoId !== null
+                ? Number(turma.periodoSelecionadoTurnoId)
+                : undefined,
+          }
+        : undefined,
       disciplina: disciplina ? this.mapDisciplina(disciplina) : undefined,
-      professor: professor ? {
-        ...professor,
-        pessoa: professor.pessoa ? {
-          ...professor.pessoa,
-        } : undefined,
-      } : undefined,
-      coorte: coorte ? {
-        ...coorte,
-        id: Number(coorte.id),
-        anoIngresso: Number(coorte.anoIngresso),
-      } : undefined,
-      inscritos: Array.isArray(inscritos) ? inscritos.map((item: any) => this.mapTurmaInscrito(item)) : undefined,
+      professor: professor
+        ? {
+            ...professor,
+            pessoa: professorPessoa,
+          }
+        : undefined,
+      coorte: coorte
+        ? {
+            ...coorte,
+            id: Number(coorte.id),
+            anoIngresso:
+              coorte.anoIngresso !== undefined && coorte.anoIngresso !== null
+                ? Number(coorte.anoIngresso)
+                : undefined,
+          }
+        : undefined,
+      inscritos: Array.isArray(inscritos)
+        ? inscritos.map((item: any) => this.mapTurmaInscrito(item))
+        : undefined,
     };
   }
 
@@ -1606,6 +1706,12 @@ class ApiService {
             curriculoId:
               periodoData.curriculoId !== undefined && periodoData.curriculoId !== null
                 ? Number(periodoData.curriculoId)
+                : undefined,
+            turnoId:
+              periodoData.turnoId !== undefined && periodoData.turnoId !== null
+                ? Number(periodoData.turnoId)
+                : periodoData.periodoTurnoId !== undefined && periodoData.periodoTurnoId !== null
+                ? Number(periodoData.periodoTurnoId)
                 : undefined,
           }
         : undefined,

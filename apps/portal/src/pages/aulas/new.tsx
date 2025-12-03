@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import CrudHeader from '@/components/crud/crud-header';
@@ -167,9 +168,8 @@ export default function NovaAulaPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="horaInicio">Hora Início (HH:mm)</Label>
-                  <Input
+                  <TimeInput
                     id="horaInicio"
-                    type="time"
                     placeholder="08:00"
                     {...register('horaInicio')}
                   />
@@ -180,7 +180,7 @@ export default function NovaAulaPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="horaFim">Hora Fim (HH:mm)</Label>
-                  <Input id="horaFim" type="time" placeholder="10:00" {...register('horaFim')} />
+                  <TimeInput id="horaFim" placeholder="10:00" {...register('horaFim')} />
                   {errors.horaFim && (
                     <p className="text-sm text-red-500">{errors.horaFim.message}</p>
                   )}

@@ -73,6 +73,7 @@ export interface BootstrapAdminResponse {
 export interface Pessoa {
   id: string;
   nome: string;
+  nomeCompleto?: string;
   sexo?: 'M' | 'F' | 'O';
   cpf?: string;
   email?: string;
@@ -179,9 +180,18 @@ export interface Curso {
   cargaHorariaTotal?: number;
 }
 
+export interface TurnoHorario {
+  id?: string;
+  ordem?: number;
+  descricao?: string | null;
+  horaInicio: string; // HH:mm
+  horaFim: string; // HH:mm
+}
+
 export interface Turno {
   id: number;
   nome: string; // Diurno, Vespertino, Noturno
+  horarios?: TurnoHorario[];
 }
 
 export interface Curriculo {
@@ -216,6 +226,7 @@ export interface CreateCurso {
 
 export interface CreateTurno {
   nome: string;
+  horarios?: TurnoHorario[];
 }
 
 export interface CreateCurriculo {
@@ -248,6 +259,7 @@ export interface Periodo {
   totalAlunos?: number;
   curso?: Curso;
   curriculo?: Curriculo;
+  turnoId?: number | null;
   turno?: Turno;
   disciplinas?: Array<Disciplina & { ordem?: number; obrigatoria?: boolean }>;
 }
@@ -272,6 +284,7 @@ export interface DisciplinaPeriodo {
     numero?: number | null;
     nome?: string | null;
     curriculoId?: number;
+    turnoId?: number | null;
   };
 }
 
@@ -299,6 +312,7 @@ export interface Turma {
   disciplinaId: number;
   professorId: string;
   coorteId?: number;
+  periodoId?: number | null;
   sala?: string;
   horario?: string;
   diaSemana?: number;
@@ -315,6 +329,7 @@ export interface Turma {
   disciplina?: Disciplina;
   professor?: Professor;
   coorte?: Coorte;
+  periodo?: Periodo | null;
   inscritos?: TurmaInscrito[];
   totalInscritos?: number;
 }
@@ -323,6 +338,7 @@ export interface CreateTurma {
   disciplinaId: number;
   professorId: string;
   coorteId?: number;
+  periodoId?: number;
   sala?: string;
   horario?: string;
   diaSemana?: number;

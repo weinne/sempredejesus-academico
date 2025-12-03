@@ -406,36 +406,56 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     limit = 50,
     search = '',
     sortBy = 'ra',
-    sortOrder = 'asc'
-  } = req.query;
+    sortOrder = 'asc',
+    coorteId,
+  } = req.query as any;
 
   const pageNum = parseInt(page as string);
   const limitNum = Math.min(parseInt(limit as string), 100);
   const offset = (pageNum - 1) * limitNum;
 
-  let query = db
+  const baseQuery = db
     .select()
     .from(alunos)
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
     .leftJoin(periodos, eq(alunos.periodoId, periodos.id));
 
+  const whereConditions = [] as any[];
+
+  if (coorteId !== undefined) {
+    const parsedCoorteId = Number(coorteId);
+    if (!Number.isNaN(parsedCoorteId)) {
+      whereConditions.push(eq(alunos.coorteId, parsedCoorteId));
+    }
+  }
+
+  if (search) {
+    whereConditions.push(
+      or(
+        like(alunos.ra, `%${search}%`),
+        like(pessoas.nomeCompleto, `%${search}%`),
+        like(pessoas.email, `%${search}%`),
+        like(cursos.nome, `%${search}%`),
+        like(periodos.nome, `%${search}%`)
+      )
+    );
+  }
+
+  const whereExpr =
+    whereConditions.length === 1
+      ? whereConditions[0]
+      : whereConditions.length > 1
+        ? and(...whereConditions)
+        : undefined;
+
+  const query = whereExpr ? baseQuery.where(whereExpr) : baseQuery;
+
   // Add ordering
   const orderDirection = sortOrder === 'desc' ? desc : asc;
   const orderByExpr = orderDirection(alunos.ra);
   
-  // Add search if specified and build final query
-  const finalQuery = search
-    ? query.where(
-        or(
-          like(alunos.ra, `%${search}%`),
-          like(pessoas.nomeCompleto, `%${search}%`),
-          like(pessoas.email, `%${search}%`),
-          like(cursos.nome, `%${search}%`),
-          like(periodos.nome, `%${search}%`)
-        )
-      ).orderBy(orderByExpr)
-    : query.orderBy(orderByExpr);
+  const finalQuery = query.orderBy(orderByExpr);
 
   // Get data with pagination
   const rawData = await finalQuery.limit(limitNum).offset(offset);
@@ -483,17 +503,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
     .leftJoin(periodos, eq(alunos.periodoId, periodos.id));
 
-  const countQuery = search
-    ? baseCountQuery.where(
-        or(
-          like(alunos.ra, `%${search}%`),
-          like(pessoas.nomeCompleto, `%${search}%`),
-          like(pessoas.email, `%${search}%`),
-          like(cursos.nome, `%${search}%`),
-          like(periodos.nome, `%${search}%`)
-        )
-      )
-    : baseCountQuery;
+  const countQuery = whereExpr ? baseCountQuery.where(whereExpr) : baseCountQuery;
 
   const [{ count }] = await countQuery;
   const total = parseInt(count as string);

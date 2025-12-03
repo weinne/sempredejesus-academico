@@ -47,13 +47,13 @@ export function HeroSection({
           {/* Top row: menu/back buttons + title + primary actions */}
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-2 flex-1 min-w-0">
-              {/* Menu button (desktop only) */}
+              {/* Menu button */}
               {showMenuButton && onMenuClick && (
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={onMenuClick}
-                  className="hidden md:flex shrink-0 h-9 w-9 text-white hover:bg-white/10 hover:text-white mt-0.5"
+                  className="shrink-0 h-9 w-9 text-white hover:bg-white/10 hover:text-white mt-0.5"
                   title="Menu"
                 >
                   <Menu className="h-4 w-4" />

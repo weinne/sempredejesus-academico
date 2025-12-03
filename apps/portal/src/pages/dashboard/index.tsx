@@ -1,15 +1,57 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { Role } from '@/types/api';
 import { Link } from 'react-router-dom';
 import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User, Layers3, BarChart3, CalendarDays, ClipboardList, LogOut, ListOrdered, Clock, FileSpreadsheet, ArrowRight, TrendingUp, Activity, Shield, Zap } from 'lucide-react';
+import { usePageHero } from '@/hooks/use-page-hero';
+
+const getRoleDisplayName = (role: Role): string => {
+  switch (role) {
+    case Role.ADMIN:
+      return 'Administrador';
+    case Role.SECRETARIA:
+      return 'Secretaria';
+    case Role.PROFESSOR:
+      return 'Professor';
+    case Role.ALUNO:
+      return 'Aluno';
+    default:
+      return role;
+  }
+};
 
 export default function DashboardPage() {
   const { user, logout, hasRole } = useAuth();
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA]);
+  const roleDisplayName = user?.role ? getRoleDisplayName(user.role) : undefined;
+
+  const heroActions = useMemo(
+    () => (
+      <div className="flex gap-2">
+        <Link to="/meu-portal">
+          <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/20">
+            <User className="h-4 w-4 mr-1.5" />
+            Meu Portal
+          </Button>
+        </Link>
+        <Button variant="secondary" size="sm" onClick={logout} className="bg-white/20 border-white/20 text-white hover:bg-white/30">
+          <LogOut className="h-4 w-4 mr-1.5" />
+          Sair
+        </Button>
+      </div>
+    ),
+    [logout]
+  );
+
+  usePageHero({
+    badge: roleDisplayName,
+    title: `Bem-vindo(a), ${user?.pessoa?.nome || user?.username || 'usuário'}!`,
+    description: 'Sistema de Gestão Acadêmica do Seminário Presbiteriano de Jesus. Acesse as funcionalidades disponíveis para seu perfil abaixo.',
+    actions: heroActions,
+    showBackButton: false,
+  });
   
   const sections = [
     {
@@ -57,64 +99,8 @@ export default function DashboardPage() {
     },
   ] as const;
 
-  const getRoleDisplayName = (role: Role): string => {
-    switch (role) {
-      case Role.ADMIN:
-        return 'Administrador';
-      case Role.SECRETARIA:
-        return 'Secretaria';
-      case Role.PROFESSOR:
-        return 'Professor';
-      case Role.ALUNO:
-        return 'Aluno';
-      default:
-        return role;
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-sky-900/70 to-slate-900" />
-        <div className="relative max-w-7xl mx-auto px-6 py-16 text-white">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-10">
-            <div className="max-w-2xl space-y-4">
-              <Badge className="bg-white/20 text-white hover:bg-white/30">
-                {user?.role && getRoleDisplayName(user.role)}
-              </Badge>
-              <h1 className="text-4xl md:text-5xl font-semibold leading-tight">
-                Bem-vindo(a), {user?.pessoa?.nome || user?.username}!
-              </h1>
-              <p className="text-base md:text-lg text-slate-200/80">
-                Sistema de Gestão Acadêmica do Seminário Presbiteriano de Jesus.
-                Acesse as funcionalidades disponíveis para seu perfil abaixo.
-              </p>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-2xl p-6 w-full max-w-md shadow-lg border border-white/10">
-              <p className="text-sm uppercase tracking-wide text-slate-200/70">Status do Sistema</p>
-              <div className="mt-4 flex items-center gap-3">
-                <div className="h-3 w-3 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-sm text-slate-200">Sistema funcionando normalmente</span>
-              </div>
-              <div className="mt-6 flex gap-2">
-                <Link to="/meu-portal">
-                  <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-white/20">
-                    <User className="h-4 w-4 mr-2" />
-                    Meu Portal
-                  </Button>
-                </Link>
-                <Button variant="secondary" size="sm" onClick={logout} className="bg-white/20 border-white/20 text-white hover:bg-white/30">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sair
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Sections */}
         <div className="space-y-12">

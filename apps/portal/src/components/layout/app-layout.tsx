@@ -34,6 +34,8 @@ import {
   TrendingUp,
   Activity,
   Zap,
+  ArrowUp,
+  CheckSquare,
 } from 'lucide-react';
 
 type SectionKey = 'administracao' | 'gestao' | 'registros' | 'pessoal';
@@ -50,6 +52,20 @@ function AppLayoutContent() {
     registros: true,
     pessoal: true,
   });
+  const [showScrollTop, setShowScrollTop] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   // Passa a função de abrir menu para o context
   React.useEffect(() => {
@@ -90,6 +106,7 @@ function AppLayoutContent() {
       title: 'Registros',
       items: [
         { to: '/aulas', icon: CalendarDays, label: 'Aulas', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
+        { to: '/frequencia', icon: CheckSquare, label: 'Frequência em Massa', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { to: '/avaliacoes', icon: FileText, label: 'Avaliações', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
         { to: '/presencas', icon: ClipboardList, label: 'Presenças', visible: hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]) },
       ],
@@ -287,6 +304,21 @@ function AppLayoutContent() {
           </div>
           
           <div className="min-w-0">
+            {!headerConfig && (
+              <div className="md:hidden sticky top-0 z-30 flex items-center justify-between bg-white/95 backdrop-blur px-4 py-3 border-b border-slate-200/60 shadow-sm">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsOpen(true)}
+                  aria-label="Abrir menu"
+                >
+                  <MenuIcon className="h-5 w-5" />
+                </Button>
+                <span className="text-sm font-semibold text-slate-700">Menu</span>
+                <div className="w-9" />
+              </div>
+            )}
+
             {/* Hero integrado com botão de menu */}
             {headerConfig && (
               <HeroSection
@@ -300,6 +332,17 @@ function AppLayoutContent() {
             </main>
           </div>
         </>
+      )}
+
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-6 right-6 z-40 inline-flex items-center justify-center rounded-full bg-slate-900 text-white shadow-lg p-3 hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-900"
+          aria-label="Voltar ao topo"
+        >
+          <ArrowUp className="h-4 w-4" />
+        </button>
       )}
     </div>
   );

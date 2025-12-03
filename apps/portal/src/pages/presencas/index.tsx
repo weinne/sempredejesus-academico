@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,17 +11,20 @@ import { apiService } from '@/services/api';
 import { Aula, EstudanteAula, LancarFrequenciaInput, Role, AlertasFrequencia } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { Save, Calendar, Users, CheckCircle, XCircle, AlertTriangle, Download } from 'lucide-react';
+import { Save, Calendar, Users, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function PresencasPage() {
   const { hasRole } = useAuth();
   const { toast } = useToast();
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]);
+  const [searchParams] = useSearchParams();
+  const prefilledFromQuery = useRef(false);
 
   const [turmaId, setTurmaId] = useState<number | ''>('');
   const [aulaId, setAulaId] = useState<number | ''>('');
   const [justificativas, setJustificativas] = useState<Record<number, string>>({});
+  const [aulaForm, setAulaForm] = useState<Partial<Aula> | null>(null);
 
   // Options for selects
   const { data: turmasOptions = [] } = useQuery({
@@ -47,6 +51,13 @@ export default function PresencasPage() {
     enabled: typeof aulaId === 'number',
   });
 
+// Detalhes da aula selecionada
+const { data: aulaDetalhes, refetch: refetchAulaDetalhes, isFetching: loadingAulaDetalhes } = useQuery({
+  queryKey: ['aula-detalhes', aulaId],
+  queryFn: () => apiService.getAula(aulaId as number),
+  enabled: typeof aulaId === 'number',
+});
+
   // Attendance alerts for selected turma
   const { data: alertasFrequencia } = useQuery({
     queryKey: ['alertas-frequencia', turmaId],
@@ -56,39 +67,119 @@ export default function PresencasPage() {
 
   const [presencas, setPresencas] = useState<Record<number, boolean>>({});
 
-  // Initialize presencas when estudantes load
-  React.useEffect(() => {
-    if (estudantes.length > 0) {
-      const initialPresencas: Record<number, boolean> = {};
-      const initialJustificativas: Record<number, string> = {};
-      
-      estudantes.forEach(estudante => {
-        initialPresencas[estudante.inscricaoId] = estudante.presente;
-        if (estudante.justificativa) {
-          initialJustificativas[estudante.inscricaoId] = estudante.justificativa;
-        }
-      });
-      
-      setPresencas(initialPresencas);
-      setJustificativas(initialJustificativas);
-    }
-  }, [estudantes]);
+// Initialize presencas when estudantes load
+useEffect(() => {
+  if (estudantes.length > 0) {
+    const initialPresencas: Record<number, boolean> = {};
+    const initialJustificativas: Record<number, string> = {};
+    
+    estudantes.forEach(estudante => {
+      initialPresencas[estudante.inscricaoId] = estudante.presente;
+      if (estudante.justificativa) {
+        initialJustificativas[estudante.inscricaoId] = estudante.justificativa;
+      }
+    });
+    
+    setPresencas(initialPresencas);
+    setJustificativas(initialJustificativas);
+  } else {
+    setPresencas({});
+    setJustificativas({});
+  }
+}, [estudantes]);
 
-  const salvarFrequencias = useMutation({
-    mutationFn: (frequencias: LancarFrequenciaInput[]) => 
-      apiService.lancarFrequencias(aulaId as number, frequencias),
-    onSuccess: () => {
-      toast({ title: 'Presenças salvas com sucesso!' });
-      refetchEstudantes();
-    },
-    onError: (e: any) => {
-      toast({ 
-        title: 'Erro ao salvar presenças', 
-        description: e.message, 
-        variant: 'destructive' 
-      });
-    },
-  });
+useEffect(() => {
+  if (aulaDetalhes) {
+    setAulaForm({
+      data: aulaDetalhes.data ?? '',
+      horaInicio: aulaDetalhes.horaInicio ?? '',
+      horaFim: aulaDetalhes.horaFim ?? '',
+      topico: aulaDetalhes.topico ?? '',
+      materialUrl: aulaDetalhes.materialUrl ?? '',
+      observacao: aulaDetalhes.observacao ?? '',
+    });
+  } else if (typeof aulaId !== 'number') {
+    setAulaForm(null);
+  }
+}, [aulaDetalhes, aulaId]);
+
+useEffect(() => {
+  if (prefilledFromQuery.current) return;
+
+  const turmaParam = searchParams.get('turmaId');
+  const aulaParam = searchParams.get('aulaId');
+  let hasPrefill = false;
+
+  if (turmaParam) {
+    const parsedTurma = Number(turmaParam);
+    if (!Number.isNaN(parsedTurma)) {
+      setTurmaId(parsedTurma);
+      hasPrefill = true;
+    }
+  }
+
+  if (aulaParam) {
+    const parsedAula = Number(aulaParam);
+    if (!Number.isNaN(parsedAula)) {
+      setAulaId(parsedAula);
+      hasPrefill = true;
+    }
+  }
+
+  if (hasPrefill) {
+    prefilledFromQuery.current = true;
+  }
+}, [searchParams]);
+
+const salvarRegistroCompleto = useMutation({
+  mutationFn: async () => {
+    if (typeof aulaId !== 'number') {
+      throw new Error('Selecione uma aula para continuar');
+    }
+
+    const frequencias: LancarFrequenciaInput[] = estudantes.map(estudante => ({
+      inscricaoId: estudante.inscricaoId,
+      presente: presencas[estudante.inscricaoId] ?? true,
+      justificativa: justificativas[estudante.inscricaoId] || undefined,
+    }));
+
+    const requests: Promise<any>[] = [];
+
+    if (aulaForm) {
+      const aulaPayload = {
+        data: aulaForm.data || undefined,
+        horaInicio: aulaForm.horaInicio || undefined,
+        horaFim: aulaForm.horaFim || undefined,
+        topico: aulaForm.topico || undefined,
+        materialUrl: aulaForm.materialUrl || undefined,
+        observacao: aulaForm.observacao || undefined,
+      };
+      requests.push(apiService.updateAula(aulaId, aulaPayload));
+    }
+
+    if (frequencias.length > 0) {
+      requests.push(apiService.lancarFrequencias(aulaId, frequencias));
+    }
+
+    if (requests.length === 0) {
+      throw new Error('Nenhuma informação para salvar');
+    }
+
+    await Promise.all(requests);
+  },
+  onSuccess: () => {
+    toast({ title: 'Aula e presenças salvas com sucesso!' });
+    refetchEstudantes();
+    refetchAulaDetalhes();
+  },
+  onError: (e: any) => {
+    toast({
+      title: 'Erro ao salvar informações',
+      description: e.message || 'Tente novamente em instantes',
+      variant: 'destructive',
+    });
+  },
+});
 
   const togglePresenca = (inscricaoId: number) => {
     setPresencas(prev => ({
@@ -104,27 +195,26 @@ export default function PresencasPage() {
     }));
   };
 
-  const handleSalvar = () => {
-    if (typeof aulaId !== 'number') return;
+const updateAulaForm = (field: keyof Pick<Aula, 'data' | 'horaInicio' | 'horaFim' | 'topico' | 'materialUrl' | 'observacao'>, value: string) => {
+  setAulaForm(prev => ({
+    ...(prev ?? {}),
+    [field]: value,
+  }));
+};
 
-    const frequencias: LancarFrequenciaInput[] = estudantes.map(estudante => ({
-      inscricaoId: estudante.inscricaoId,
-      presente: presencas[estudante.inscricaoId] ?? true,
-      justificativa: justificativas[estudante.inscricaoId] || undefined,
-    }));
+const handleSalvar = () => {
+  if (typeof aulaId !== 'number') return;
+  salvarRegistroCompleto.mutate();
+};
 
-    salvarFrequencias.mutate(frequencias);
-  };
-
-  const aulasSelecionada = aulas.find(a => a.id === aulaId);
   const totalEstudantes = estudantes.length;
   const presentes = Object.values(presencas).filter(Boolean).length;
   const ausentes = totalEstudantes - presentes;
 
   // Configure Hero via hook
   usePageHero({
-    title: "Registro de Presenças",
-    description: "Marque as presenças dos alunos de forma visual e intuitiva",
+  title: "Registro de Aula & Presenças",
+  description: "Atualize os dados da aula e marque presenças em uma única tela",
     backTo: "/dashboard"
   });
 
@@ -182,19 +272,95 @@ export default function PresencasPage() {
               </div>
             </div>
 
-            {aulasSelecionada && (
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <h4 className="font-medium text-blue-900">Aula Selecionada</h4>
-                <p className="text-blue-700">
-                  <strong>Data:</strong> {aulasSelecionada.data}
-                  {aulasSelecionada.topico && (
-                    <> | <strong>Tópico:</strong> {aulasSelecionada.topico}</>
-                  )}
-                </p>
-              </div>
-            )}
           </CardContent>
         </Card>
+
+        {typeof aulaId === 'number' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalhes da Aula</CardTitle>
+              <CardDescription>
+                Registre conteúdo, horários e observações antes de salvar as presenças
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingAulaDetalhes ? (
+                <div className="text-center py-6 text-sm text-muted-foreground">
+                  Carregando informações da aula...
+                </div>
+              ) : !aulaForm ? (
+                <div className="text-sm text-muted-foreground">
+                  Não encontramos informações para esta aula. Tente selecionar outra aula.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Data</label>
+                      <Input
+                        type="date"
+                        value={aulaForm.data || ''}
+                        onChange={(e) => updateAulaForm('data', e.target.value)}
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Hora Início</label>
+                      <Input
+                        type="time"
+                        value={aulaForm.horaInicio || ''}
+                        onChange={(e) => updateAulaForm('horaInicio', e.target.value)}
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Hora Fim</label>
+                      <Input
+                        type="time"
+                        value={aulaForm.horaFim || ''}
+                        onChange={(e) => updateAulaForm('horaFim', e.target.value)}
+                        disabled={!canEdit}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Tópico da Aula</label>
+                      <Input
+                        placeholder="Ex.: Introdução à Escatologia"
+                        value={aulaForm.topico || ''}
+                        onChange={(e) => updateAulaForm('topico', e.target.value)}
+                        disabled={!canEdit}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Material / URL</label>
+                      <Input
+                        type="url"
+                        placeholder="https://..."
+                        value={aulaForm.materialUrl || ''}
+                        onChange={(e) => updateAulaForm('materialUrl', e.target.value)}
+                        disabled={!canEdit}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Observações</label>
+                    <Textarea
+                      rows={4}
+                      placeholder="Notas adicionais, tarefas, etc."
+                      value={aulaForm.observacao || ''}
+                      onChange={(e) => updateAulaForm('observacao', e.target.value)}
+                      disabled={!canEdit}
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Attendance Alerts */}
         {alertasFrequencia && alertasFrequencia.alertas.length > 0 && (
@@ -346,11 +512,11 @@ export default function PresencasPage() {
                     <div className="flex justify-end pt-4 border-t">
                       <Button 
                         onClick={handleSalvar}
-                        disabled={salvarFrequencias.isPending}
+                        disabled={salvarRegistroCompleto.isPending}
                         className="flex items-center gap-2"
                       >
                         <Save className="h-4 w-4" />
-                        {salvarFrequencias.isPending ? 'Salvando...' : 'Salvar Presenças'}
+                        {salvarRegistroCompleto.isPending ? 'Salvando...' : 'Salvar Aula e Presenças'}
                       </Button>
                     </div>
                   )}

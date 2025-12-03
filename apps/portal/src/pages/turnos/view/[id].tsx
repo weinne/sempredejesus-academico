@@ -6,11 +6,7 @@ import { Button } from '@/components/ui/button';
 import { apiService } from '@/services/api';
 import { Turno, Role } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
-import {
-  ArrowLeft,
-  Clock,
-  Edit
-} from 'lucide-react';
+import { ArrowLeft, Clock, Edit } from 'lucide-react';
 
 export default function TurnoDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,9 +16,20 @@ export default function TurnoDetailPage() {
     data: turno,
     isLoading,
     error,
-  } = useQuery({
+    refetch,
+  } = useQuery<Turno | undefined>({
     queryKey: ['turno', id],
-    queryFn: () => apiService.getTurnos().then(turnos => turnos.find(t => t.id === Number(id))),
+    queryFn: async () => {
+      if (!id) return undefined;
+      const parsedId = Number(id);
+      if (Number.isNaN(parsedId)) return undefined;
+
+      try {
+        return await apiService.getTurno(parsedId);
+      } catch (err) {
+        throw err;
+      }
+    },
     enabled: !!id,
     retry: false,
   });
@@ -115,11 +122,46 @@ export default function TurnoDetailPage() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-5">
                 <div className="flex items-center justify-between">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTurnoColor(turno.nome)}`}>
                     {turno.nome}
                   </span>
+                  <Button variant="ghost" size="sm" onClick={() => refetch()}>
+                    Atualizar
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-semibold text-slate-700">Horários do turno</h4>
+                    {canEdit && (
+                      <Link to={`/turnos/edit/${turno.id}`} className="text-sm text-blue-600 hover:underline">
+                        Gerenciar horários
+                      </Link>
+                    )}
+                  </div>
+                  {Array.isArray(turno.horarios) && turno.horarios.length > 0 ? (
+                    <div className="space-y-3">
+                      {turno.horarios.map((horario, index) => (
+                        <div
+                          key={horario.id ?? `${horario.horaInicio}-${horario.horaFim}-${index}`}
+                          className="rounded-lg border border-slate-200 p-3 bg-slate-50"
+                        >
+                          <div className="flex items-center justify-between text-sm font-medium text-slate-800">
+                            <span>
+                              {horario.descricao ? horario.descricao : `${horario.ordem ?? index + 1}º horário`}
+                            </span>
+                            <span>
+                              {horario.horaInicio} - {horario.horaFim}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">Nenhum horário cadastrado para este turno.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

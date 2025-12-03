@@ -69,6 +69,7 @@ export const TurmaSchema = z.object({
   disciplinaId: z.number().int().positive(),
   professorId: z.string().length(8),
   coorteId: z.number().int().optional(),
+  periodoId: z.number().int().optional(),
   sala: z.string().max(20).optional(),
   diaSemana: z.number().int().min(0).max(6).optional(),
   horarioInicio: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/).optional(),
@@ -111,6 +112,15 @@ export const TurmaCompletaSchema = TurmaSchema.extend({
   disciplina: DisciplinaResumoSchema.nullable().optional(),
   professor: ProfessorResumoSchema.nullable().optional(),
   coorte: CoorteResumoSchema,
+  periodo: z
+    .object({
+      id: z.number().int(),
+      numero: z.number().nullable().optional(),
+      nome: z.string().nullable().optional(),
+      turnoId: z.number().int().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
   inscritos: z.array(TurmaInscritoSchema).optional(),
 });
 

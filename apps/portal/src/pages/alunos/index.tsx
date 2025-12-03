@@ -165,14 +165,19 @@ export default function AlunosPage() {
     : alunos;
 
   // Filter alunos by search term + selects
+  const getAlunoNome = (aluno: Aluno) => (aluno.pessoa?.nome?.trim()
+    || aluno.pessoa?.nomeCompleto?.trim()
+    || '').trim();
+
   const filteredAlunos = visibleAlunos
     .filter((aluno) => !cursoFiltro || aluno.cursoId === Number(cursoFiltro))
     .filter((aluno) => !situacaoFiltro || aluno.situacao === situacaoFiltro)
     .filter((aluno) => {
       const term = searchTerm.toLowerCase();
+      const pessoaNome = getAlunoNome(aluno).toLowerCase();
       return (
         (aluno.ra || '').includes(searchTerm) ||
-        (aluno.pessoa?.nome || '').toLowerCase().includes(term) ||
+        pessoaNome.includes(term) ||
         (aluno.pessoa?.email || '').toLowerCase().includes(term) ||
         (aluno.situacao || '').toLowerCase().includes(term) ||
         (aluno.curso?.nome || '').toLowerCase().includes(term) ||
@@ -328,7 +333,7 @@ export default function AlunosPage() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <h3 className="font-semibold text-base text-slate-800 truncate">
-                                {aluno.pessoa?.nome || 'Nome não informado'}
+                                {getAlunoNome(aluno) || 'Nome não informado'}
                               </h3>
                               <p className="text-xs text-slate-500">RA: {aluno.ra}</p>
                             </div>
@@ -478,7 +483,7 @@ export default function AlunosPage() {
               Confirmar Exclusão
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir o aluno <strong>{deletingAluno?.pessoa?.nome || deletingAluno?.ra}</strong>?
+            Tem certeza que deseja excluir o aluno <strong>{deletingAluno ? (getAlunoNome(deletingAluno) || deletingAluno.ra) : ''}</strong>?
               <br />
               <br />
               <span className="text-red-600 font-medium">Esta ação não pode ser desfeita.</span>

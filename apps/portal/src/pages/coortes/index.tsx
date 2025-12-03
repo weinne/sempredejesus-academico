@@ -274,6 +274,11 @@ export default function CoortesPage() {
                       </Link>
                       {canEdit && (
                         <>
+                          <Link to={`/coortes/vincular/${c.id}`} title="Vincular alunos">
+                            <Button variant="ghost" size="sm">
+                              <Users className="h-4 w-4" />
+                            </Button>
+                          </Link>
                           <Button variant="ghost" size="sm" onClick={() => navigate(`/coortes/edit/${c.id}`)} title="Editar">
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -306,6 +311,11 @@ export default function CoortesPage() {
                         </div>
                         {canEdit && (
                           <div className="flex space-x-1">
+                            <Link to={`/coortes/vincular/${coorte.id}`} title="Vincular alunos">
+                              <Button variant="ghost" size="sm">
+                                <Users className="h-4 w-4" />
+                              </Button>
+                            </Link>
                             <Button variant="ghost" size="sm" onClick={() => navigate(`/coortes/edit/${coorte.id}`)} title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>

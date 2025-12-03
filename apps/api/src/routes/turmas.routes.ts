@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
@@ -18,13 +18,14 @@ import {
   professores,
   pessoas,
   periodos,
+  curriculos,
   coortes,
   turmasInscritos,
   alunos,
 } from '../db/schema';
 import { db } from '../db';
 import { requireAuth, requireProfessor, requireSecretaria } from '../middleware/auth.middleware';
-import { asyncHandler } from '../middleware/error.middleware';
+import { asyncHandler, createError } from '../middleware/error.middleware';
 import { validateParams } from '../middleware/validation.middleware';
 
 /**
@@ -186,6 +187,7 @@ type DisciplinaPeriodoWithPeriod = {
     numero: number | null;
     nome: string | null;
     curriculoId: number | null;
+    turnoId: number | null;
   };
 };
 
@@ -205,9 +207,11 @@ async function loadDisciplinaPeriodosMap(disciplinaIds: number[]): Promise<Map<n
       periodoNumero: periodos.numero,
       periodoNome: periodos.nome,
       periodoCurriculoId: periodos.curriculoId,
+      periodoTurnoId: curriculos.turnoId,
     })
     .from(disciplinasPeriodos)
     .innerJoin(periodos, eq(periodos.id, disciplinasPeriodos.periodoId))
+    .innerJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
     .where(inArray(disciplinasPeriodos.disciplinaId, disciplinaIds));
 
   for (const row of rows) {
@@ -222,6 +226,7 @@ async function loadDisciplinaPeriodosMap(disciplinaIds: number[]): Promise<Map<n
         numero: row.periodoNumero,
         nome: row.periodoNome,
         curriculoId: row.periodoCurriculoId,
+        turnoId: row.periodoTurnoId,
       },
     });
     map.set(row.disciplinaId, list);
@@ -250,6 +255,59 @@ const TurmaInscricaoParamsSchema = z.object({
   inscricaoId: z.coerce.number().int().positive(),
 });
 
+export const ensurePeriodoPertenceDisciplina = async (disciplinaId: number, periodoId: number) => {
+  const [result] = await db
+    .select({ total: sql<number>`COUNT(*)` })
+    .from(disciplinasPeriodos)
+    .where(
+      and(eq(disciplinasPeriodos.disciplinaId, disciplinaId), eq(disciplinasPeriodos.periodoId, periodoId)),
+    )
+    .limit(1);
+
+  if (!result || Number(result.total) === 0) {
+    throw createError('Período selecionado não pertence à disciplina escolhida.', 400);
+  }
+};
+
+const validateTurmaPeriodo = asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
+  const rawPeriodoId = req.body?.periodoId;
+  if (rawPeriodoId === undefined || rawPeriodoId === null || rawPeriodoId === '') {
+    return next();
+  }
+
+  const periodoId = Number(rawPeriodoId);
+  if (!Number.isFinite(periodoId)) {
+    throw createError('Período inválido informado.', 400);
+  }
+
+  let disciplinaIdValue = req.body?.disciplinaId;
+  if (disciplinaIdValue === undefined || disciplinaIdValue === null || disciplinaIdValue === '') {
+    const turmaId = Number(req.params?.id);
+    if (!Number.isFinite(turmaId)) {
+      throw createError('Não foi possível validar o período selecionado para esta turma.', 400);
+    }
+
+    const [turmaRegistro] = await db
+      .select({ disciplinaId: turmas.disciplinaId })
+      .from(turmas)
+      .where(eq(turmas.id, turmaId))
+      .limit(1);
+
+    if (!turmaRegistro) {
+      throw createError('Turma não encontrada para validação de período.', 404);
+    }
+    disciplinaIdValue = turmaRegistro.disciplinaId;
+  }
+
+  const disciplinaId = Number(disciplinaIdValue);
+  if (!Number.isFinite(disciplinaId)) {
+    throw createError('Disciplina inválida informada para validar o período.', 400);
+  }
+
+  await ensurePeriodoPertenceDisciplina(disciplinaId, periodoId);
+  next();
+});
+
 // Create CRUD factory for turmas (simplified)
 const turmasCrud = new SimpleCrudFactory({
   table: turmas,
@@ -270,6 +328,7 @@ router.get(
         disciplinaId: turmas.disciplinaId,
         professorId: turmas.professorId,
         coorteId: turmas.coorteId,
+        periodoId: turmas.periodoId,
         sala: turmas.sala,
         diaSemana: turmas.diaSemana,
         horarioInicio: turmas.horarioInicio,
@@ -305,6 +364,11 @@ router.get(
         coorteRotulo: coortes.rotulo,
         coorteAnoIngresso: coortes.anoIngresso,
         coorteAtivo: coortes.ativo,
+        periodoSelecionadoId: periodos.id,
+        periodoSelecionadoNumero: periodos.numero,
+        periodoSelecionadoNome: periodos.nome,
+        periodoSelecionadoCurriculoId: periodos.curriculoId,
+        periodoSelecionadoTurnoId: curriculos.turnoId,
         totalInscritos: sql<number>`COUNT(${turmasInscritos.id})`,
       })
       .from(turmas)
@@ -312,13 +376,20 @@ router.get(
       .leftJoin(professores, eq(professores.matricula, turmas.professorId))
       .leftJoin(pessoas, eq(pessoas.id, professores.pessoaId))
       .leftJoin(coortes, eq(coortes.id, turmas.coorteId))
+      .leftJoin(periodos, eq(periodos.id, turmas.periodoId))
+      .leftJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
       .leftJoin(turmasInscritos, eq(turmasInscritos.turmaId, turmas.id))
       .groupBy(
         turmas.id,
         disciplinas.id,
         professores.matricula,
         pessoas.id,
-        coortes.id
+        coortes.id,
+        periodos.id,
+        periodos.numero,
+        periodos.nome,
+        periodos.curriculoId,
+        curriculos.turnoId
       )
       .orderBy(desc(turmas.id));
 
@@ -386,11 +457,22 @@ router.get(
           }
         : null;
 
+      const periodo = row.periodoSelecionadoId
+        ? {
+            id: row.periodoSelecionadoId,
+            numero: row.periodoSelecionadoNumero ?? null,
+            nome: row.periodoSelecionadoNome ?? null,
+            curriculoId: row.periodoSelecionadoCurriculoId ?? null,
+            turnoId: row.periodoSelecionadoTurnoId ?? null,
+          }
+        : null;
+
       return {
         id: row.turmaId,
         disciplinaId: row.disciplinaId,
         professorId: row.professorId,
         coorteId: row.coorteId,
+        periodoId: row.periodoId ?? null,
         sala: row.sala,
         diaSemana: row.diaSemana,
         horarioInicio: row.horarioInicio,
@@ -407,6 +489,7 @@ router.get(
         disciplina,
         professor,
         coorte,
+        periodo,
       };
     });
 
@@ -431,6 +514,7 @@ router.get(
         disciplinaId: turmas.disciplinaId,
         professorId: turmas.professorId,
         coorteId: turmas.coorteId,
+        periodoId: turmas.periodoId,
         sala: turmas.sala,
         diaSemana: turmas.diaSemana,
         horarioInicio: turmas.horarioInicio,
@@ -466,6 +550,11 @@ router.get(
         coorteRotulo: coortes.rotulo,
         coorteAnoIngresso: coortes.anoIngresso,
         coorteAtivo: coortes.ativo,
+        periodoSelecionadoId: periodos.id,
+        periodoSelecionadoNumero: periodos.numero,
+        periodoSelecionadoNome: periodos.nome,
+        periodoSelecionadoCurriculoId: periodos.curriculoId,
+        periodoSelecionadoTurnoId: curriculos.turnoId,
         totalInscritos: sql<number>`COUNT(${turmasInscritos.id})`,
       })
       .from(turmas)
@@ -473,6 +562,8 @@ router.get(
       .leftJoin(professores, eq(professores.matricula, turmas.professorId))
       .leftJoin(pessoas, eq(pessoas.id, professores.pessoaId))
       .leftJoin(coortes, eq(coortes.id, turmas.coorteId))
+      .leftJoin(periodos, eq(periodos.id, turmas.periodoId))
+      .leftJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
       .leftJoin(turmasInscritos, eq(turmasInscritos.turmaId, turmas.id))
       .where(eq(turmas.id, id))
       .groupBy(
@@ -481,6 +572,11 @@ router.get(
         professores.matricula,
         pessoas.id,
         coortes.id,
+        periodos.id,
+        periodos.numero,
+        periodos.nome,
+        periodos.curriculoId,
+        curriculos.turnoId,
       );
 
     if (!turmaRow) {
@@ -539,11 +635,22 @@ router.get(
           : null,
     }));
 
+    const periodoSelecionado = turmaRow.periodoSelecionadoId
+      ? {
+          id: turmaRow.periodoSelecionadoId,
+          numero: turmaRow.periodoSelecionadoNumero ?? null,
+          nome: turmaRow.periodoSelecionadoNome ?? null,
+          curriculoId: turmaRow.periodoSelecionadoCurriculoId ?? null,
+          turnoId: turmaRow.periodoSelecionadoTurnoId ?? null,
+        }
+      : null;
+
     const turmaDetalhe = {
       id: turmaRow.turmaId,
       disciplinaId: turmaRow.disciplinaId,
       professorId: turmaRow.professorId,
       coorteId: turmaRow.coorteId,
+      periodoId: turmaRow.periodoId ?? null,
       sala: turmaRow.sala,
       diaSemana: turmaRow.diaSemana,
       horarioInicio: turmaRow.horarioInicio,
@@ -599,6 +706,7 @@ router.get(
             ativo: turmaRow.coorteAtivo ?? false,
           }
         : null,
+      periodo: periodoSelecionado,
       ementa: turmaRow.turmaEmenta ?? null,
       bibliografia: turmaRow.turmaBibliografia ?? null,
       objetivos: turmaRow.turmaObjetivos ?? null,
@@ -871,10 +979,10 @@ router.delete(
 );
 
 // POST /turmas - Create new turma (requires ADMIN, SECRETARIA or PROFESSOR)
-router.post('/', requireSecretaria, turmasCrud.create);
+router.post('/', requireSecretaria, validateTurmaPeriodo, turmasCrud.create);
 
 // PATCH /turmas/:id - Update turma (requires ADMIN, SECRETARIA or PROFESSOR)
-router.patch('/:id', validateParams(IdParamSchema), requireProfessor, turmasCrud.update);
+router.patch('/:id', validateParams(IdParamSchema), requireProfessor, validateTurmaPeriodo, turmasCrud.update);
 
 // DELETE /turmas/:id - Delete turma (requires ADMIN, SECRETARIA or PROFESSOR)
 router.delete('/:id', validateParams(IdParamSchema), requireSecretaria, turmasCrud.delete);

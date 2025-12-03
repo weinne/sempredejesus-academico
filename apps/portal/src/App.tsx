@@ -1,4 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/providers/auth-provider';
 import { ProtectedRoute } from '@/components/auth/protected-route';
@@ -51,6 +52,7 @@ import CoortesPage from '@/pages/coortes';
 import CoorteDetailPage from '@/pages/coortes/view/[id]';
 import CoorteNewPage from '@/pages/coortes/new';
 import CoorteEditPage from '@/pages/coortes/edit/[id]';
+import CoorteVincularPage from '@/pages/coortes/vincular/[id]';
 import TurnosPage from '@/pages/turnos';
 import TurnoNewPage from '@/pages/turnos/new';
 import TurnoEditPage from '@/pages/turnos/edit/[id]';
@@ -68,10 +70,32 @@ import MeuPortalPage from '@/pages/meu-portal';
 import ConfigPage from '@/pages/config';
 import PresencasPage from '@/pages/presencas';
 
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+
+  useEffect(() => {
+    // Se houver hash, tenta rolar até o elemento correspondente
+    if (hash) {
+      const id = hash.replace('#', '');
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+
+    // Caso contrário, rola para o topo da página
+    window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+  }, [pathname, hash]);
+
+  return null;
+}
+
 function App() {
   return (
     <AuthProvider>
       <div className="min-h-screen bg-background font-sans antialiased">
+        <ScrollToTop />
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -131,6 +155,7 @@ function App() {
             <Route path="/coortes/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteNewPage /></ProtectedRoute>} />
             <Route path="/coortes/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteEditPage /></ProtectedRoute>} />
             <Route path="/coortes/view/:id" element={<ProtectedRoute permission={{ action: 'view', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteDetailPage /></ProtectedRoute>} />
+            <Route path="/coortes/vincular/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'coortes' }} roles={[Role.ADMIN, Role.SECRETARIA]}><CoorteVincularPage /></ProtectedRoute>} />
             <Route path="/turnos" element={<ProtectedRoute permission={{ action: 'view', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnosPage /></ProtectedRoute>} />
             <Route path="/turnos/new" element={<ProtectedRoute permission={{ action: 'create', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoNewPage /></ProtectedRoute>} />
             <Route path="/turnos/edit/:id" element={<ProtectedRoute permission={{ action: 'edit', resource: 'turnos' }} roles={[Role.ADMIN, Role.SECRETARIA]}><TurnoEditPage /></ProtectedRoute>} />

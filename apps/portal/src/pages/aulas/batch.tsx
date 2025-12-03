@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/time-input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import CrudHeader from '@/components/crud/crud-header';
@@ -66,29 +67,75 @@ export default function AulasBatchPage() {
   const turmaId = watch('turmaId');
   const pularFeriados = watch('pularFeriados');
 
-  // Initialize turmaId from URL params
-  useEffect(() => {
-    const turmaIdParam = searchParams.get('turmaId');
-    if (turmaIdParam) {
-      setValue('turmaId', Number(turmaIdParam));
-    }
-  }, [searchParams, setValue]);
-
   // Fetch turmas for dropdown
-  const { data: turmasOptions = [] } = useQuery({
+  const { data: turmasOptions = [], refetch: refetchTurmas } = useQuery({
     queryKey: ['turmas-options'],
     queryFn: () => apiService.getTurmas({ limit: 1000 }).then((r) => r.data),
   });
 
-  // Pre-fill dates from periodo if turma is selected
+  // Initialize turmaId from URL params and ensure turma is in the list
+  useEffect(() => {
+    const turmaIdParam = searchParams.get('turmaId');
+    if (turmaIdParam) {
+      const turmaIdNum = Number(turmaIdParam);
+      setValue('turmaId', turmaIdNum);
+      
+      // Se a turma não está na lista ainda, força refetch
+      const turmaExists = turmasOptions.some((t: any) => t.id === turmaIdNum);
+      if (!turmaExists && turmasOptions.length > 0) {
+        // Espera um pouco para garantir que o cache foi atualizado
+        setTimeout(() => {
+          refetchTurmas();
+        }, 100);
+      }
+    }
+  }, [searchParams, setValue, turmasOptions, refetchTurmas]);
+
+  // Busca os detalhes da turma selecionada para preencher campos automaticamente
   const { data: turmaData } = useQuery({
     queryKey: ['turma-detail', turmaId],
-    queryFn: async () => {
-      const turmas = await apiService.getTurmas({ limit: 1000 });
-      return turmas.data.find((t: any) => t.id === turmaId);
-    },
-    enabled: !!turmaId,
+    queryFn: () => apiService.getTurma(turmaId!),
+    enabled: typeof turmaId === 'number' && turmaId > 0,
   });
+
+
+  // Preenche automaticamente dia da semana, horários e datas baseado na turma
+  useEffect(() => {
+    if (!turmaData) return;
+
+    // Normaliza horário para formato HH:mm (remove segundos se existirem)
+    const normalizeTime = (time: string | null | undefined): string => {
+      if (!time) return '';
+      return time.substring(0, 5);
+    };
+
+    // Preenche dia da semana se a turma tiver
+    if (turmaData.diaSemana !== undefined && turmaData.diaSemana !== null) {
+      setValue('diaDaSemana', turmaData.diaSemana);
+    }
+
+    // Preenche horário início (da turma - que já vem do horário do turno selecionado)
+    const horaInicioNorm = normalizeTime(turmaData.horarioInicio);
+    if (horaInicioNorm) {
+      setValue('horaInicio', horaInicioNorm);
+    }
+
+    // Preenche horário fim (da turma - que já vem do horário do turno selecionado)
+    const horaFimNorm = normalizeTime(turmaData.horarioFim);
+    if (horaFimNorm) {
+      setValue('horaFim', horaFimNorm);
+    }
+
+    // Preenche data início
+    if (turmaData.dataInicio) {
+      setValue('dataInicio', turmaData.dataInicio);
+    }
+
+    // Preenche data fim
+    if (turmaData.dataFim) {
+      setValue('dataFim', turmaData.dataFim);
+    }
+  }, [turmaData, setValue]);
 
   const previewMutation = useMutation({
     mutationFn: (payload: AulasBatch) => apiService.createAulasBatch({ ...payload, dryRun: true }),
@@ -181,7 +228,11 @@ export default function AulasBatchPage() {
                 <select
                   id="turmaId"
                   className="w-full border rounded px-3 py-2"
-                  {...register('turmaId', { valueAsNumber: true })}
+                  value={turmaId || ''}
+                  onChange={(e) => {
+                    const value = e.target.value ? Number(e.target.value) : undefined;
+                    setValue('turmaId', value as number);
+                  }}
                 >
                   <option value="">Selecione a turma</option>
                   {turmasOptions.map((t: any) => (
@@ -261,11 +312,17 @@ export default function AulasBatchPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="horaInicio">Hora Início (HH:mm) *</Label>
-                  <Input
-                    id="horaInicio"
-                    type="time"
-                    placeholder="08:00"
-                    {...register('horaInicio')}
+                  <Controller
+                    name="horaInicio"
+                    control={control}
+                    render={({ field }) => (
+                      <TimeInput
+                        id="horaInicio"
+                        placeholder="08:00"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                      />
+                    )}
                   />
                   {errors.horaInicio && (
                     <p className="text-sm text-red-500">{errors.horaInicio.message}</p>
@@ -274,7 +331,18 @@ export default function AulasBatchPage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="horaFim">Hora Fim (HH:mm) *</Label>
-                  <Input id="horaFim" type="time" placeholder="10:00" {...register('horaFim')} />
+                  <Controller
+                    name="horaFim"
+                    control={control}
+                    render={({ field }) => (
+                      <TimeInput
+                        id="horaFim"
+                        placeholder="10:00"
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
                   {errors.horaFim && (
                     <p className="text-sm text-red-500">{errors.horaFim.message}</p>
                   )}

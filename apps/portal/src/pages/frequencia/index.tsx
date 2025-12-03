@@ -166,8 +166,10 @@ export default function FrequenciaPage() {
 
   // Configure Hero via hook
   usePageHero({
-    title: canEdit ? "Registro de Frequência" : "Frequência",
-    description: canEdit ? "Marque as faltas dos alunos por aula" : "Visualize informações de frequência",
+    title: canEdit ? "Frequência em Massa" : "Frequência",
+    description: canEdit
+      ? "Todos começam como presentes: clique apenas nas faltas por aula"
+      : "Visualize informações de frequência",
     backTo: "/dashboard"
   });
 
@@ -243,10 +245,13 @@ export default function FrequenciaPage() {
                 <CardHeader>
                   <CardTitle>Grade de Frequência</CardTitle>
                   <CardDescription>
-                    Clique nas células para marcar/desmarcar faltas. Total de {aulas.length} aula(s).
+              Clique nas células para marcar/desmarcar faltas. Todos começam como presentes. Total de {aulas.length} aula(s).
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
+            <div className="text-sm text-muted-foreground mb-4">
+              Dica: marque apenas as ausências. As células verdes indicam presença confirmada, enquanto as vermelhas representam faltas.
+            </div>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse border border-gray-300">
                       <thead>
