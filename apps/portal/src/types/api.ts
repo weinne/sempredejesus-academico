@@ -399,6 +399,48 @@ export interface LancarNotaInput {
   obs?: string;
 }
 
+export interface HistoricoAvaliacaoItem {
+  id: number;
+  turmaId: number;
+  data: string;
+  tipo: Avaliacao['tipo'];
+  codigo: string;
+  descricao: string;
+  peso: number;
+}
+
+export interface HistoricoNotaAluno {
+  avaliacaoId: number;
+  nota: number | null;
+  obs?: string | null;
+}
+
+export interface HistoricoAluno {
+  inscricaoId: number;
+  alunoId: string;
+  ra: string;
+  nomeCompleto?: string | null;
+  mediaRegistrada?: number | null;
+  mediaCalculada: number | null;
+  notas: HistoricoNotaAluno[];
+}
+
+export interface HistoricoEstatisticas {
+  totalAvaliacoes: number;
+  totalAlunos: number;
+  totalNotasLancadas: number;
+  coberturaPercentual: number;
+  mediaTurma: number | null;
+  aprovados: number;
+  reprovados: number;
+}
+
+export interface HistoricoAvaliacoesResponse {
+  avaliacoes: HistoricoAvaliacaoItem[];
+  alunos: HistoricoAluno[];
+  estatisticas: HistoricoEstatisticas;
+}
+
 export interface Aula {
   id: number;
   turmaId: number;

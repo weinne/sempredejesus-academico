@@ -826,6 +826,11 @@ class ApiService {
     return response.data.data as import('@/types/api').ValidacaoPesos;
   }
 
+  async getHistoricoAvaliacoes(turmaId: number) {
+    const response = await this.api.get(`/api/avaliacoes/turma/${turmaId}/historico`);
+    return response.data.data as import('@/types/api').HistoricoAvaliacoesResponse;
+  }
+
   async getAlertasFrequencia(turmaId: number) {
     const response = await this.api.get(`/api/aulas/turma/${turmaId}/alertas-frequencia`);
     return response.data.data as import('@/types/api').AlertasFrequencia;

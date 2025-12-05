@@ -11,10 +11,47 @@ import { apiService } from '@/services/api';
 import { Avaliacao, CreateAvaliacao, LancarNotaInput, Role, EstudanteAvaliacao, ValidacaoPesos } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Send, Plus, List, Calendar, AlertTriangle, CheckCircle, Save, Download, Search, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { ArrowLeft, Plus, List, Calendar, AlertTriangle, CheckCircle, Save, Search, X, History, BarChart3, TrendingUp, UserCheck, Printer } from 'lucide-react';
 import { usePageHero } from '@/hooks/use-page-hero';
 import { GradeUtils } from '@/lib/grade-utils';
 import { cn } from '@/lib/utils';
+
+const formatDate = (value?: string | null) => {
+  if (!value) return '—';
+  const [year, month, day] = value.split('-');
+  if (!year || !month || !day) return value;
+  return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+};
+
+const formatGradeValue = (value?: number | null) => {
+  if (value === null || value === undefined) {
+    return '-';
+  }
+  return GradeUtils.formatGradeForDisplay(value);
+};
+
+const escapeHtml = (value?: string | null) => {
+  if (!value) return '';
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
+const getGradePillClass = (grade: number | null) => {
+  if (grade === null || grade === undefined) {
+    return 'border border-dashed border-gray-300 text-gray-500 bg-white';
+  }
+  if (grade >= 7) {
+    return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+  }
+  if (grade >= 5) {
+    return 'bg-amber-50 text-amber-700 border border-amber-200';
+  }
+  return 'bg-rose-50 text-rose-700 border border-rose-200';
+};
 
 export default function AvaliacoesPage() {
   const { hasRole } = useAuth();
@@ -36,6 +73,7 @@ export default function AvaliacoesPage() {
   const [notasEditadas, setNotasEditadas] = useState<Record<string, { nota: string; obs: string }>>({});
   const [showNewForm, setShowNewForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [historicoSearch, setHistoricoSearch] = useState('');
 
   // Initialize turmaId from URL params
   useEffect(() => {
@@ -66,6 +104,12 @@ export default function AvaliacoesPage() {
   const { data: validacaoPesos } = useQuery({
     queryKey: ['validacao-pesos', turmaId],
     queryFn: () => apiService.validarPesosAvaliacao(turmaId as number),
+    enabled: typeof turmaId === 'number',
+  });
+
+  const { data: historicoAvaliacoes, isLoading: historicoLoading } = useQuery({
+    queryKey: ['historico-avaliacoes', turmaId],
+    queryFn: () => apiService.getHistoricoAvaliacoes(turmaId as number),
     enabled: typeof turmaId === 'number',
   });
 
@@ -112,6 +156,10 @@ export default function AvaliacoesPage() {
       toast({ title: 'Notas lançadas com sucesso!' });
       refetchEstudantes();
       queryClient.invalidateQueries({ queryKey: ['avaliacoes', turmaId] });
+      if (typeof turmaId === 'number') {
+        queryClient.invalidateQueries({ queryKey: ['historico-avaliacoes', turmaId] });
+      }
+      setActiveTab('historico');
     },
     onError: (e: any) => {
       toast({ 
@@ -187,6 +235,164 @@ export default function AvaliacoesPage() {
 
   const turmasSelecionada = turmasOptions.find((t: any) => t.id === turmaId);
   const avaliacaoAtual = avaliacoes.find(a => a.id === avaliacaoSelecionada);
+
+  const avaliacoesHistorico = historicoAvaliacoes?.avaliacoes ?? [];
+  const alunosHistorico = historicoAvaliacoes?.alunos ?? [];
+  const estatisticasHistorico = historicoAvaliacoes?.estatisticas;
+  const historicoEmpty = avaliacoesHistorico.length === 0 || alunosHistorico.length === 0;
+  const historicoStats = [
+    {
+      label: 'Avaliações planejadas',
+      value: estatisticasHistorico?.totalAvaliacoes ?? 0,
+      hint: 'Configurações registradas para a turma',
+      icon: Calendar,
+    },
+    {
+      label: 'Alunos na turma',
+      value: estatisticasHistorico?.totalAlunos ?? 0,
+      hint: 'Inclui matriculados ativos',
+      icon: UserCheck,
+    },
+    {
+      label: 'Cobertura de notas',
+      value: `${estatisticasHistorico?.coberturaPercentual ?? 0}%`,
+      hint: `${estatisticasHistorico?.totalNotasLancadas ?? 0} notas lançadas`,
+      icon: BarChart3,
+    },
+    {
+      label: 'Média geral',
+      value: formatGradeValue(estatisticasHistorico?.mediaTurma ?? null),
+      hint: 'Baseada nas notas já lançadas',
+      icon: TrendingUp,
+    },
+  ];
+
+  const historicoFilteredAlunos = alunosHistorico.filter((aluno) => {
+    if (!historicoSearch.trim()) return true;
+    const query = historicoSearch.trim().toLowerCase();
+    return (
+      (aluno.nomeCompleto || '').toLowerCase().includes(query) ||
+      (aluno.ra || '').toLowerCase().includes(query) ||
+      (aluno.alunoId || '').toLowerCase().includes(query)
+    );
+  });
+
+  const handlePrintHistorico = () => {
+    if (!historicoAvaliacoes || avaliacoesHistorico.length === 0) {
+      toast({ title: 'Nada para imprimir', description: 'Cadastre avaliações e notas antes da impressão.', variant: 'destructive' });
+      return;
+    }
+
+    const alunosParaImpressao = historicoFilteredAlunos.length > 0 ? historicoFilteredAlunos : alunosHistorico;
+    if (alunosParaImpressao.length === 0) {
+      toast({ title: 'Filtro sem resultados', description: 'Nenhum aluno encontrado para impressão.', variant: 'destructive' });
+      return;
+    }
+
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1200,height=800');
+    if (!printWindow) {
+      toast({ title: 'Bloqueado pelo navegador', description: 'Permita pop-ups para imprimir o histórico.', variant: 'destructive' });
+      return;
+    }
+
+    const generatedAt = new Date().toLocaleString('pt-BR');
+    const turmaTitulo = turmasSelecionada?.disciplina?.nome || `Turma ${turmaId}`;
+    const professorNome = turmasSelecionada?.professor?.pessoa?.nome || 'Professor não informado';
+
+    const tableHeaders = avaliacoesHistorico
+      .map((avaliacao) => `
+        <th>
+          <div>${escapeHtml(avaliacao.codigo)}</div>
+          <small>${escapeHtml(formatDate(avaliacao.data))}</small>
+          <small>Peso ${avaliacao.peso}%</small>
+        </th>
+      `)
+      .join('');
+
+    const tableRows = alunosParaImpressao
+      .map((aluno) => {
+        const notasMap = new Map(aluno.notas.map((nota) => [nota.avaliacaoId, nota]));
+        const gradeCells = avaliacoesHistorico
+          .map((avaliacao) => {
+            const registro = notasMap.get(avaliacao.id);
+            return `<td>${escapeHtml(formatGradeValue(registro?.nota ?? null))}</td>`;
+          })
+          .join('');
+
+        return `
+          <tr>
+            <td>${escapeHtml(aluno.ra)}</td>
+            <td>
+              <strong>${escapeHtml(aluno.nomeCompleto || 'Aluno')}</strong><br />
+              <small>${escapeHtml(aluno.alunoId)}</small>
+            </td>
+            ${gradeCells}
+            <td>${escapeHtml(formatGradeValue(aluno.mediaCalculada))}</td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const styles = `
+      body { font-family: 'Inter', Arial, sans-serif; padding: 24px; color: #111827; }
+      h1, h2, h3 { margin: 0; }
+      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+      .meta { color: #6b7280; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: center; }
+      th { background: #f3f4f6; font-weight: 600; }
+      td strong { font-size: 13px; }
+      .summary { margin-bottom: 12px; font-size: 13px; color: #374151; }
+      .summary span { margin-right: 16px; }
+    `;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="pt-BR">
+        <head>
+          <meta charSet="utf-8" />
+          <title>Histórico de Notas - ${escapeHtml(turmaTitulo)}</title>
+          <style>${styles}</style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>Histórico de Notas</h1>
+              <p class="meta">Turma: ${escapeHtml(String(turmaTitulo))}<br />Professor(a): ${escapeHtml(professorNome)}</p>
+            </div>
+            <div class="meta">
+              Emitido em ${escapeHtml(generatedAt)}
+            </div>
+          </div>
+          <div class="summary">
+            <span>Avaliações: <strong>${avaliacoesHistorico.length}</strong></span>
+            <span>Alunos listados: <strong>${alunosParaImpressao.length}</strong></span>
+            <span>Média geral: <strong>${escapeHtml(formatGradeValue(estatisticasHistorico?.mediaTurma ?? null))}</strong></span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>RA</th>
+                <th>Aluno</th>
+                ${tableHeaders}
+                <th>Média</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 300);
+  };
 
   // Configure Hero via hook
   usePageHero({
@@ -615,12 +821,164 @@ export default function AvaliacoesPage() {
                 </TabsContent>
 
                 {/* Histórico Tab */}
-                <TabsContent value="historico">
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">
-                      Funcionalidade de histórico será implementada em breve
-                    </p>
-                  </div>
+                <TabsContent value="historico" className="space-y-6">
+                  {historicoLoading ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      Carregando histórico...
+                    </div>
+                  ) : historicoEmpty ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed">
+                      <History className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                      <h3 className="text-lg font-medium text-gray-900">Sem notas registradas</h3>
+                      <p className="text-gray-500">Crie avaliações e lance as notas para visualizar o histórico completo.</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                        {historicoStats.map((stat) => (
+                          <Card key={stat.label} className="shadow-sm">
+                            <CardContent className="p-4 flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-gray-500">{stat.label}</p>
+                                <p className="text-2xl font-semibold text-gray-900 mt-1">{stat.value}</p>
+                                <p className="text-xs text-gray-500 mt-1">{stat.hint}</p>
+                              </div>
+                              <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
+                                <stat.icon className="h-5 w-5" />
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+
+                      <Card className="shadow-sm">
+                        <CardHeader>
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div>
+                              <CardTitle className="flex items-center gap-2">
+                                <History className="h-5 w-5 text-blue-600" />
+                                Painel de notas da turma
+                              </CardTitle>
+                              <CardDescription>
+                                Visualize todas as notas lançadas por avaliação e acompanhe as médias calculadas automaticamente.
+                              </CardDescription>
+                            </div>
+                            <div className="flex flex-col gap-3 text-sm text-gray-600 md:items-end">
+                              <div className="flex flex-col text-sm text-gray-600">
+                                <span>
+                                  Aprovados: <strong className="text-emerald-600">{estatisticasHistorico?.aprovados ?? 0}</strong>
+                                </span>
+                                <span>
+                                  Reprovados: <strong className="text-rose-600">{estatisticasHistorico?.reprovados ?? 0}</strong>
+                                </span>
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={handlePrintHistorico}
+                                disabled={historicoEmpty || historicoLoading}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <Printer className="h-4 w-4" />
+                                Imprimir histórico
+                              </Button>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+                            <p className="text-sm text-gray-600">
+                              {historicoFilteredAlunos.length} aluno(s) visíveis • {avaliacoesHistorico.length} avaliação(ões)
+                            </p>
+                            <div className="relative">
+                              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+                              <Input
+                                placeholder="Filtrar aluno por nome ou RA..."
+                                className="pl-9 w-full md:w-[280px]"
+                                value={historicoSearch}
+                                onChange={(e) => setHistoricoSearch(e.target.value)}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="overflow-x-auto border rounded-xl">
+                            <table className="min-w-full text-sm">
+                              <thead className="bg-gray-50">
+                                <tr className="text-left text-xs uppercase tracking-wide text-gray-500">
+                                  <th className="px-4 py-3 w-24">RA</th>
+                                  <th className="px-4 py-3 min-w-[200px]">Aluno</th>
+                                  {avaliacoesHistorico.map((avaliacao) => (
+                                    <th key={avaliacao.id} className="px-4 py-3 text-center min-w-[140px]">
+                                      <div className="font-semibold text-gray-900">{avaliacao.codigo}</div>
+                                      <div className="text-xs text-gray-500">{formatDate(avaliacao.data)}</div>
+                                      <div className="text-[11px] text-gray-400">Peso {avaliacao.peso}%</div>
+                                    </th>
+                                  ))}
+                                  <th className="px-4 py-3 text-center min-w-[120px]">Média</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {historicoFilteredAlunos.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={avaliacoesHistorico.length + 3} className="px-4 py-6 text-center text-sm text-gray-500">
+                                      Nenhum aluno encontrado para este filtro.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  historicoFilteredAlunos.map((aluno) => {
+                                    const notasMap = new Map(aluno.notas.map((nota) => [nota.avaliacaoId, nota]));
+                                    return (
+                                      <tr key={aluno.inscricaoId} className="border-t last:border-b-0">
+                                        <td className="px-4 py-3 font-mono text-xs text-gray-600">
+                                          {aluno.ra}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          <p className="font-medium text-gray-900">{aluno.nomeCompleto || 'Aluno'}</p>
+                                          <p className="text-xs text-gray-500">{aluno.alunoId}</p>
+                                        </td>
+                                        {avaliacoesHistorico.map((avaliacao) => {
+                                          const registro = notasMap.get(avaliacao.id);
+                                          const notaValor = registro?.nota ?? null;
+                                          return (
+                                            <td key={`${aluno.inscricaoId}-${avaliacao.id}`} className="px-4 py-2 text-center">
+                                              <span
+                                                className={cn(
+                                                  'inline-flex min-w-[56px] items-center justify-center rounded-full px-2 py-1 text-sm font-semibold shadow-sm',
+                                                  getGradePillClass(notaValor)
+                                                )}
+                                              >
+                                                {formatGradeValue(notaValor)}
+                                              </span>
+                                            </td>
+                                          );
+                                        })}
+                                        <td className="px-4 py-3 text-center">
+                                          <div className="flex flex-col items-center gap-1">
+                                            <span
+                                              className={cn(
+                                                'inline-flex min-w-[72px] items-center justify-center rounded-full px-3 py-1 text-sm font-semibold shadow-sm',
+                                                getGradePillClass(aluno.mediaCalculada)
+                                              )}
+                                            >
+                                              {formatGradeValue(aluno.mediaCalculada)}
+                                            </span>
+                                            {aluno.mediaRegistrada !== null && aluno.mediaRegistrada !== undefined && (
+                                              <span className="text-[11px] text-gray-500">
+                                                Registro anual: {formatGradeValue(aluno.mediaRegistrada)}
+                                              </span>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>

@@ -5,7 +5,7 @@
  *     description: Gestão de avaliações e notas
  */
 import { Router, Request, Response } from 'express';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../db';
 import {
   avaliacoes,
@@ -191,6 +191,143 @@ router.get(
         difference: validation.difference,
         message
       }
+    });
+  })
+);
+
+// GET /avaliacoes/turma/:turmaId/historico
+router.get(
+  '/turma/:turmaId/historico',
+  asyncHandler(async (req: Request, res: Response) => {
+    const turmaId = Number(req.params.turmaId);
+    if (!turmaId || Number.isNaN(turmaId)) {
+      throw createError('turmaId inválido', 400);
+    }
+
+    const avaliacoesLista = await db
+      .select({
+        id: avaliacoes.id,
+        turmaId: avaliacoes.turmaId,
+        data: avaliacoes.data,
+        tipo: avaliacoes.tipo,
+        codigo: avaliacoes.codigo,
+        descricao: avaliacoes.descricao,
+        peso: avaliacoes.peso,
+      })
+      .from(avaliacoes)
+      .where(eq(avaliacoes.turmaId, turmaId))
+      .orderBy(avaliacoes.data);
+
+    const estudantes = await db
+      .select({
+        inscricaoId: turmasInscritos.id,
+        alunoId: turmasInscritos.alunoId,
+        ra: alunos.ra,
+        nomeCompleto: pessoas.nomeCompleto,
+        mediaRegistrada: turmasInscritos.media,
+      })
+      .from(turmasInscritos)
+      .leftJoin(alunos, eq(alunos.ra, turmasInscritos.alunoId))
+      .leftJoin(pessoas, eq(pessoas.id, alunos.pessoaId))
+      .where(eq(turmasInscritos.turmaId, turmaId))
+      .orderBy(alunos.ra);
+
+    const avaliacaoIds = avaliacoesLista.map((avaliacao) => avaliacao.id);
+    const alunoIds = estudantes.map((estudante) => estudante.alunoId).filter(Boolean);
+
+    let notasRows: Array<{ avaliacaoId: number; alunoId: string; nota: string | null; obs: string | null }> = [];
+    if (avaliacaoIds.length > 0 && alunoIds.length > 0) {
+      notasRows = await db
+        .select({
+          avaliacaoId: avaliacoesAlunos.avaliacaoId,
+          alunoId: avaliacoesAlunos.alunoId,
+          nota: avaliacoesAlunos.nota,
+          obs: avaliacoesAlunos.obs,
+        })
+        .from(avaliacoesAlunos)
+        .where(
+          and(
+            inArray(avaliacoesAlunos.avaliacaoId, avaliacaoIds),
+            inArray(avaliacoesAlunos.alunoId, alunoIds)
+          )
+        );
+    }
+
+    const notasPorAluno = notasRows.reduce((acc, row) => {
+      if (!acc.has(row.alunoId)) {
+        acc.set(row.alunoId, new Map<number, { nota: number; obs: string | null }>());
+      }
+      const alunoNotas = acc.get(row.alunoId)!;
+      alunoNotas.set(row.avaliacaoId, {
+        nota: row.nota !== null ? Number(row.nota) : null,
+        obs: row.obs ?? null,
+      });
+      return acc;
+    }, new Map<string, Map<number, { nota: number | null; obs: string | null }>>());
+
+    const pesoPorAvaliacao = new Map(avaliacoesLista.map((avaliacao) => [avaliacao.id, Number(avaliacao.peso || 0)]));
+
+    const alunosDetalhados = estudantes.map((estudante) => {
+      const notasDetalhadas = avaliacoesLista.map((avaliacao) => {
+        const registro = notasPorAluno.get(estudante.alunoId)?.get(avaliacao.id);
+        return {
+          avaliacaoId: avaliacao.id,
+          nota: registro?.nota ?? null,
+          obs: registro?.obs ?? null,
+        };
+      });
+
+      const notasParaMedia = notasDetalhadas
+        .filter((nota) => nota.nota !== null && Number.isFinite(nota.nota))
+        .map((nota) => ({ grade: nota.nota as number, weight: pesoPorAvaliacao.get(nota.avaliacaoId) || 0 }));
+
+      const mediaCalculada = notasParaMedia.length > 0
+        ? GradeService.calculateWeightedAverage(notasParaMedia)
+        : null;
+
+      return {
+        inscricaoId: estudante.inscricaoId,
+        alunoId: estudante.alunoId,
+        ra: estudante.ra,
+        nomeCompleto: estudante.nomeCompleto,
+        mediaRegistrada: estudante.mediaRegistrada ? Number(estudante.mediaRegistrada) : null,
+        mediaCalculada,
+        notas: notasDetalhadas,
+      };
+    });
+
+    const mediasTurma = alunosDetalhados
+      .map((aluno) => aluno.mediaCalculada)
+      .filter((media): media is number => media !== null && Number.isFinite(media));
+    const mediaTurma = mediasTurma.length > 0
+      ? Number((mediasTurma.reduce((acc, media) => acc + media, 0) / mediasTurma.length).toFixed(2))
+      : null;
+
+    const totalNotasLancadas = notasRows.length;
+    const totalAvaliacoes = avaliacoesLista.length;
+    const totalAlunos = estudantes.length;
+    const coberturaPercentual = totalAvaliacoes > 0 && totalAlunos > 0
+      ? Math.round((totalNotasLancadas / (totalAvaliacoes * totalAlunos)) * 100)
+      : 0;
+
+    const aprovados = alunosDetalhados.filter((aluno) => (aluno.mediaCalculada ?? 0) >= 7).length;
+    const reprovados = alunosDetalhados.filter((aluno) => aluno.mediaCalculada !== null && aluno.mediaCalculada < 5).length;
+
+    res.json({
+      success: true,
+      data: {
+        avaliacoes: avaliacoesLista,
+        alunos: alunosDetalhados,
+        estatisticas: {
+          totalAvaliacoes,
+          totalAlunos,
+          totalNotasLancadas,
+          coberturaPercentual,
+          mediaTurma,
+          aprovados,
+          reprovados,
+        },
+      },
     });
   })
 );
