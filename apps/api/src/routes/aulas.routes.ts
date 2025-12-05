@@ -127,31 +127,31 @@ router.get(
       query = query.innerJoin(turmasInscritos, eq(turmasInscritos.turmaId, aulas.turmaId));
     }
 
-    const conditions = [] as any[];
+      const conditions = [] as any[];
+      
+      if (dataInicio && dataFim) {
+        conditions.push(and(gte(aulas.data, dataInicio), lte(aulas.data, dataFim)));
+      } else if (dataInicio) {
+        conditions.push(gte(aulas.data, dataInicio));
+      } else if (dataFim) {
+        conditions.push(lte(aulas.data, dataFim));
+      }
 
-    if (dataInicio && dataFim) {
-      conditions.push(and(gte(aulas.data, dataInicio), lte(aulas.data, dataFim)));
-    } else if (dataInicio) {
-      conditions.push(gte(aulas.data, dataInicio));
-    } else if (dataFim) {
-      conditions.push(lte(aulas.data, dataFim));
-    }
-
-    if (turmaId && !Number.isNaN(turmaId)) {
+      if (turmaId && !Number.isNaN(turmaId)) {
       conditions.push(eq(aulas.turmaId, turmaId));
-    }
-
-    if (disciplinaId && !Number.isNaN(disciplinaId)) {
+      }
+      
+      if (disciplinaId && !Number.isNaN(disciplinaId)) {
       conditions.push(eq(turmas.disciplinaId, disciplinaId));
-    }
+      }
 
     if (effectiveProfessorId && effectiveProfessorId.trim().length > 0) {
       conditions.push(eq(turmas.professorId, effectiveProfessorId));
-    }
+      }
 
     if (alunoRa) {
       conditions.push(eq(turmasInscritos.alunoId, alunoRa));
-    }
+      }
 
     const rows = conditions.length > 0 ? await query.where(and(...conditions)) : await query;
     const data = rows.map((row: any) => row.aula ?? row);
@@ -589,6 +589,36 @@ router.get(
   })
 );
 
+// GET /aulas/:id
+/**
+ * @swagger
+ * /api/aulas/{id}:
+ *   get:
+ *     tags: [Aulas]
+ *     summary: Obtém os detalhes de uma aula específica
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Detalhes da aula
+ */
+router.get(
+  '/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const params = IdParamSchema.parse(req.params);
+
+    const aula = await db.select().from(aulas).where(eq(aulas.id, params.id)).limit(1);
+    if (aula.length === 0) {
+      throw createError('Aula não encontrada', 404);
+    }
+
+    res.json({ success: true, data: aula[0] });
+  })
+);
+
 // GET /aulas/turma/:turmaId/alertas-frequencia
 /**
  * @swagger
@@ -634,13 +664,16 @@ router.get(
     // Calcula alertas para cada estudante
     const alertas = [];
     for (const estudante of estudantes) {
-      const attendancePercentage = Number(estudante.frequencia || 100);
+      const rawAttendance = Number(estudante.frequencia);
+      const safeAttendance = Number.isFinite(rawAttendance) ? rawAttendance : 100;
+      const attendancePercentage = Math.min(100, Math.max(0, safeAttendance));
       const absencePercentage = 100 - attendancePercentage;
-      const absences = Math.round((absencePercentage / 100) * total);
+      const calculatedAbsences = (absencePercentage / 100) * total;
+      const absences = Math.max(0, Math.min(total, Math.round(Number.isFinite(calculatedAbsences) ? calculatedAbsences : 0)));
 
       const attendanceStatus = AttendanceService.getAttendanceStatus(total, absences);
 
-      if (attendanceStatus.needsAlert) {
+      if (attendanceStatus.alertLevel === 'critical') {
         alertas.push({
           inscricaoId: estudante.inscricaoId,
           alunoId: estudante.alunoId,

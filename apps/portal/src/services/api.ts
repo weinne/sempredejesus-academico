@@ -730,6 +730,7 @@ class ApiService {
     const response = await this.api.get(`/api/alunos/${ra}`);
     const aluno = response.data.data || response.data;
 
+    // Simple normalization: keep numbers as numbers, convert null to undefined
     const normalizeId = (value: unknown): number | undefined => {
       if (typeof value === 'number') return value;
       if (value === null || value === undefined || value === '') return undefined;
@@ -739,6 +740,7 @@ class ApiService {
 
     return {
       ...aluno,
+      // Keep IDs as numbers or undefined (not null)
       turnoId: normalizeId(aluno.turnoId),
       coorteId: normalizeId(aluno.coorteId),
       periodoId: normalizeId(aluno.periodoId),

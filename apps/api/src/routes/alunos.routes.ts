@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
-import { alunos, pessoas, cursos, users, periodos, userRoles, curriculos } from '../db/schema';
+import { alunos, pessoas, cursos, users, periodos, userRoles, curriculos, turnos, coortes } from '../db/schema';
 import { UpdateAlunoSchema, CreateAlunoWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireAluno } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
@@ -346,6 +346,8 @@ const getAlunoComplete = asyncHandler(async (req: Request, res: Response) => {
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
     .leftJoin(periodos, eq(alunos.periodoId, periodos.id))
+    .leftJoin(turnos, eq(alunos.turnoId, turnos.id))
+    .leftJoin(coortes, eq(alunos.coorteId, coortes.id))
     .where(eq(alunos.ra, ra))
     .limit(1);
 
@@ -360,6 +362,9 @@ const getAlunoComplete = asyncHandler(async (req: Request, res: Response) => {
     ra: row.alunos.ra,
     pessoaId: row.alunos.pessoaId,
     cursoId: row.alunos.cursoId,
+    turnoId: row.alunos.turnoId,
+    coorteId: row.alunos.coorteId,
+    periodoId: row.alunos.periodoId,
     anoIngresso: row.alunos.anoIngresso,
     igreja: row.alunos.igreja,
     situacao: row.alunos.situacao,
@@ -380,6 +385,15 @@ const getAlunoComplete = asyncHandler(async (req: Request, res: Response) => {
       id: row.cursos.id,
       nome: row.cursos.nome,
       grau: row.cursos.grau,
+    } : null,
+    turno: row.turnos ? {
+      id: row.turnos.id,
+      nome: row.turnos.nome,
+    } : null,
+    coorte: row.coortes ? {
+      id: row.coortes.id,
+      rotulo: row.coortes.rotulo,
+      anoIngresso: row.coortes.anoIngresso,
     } : null,
     periodo: row.periodos
       ? {
@@ -538,9 +552,18 @@ const updateAlunoHandler = asyncHandler(async (req: Request, res: Response) => {
     throw createError('Aluno not found', 404);
   }
 
-  const dataToUpdate = Object.fromEntries(
-    Object.entries(payload).filter(([_, value]) => value !== undefined)
-  );
+  // Build dataToUpdate: include all fields from payload, converting undefined to null for nullable fields
+  const dataToUpdate: any = {};
+  
+  // Copy all fields from payload, handling undefined for nullable fields
+  for (const [key, value] of Object.entries(payload)) {
+    // For nullable fields (coorteId, turnoId, periodoId), convert undefined to null
+    if ((key === 'coorteId' || key === 'turnoId' || key === 'periodoId') && value === undefined) {
+      dataToUpdate[key] = null;
+    } else if (value !== undefined) {
+      dataToUpdate[key] = value;
+    }
+  }
 
   const cursoId = (dataToUpdate.cursoId as number | undefined) ?? existing[0].cursoId;
   const periodoId = (dataToUpdate.periodoId as number | undefined) ?? existing[0].periodoId;

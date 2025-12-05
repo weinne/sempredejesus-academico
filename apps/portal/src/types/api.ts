@@ -451,7 +451,7 @@ export interface EstudanteAula {
   inscricaoId: number;
   alunoId: string;
   ra: string;
-  nomeCompleto: string;
+  nomeCompleto?: string | null;
   presente: boolean;
   justificativa?: string;
 }

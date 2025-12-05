@@ -209,7 +209,21 @@ export default function AlunoDetailPage() {
                     <MapPin className="h-5 w-5 text-gray-400 mt-1" />
                     <div>
                       <p className="text-sm text-gray-500">Endereço</p>
-                      <p className="font-medium">{aluno.pessoa?.endereco || 'N/A'}</p>
+                      <p className="font-medium">
+                        {typeof aluno.pessoa.endereco === 'string'
+                          ? aluno.pessoa.endereco
+                          : [
+                              aluno.pessoa.endereco.logradouro,
+                              aluno.pessoa.endereco.numero,
+                              aluno.pessoa.endereco.complemento,
+                              aluno.pessoa.endereco.bairro,
+                              aluno.pessoa.endereco.cidade,
+                              aluno.pessoa.endereco.estado,
+                              aluno.pessoa.endereco.cep,
+                            ]
+                              .filter(Boolean)
+                              .join(', ') || 'N/A'}
+                      </p>
                     </div>
                   </div>
                 )}

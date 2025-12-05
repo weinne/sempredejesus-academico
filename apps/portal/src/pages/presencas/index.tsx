@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,40 @@ import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
 import { Save, Calendar, Users, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const normalizeTimeValue = (value?: string | null): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  const parts = trimmed.split(':');
+  if (parts.length < 2) {
+    return '';
+  }
+
+  const hoursNum = Number(parts[0]);
+  const minutesNum = Number(parts[1]);
+
+  if (
+    !Number.isFinite(hoursNum) ||
+    !Number.isFinite(minutesNum) ||
+    hoursNum < 0 ||
+    hoursNum > 23 ||
+    minutesNum < 0 ||
+    minutesNum > 59
+  ) {
+    return '';
+  }
+
+  const hours = hoursNum.toString().padStart(2, '0');
+  const minutes = minutesNum.toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
 
 export default function PresencasPage() {
   const { hasRole } = useAuth();
@@ -44,6 +78,13 @@ export default function PresencasPage() {
   });
   const aulas = aulasResp || [];
 
+  // Turma inscritos (fonte confiável dos nomes dos alunos)
+  const { data: turmaInscritos = [] } = useQuery({
+    queryKey: ['turma-inscritos-presenca', turmaId],
+    queryFn: () => apiService.getTurmaInscritos(turmaId as number),
+    enabled: typeof turmaId === 'number',
+  });
+
   // Estudantes for selected aula
   const { data: estudantes = [], refetch: refetchEstudantes, isLoading: loadingEstudantes } = useQuery({
     queryKey: ['aula-estudantes', aulaId],
@@ -55,8 +96,8 @@ export default function PresencasPage() {
 const { data: aulaDetalhes, refetch: refetchAulaDetalhes, isFetching: loadingAulaDetalhes } = useQuery({
   queryKey: ['aula-detalhes', aulaId],
   queryFn: () => apiService.getAula(aulaId as number),
-  enabled: typeof aulaId === 'number',
-});
+    enabled: typeof aulaId === 'number',
+  });
 
   // Attendance alerts for selected turma
   const { data: alertasFrequencia } = useQuery({
@@ -67,33 +108,47 @@ const { data: aulaDetalhes, refetch: refetchAulaDetalhes, isFetching: loadingAul
 
   const [presencas, setPresencas] = useState<Record<number, boolean>>({});
 
-// Initialize presencas when estudantes load
-useEffect(() => {
-  if (estudantes.length > 0) {
-    const initialPresencas: Record<number, boolean> = {};
-    const initialJustificativas: Record<number, string> = {};
-    
-    estudantes.forEach(estudante => {
-      initialPresencas[estudante.inscricaoId] = estudante.presente;
-      if (estudante.justificativa) {
-        initialJustificativas[estudante.inscricaoId] = estudante.justificativa;
+  const alunoNomePorRa = useMemo(() => {
+    const map: Record<string, string> = {};
+    turmaInscritos.forEach((inscricao) => {
+      const raKey = (inscricao.alunoId || '').trim();
+      const pessoa = inscricao.aluno?.pessoa;
+      const rawNome = pessoa?.nome ?? pessoa?.nomeCompleto ?? '';
+      const nome = typeof rawNome === 'string' ? rawNome.trim() : '';
+      if (raKey && nome) {
+        map[raKey] = nome;
       }
     });
-    
-    setPresencas(initialPresencas);
-    setJustificativas(initialJustificativas);
+    return map;
+  }, [turmaInscritos]);
+
+  // Initialize presencas when estudantes load
+useEffect(() => {
+    if (estudantes.length > 0) {
+      const initialPresencas: Record<number, boolean> = {};
+      const initialJustificativas: Record<number, string> = {};
+      
+      estudantes.forEach(estudante => {
+        initialPresencas[estudante.inscricaoId] = estudante.presente;
+        if (estudante.justificativa) {
+          initialJustificativas[estudante.inscricaoId] = estudante.justificativa;
+        }
+      });
+      
+      setPresencas(initialPresencas);
+      setJustificativas(initialJustificativas);
   } else {
     setPresencas({});
     setJustificativas({});
-  }
-}, [estudantes]);
+    }
+  }, [estudantes]);
 
 useEffect(() => {
   if (aulaDetalhes) {
     setAulaForm({
       data: aulaDetalhes.data ?? '',
-      horaInicio: aulaDetalhes.horaInicio ?? '',
-      horaFim: aulaDetalhes.horaFim ?? '',
+      horaInicio: normalizeTimeValue(aulaDetalhes.horaInicio),
+      horaFim: normalizeTimeValue(aulaDetalhes.horaFim),
       topico: aulaDetalhes.topico ?? '',
       materialUrl: aulaDetalhes.materialUrl ?? '',
       observacao: aulaDetalhes.observacao ?? '',
@@ -148,8 +203,8 @@ const salvarRegistroCompleto = useMutation({
     if (aulaForm) {
       const aulaPayload = {
         data: aulaForm.data || undefined,
-        horaInicio: aulaForm.horaInicio || undefined,
-        horaFim: aulaForm.horaFim || undefined,
+        horaInicio: normalizeTimeValue(aulaForm.horaInicio) || undefined,
+        horaFim: normalizeTimeValue(aulaForm.horaFim) || undefined,
         topico: aulaForm.topico || undefined,
         materialUrl: aulaForm.materialUrl || undefined,
         observacao: aulaForm.observacao || undefined,
@@ -167,19 +222,19 @@ const salvarRegistroCompleto = useMutation({
 
     await Promise.all(requests);
   },
-  onSuccess: () => {
+    onSuccess: () => {
     toast({ title: 'Aula e presenças salvas com sucesso!' });
-    refetchEstudantes();
+      refetchEstudantes();
     refetchAulaDetalhes();
-  },
-  onError: (e: any) => {
-    toast({
+    },
+    onError: (e: any) => {
+      toast({ 
       title: 'Erro ao salvar informações',
       description: e.message || 'Tente novamente em instantes',
       variant: 'destructive',
-    });
-  },
-});
+      });
+    },
+  });
 
   const togglePresenca = (inscricaoId: number) => {
     setPresencas(prev => ({
@@ -195,27 +250,54 @@ const salvarRegistroCompleto = useMutation({
     }));
   };
 
-const updateAulaForm = (field: keyof Pick<Aula, 'data' | 'horaInicio' | 'horaFim' | 'topico' | 'materialUrl' | 'observacao'>, value: string) => {
+const updateAulaForm = (
+  field: keyof Pick<Aula, 'data' | 'horaInicio' | 'horaFim' | 'topico' | 'materialUrl' | 'observacao'>,
+  value: string,
+) => {
+  const sanitizedValue =
+    field === 'horaInicio' || field === 'horaFim' ? normalizeTimeValue(value) : value;
+
   setAulaForm(prev => ({
     ...(prev ?? {}),
-    [field]: value,
-  }));
-};
+    [field]: sanitizedValue,
+    }));
+  };
 
-const handleSalvar = () => {
-  if (typeof aulaId !== 'number') return;
+  const handleSalvar = () => {
+    if (typeof aulaId !== 'number') return;
   salvarRegistroCompleto.mutate();
-};
+  };
 
   const totalEstudantes = estudantes.length;
   const presentes = Object.values(presencas).filter(Boolean).length;
   const ausentes = totalEstudantes - presentes;
+  const aulasListPath = typeof turmaId === 'number' ? `/aulas/list?turmaId=${turmaId}` : '/aulas/list';
+
+  const getEstudanteNome = (estudante: EstudanteAula) => {
+    const direto = estudante.nomeCompleto?.trim();
+    if (direto && direto.length > 0) {
+      return direto;
+    }
+
+    const possiveisChaves = [estudante.ra, estudante.alunoId]
+      .map((valor) => (typeof valor === 'string' ? valor.trim() : ''))
+      .filter(Boolean);
+
+    for (const chave of possiveisChaves) {
+      const nomeEncontrado = alunoNomePorRa[chave];
+      if (nomeEncontrado) {
+        return nomeEncontrado;
+      }
+    }
+
+    return `RA ${estudante.ra}`;
+  };
 
   // Configure Hero via hook
   usePageHero({
   title: "Registro de Aula & Presenças",
   description: "Atualize os dados da aula e marque presenças em uma única tela",
-    backTo: "/dashboard"
+    backTo: aulasListPath
   });
 
   return (
@@ -459,6 +541,7 @@ const handleSalvar = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {estudantes.map((estudante) => {
                       const isPresente = presencas[estudante.inscricaoId] ?? true;
+                      const nomeAluno = getEstudanteNome(estudante);
                       return (
                         <div
                           key={estudante.inscricaoId}
@@ -485,7 +568,7 @@ const handleSalvar = () => {
                           
                           <div className="space-y-1">
                             <p className="font-medium text-gray-900">
-                              {estudante.nomeCompleto}
+                              {nomeAluno}
                             </p>
                             <p className="text-sm text-gray-600">
                               RA: {estudante.ra}

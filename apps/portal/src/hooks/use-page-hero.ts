@@ -18,6 +18,7 @@ interface UsePageHeroOptions {
   actions?: React.ReactNode;
   backTo?: string;
   showBackButton?: boolean;
+  actionsKey?: string | number;
 }
 
 export function usePageHero(options: UsePageHeroOptions) {
@@ -25,7 +26,10 @@ export function usePageHero(options: UsePageHeroOptions) {
 
   useEffect(() => {
     setHeaderConfig(options);
-    return () => setHeaderConfig(null);
   }, [setHeaderConfig, options]);
+
+  useEffect(() => {
+    return () => setHeaderConfig(null);
+  }, [setHeaderConfig]);
 }
 

@@ -262,9 +262,9 @@ export default function AulasListPage() {
             </Button>
             {canEdit && (
               <>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to={`/aulas/edit/${row.original.id}`}>Editar</Link>
-                </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/aulas/edit/${row.original.id}`}>Editar</Link>
+              </Button>
                 <Button variant="secondary" size="sm" asChild disabled={!row.original.turmaId}>
                   <Link
                     to={`/presencas?aulaId=${row.original.id}${
@@ -642,49 +642,49 @@ export default function AulasListPage() {
                   </div>
 
                   <div className="hidden lg:block rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                          <TableRow key={headerGroup.id}>
-                            {headerGroup.headers.map((header) => (
-                              <TableHead key={header.id}>
-                                {header.isPlaceholder ? null : (
-                                  <div
-                                    {...{
-                                      className: header.column.getCanSort()
-                                        ? 'cursor-pointer select-none'
-                                        : '',
-                                      onClick: header.column.getToggleSortingHandler(),
-                                    }}
-                                  >
-                                    {flexRender(
-                                      header.column.columnDef.header,
-                                      header.getContext()
-                                    )}
-                                    {{
-                                      asc: ' 🔼',
-                                      desc: ' 🔽',
-                                    }[header.column.getIsSorted() as string] ?? null}
-                                  </div>
-                                )}
-                              </TableHead>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableHeader>
-                      <TableBody>
-                        {table.getRowModel().rows.map((row) => (
-                          <TableRow key={row.id}>
-                            {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id}>
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <Table>
+                    <TableHeader>
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => (
+                            <TableHead key={header.id}>
+                              {header.isPlaceholder ? null : (
+                                <div
+                                  {...{
+                                    className: header.column.getCanSort()
+                                      ? 'cursor-pointer select-none'
+                                      : '',
+                                    onClick: header.column.getToggleSortingHandler(),
+                                  }}
+                                >
+                                  {flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext()
+                                  )}
+                                  {{
+                                    asc: ' 🔼',
+                                    desc: ' 🔽',
+                                  }[header.column.getIsSorted() as string] ?? null}
+                                </div>
+                              )}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableHeader>
+                    <TableBody>
+                      {table.getRowModel().rows.map((row) => (
+                        <TableRow key={row.id}>
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
                 </>
               )}
             </CardContent>
@@ -781,7 +781,7 @@ export default function AulasListPage() {
                   <div className="grid grid-cols-7 gap-1">
                     {calendarDays.map(({ date, inCurrentMonth, iso }) => {
                       const dayEvents = eventsByDate[iso] || [];
-                      return (
+                    return (
                         <div
                           key={`${iso}-${inCurrentMonth ? 'current' : 'adjacent'}`}
                           className={cn(
@@ -803,7 +803,7 @@ export default function AulasListPage() {
                             ) : (
                               dayEvents.map((aula) => (
                                 <Link
-                                  key={aula.id}
+                              key={aula.id}
                                   to={`/aulas/view/${aula.id}`}
                                   className={cn(
                                     "block rounded border px-2 py-1 text-xs truncate",
@@ -811,19 +811,19 @@ export default function AulasListPage() {
                                       ? "bg-blue-50 text-blue-900 border-blue-100 hover:bg-blue-100"
                                       : "bg-slate-100 text-slate-900 border-slate-200"
                                   )}
-                                >
+                            >
                                   <span className="font-semibold">
                                     {aula.horaInicio ? aula.horaInicio : 'Sem horário'}
                                   </span>
                                   {aula.topico && <span className="ml-1">• {aula.topico}</span>}
                                 </Link>
                               ))
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                                )}
+                              </div>
+                            </div>
+                    );
+                  })}
+                </div>
                 </>
               )}
             </CardContent>

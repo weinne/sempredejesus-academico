@@ -19,7 +19,7 @@ import {
   Eye
 } from 'lucide-react';
 import { z } from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { DatePicker } from '@/components/ui/date-picker';
 
@@ -156,9 +156,17 @@ export default function EditAlunoPage() {
     reset,
     setValue,
     watch,
+    control,
     formState: { errors, isDirty },
   } = useForm<UpdateAlunoFormData>({
     resolver: zodResolver(updateAlunoSchema),
+    defaultValues: {
+      pessoaId: undefined,
+      cursoId: undefined,
+      turnoId: undefined,
+      coorteId: undefined,
+      periodoId: undefined,
+    },
   });
 
   const selectedCursoIdRaw = watch('cursoId');
@@ -166,16 +174,27 @@ export default function EditAlunoPage() {
   const previousCursoIdRef = React.useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    // Evita sobrescrever o período inicial carregado do aluno na primeira renderização
+    const isFirstRun = previousCursoIdRef.current === undefined;
+    if (isFirstRun && aluno?.cursoId && aluno?.periodoId) {
+      setValue('cursoId', aluno.cursoId as any, { shouldDirty: false, shouldValidate: false });
+      setValue('periodoId', aluno.periodoId as any, { shouldDirty: false, shouldValidate: false });
+      previousCursoIdRef.current = aluno.cursoId;
+      return;
+    }
+
     if (previousCursoIdRef.current === selectedCursoId) {
       return;
     }
+
     if (!selectedCursoId) {
       setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
     } else if (aluno && selectedCursoId === aluno.cursoId) {
-      setValue('periodoId', aluno.periodoId, { shouldDirty: false, shouldValidate: false });
+      setValue('periodoId', aluno.periodoId as any, { shouldDirty: false, shouldValidate: false });
     } else {
       setValue('periodoId', undefined as unknown as number, { shouldDirty: false, shouldValidate: false });
     }
+
     previousCursoIdRef.current = selectedCursoId;
   }, [aluno, selectedCursoId, setValue]);
 
@@ -193,10 +212,32 @@ export default function EditAlunoPage() {
   // Turnos são genéricos e não dependem do curso
   const turnosDisponiveis = turnosAll;
 
+  // Simple: filter coortes by selected course
   const coortesDisponiveis = React.useMemo(() => {
-    if (!selectedCursoId) return [];
-    return coortesAll.filter((c: any) => Number(c.cursoId) === Number(selectedCursoId) && c.ativo);
-  }, [selectedCursoId, coortesAll]);
+    if (!selectedCursoId) {
+      // Se não há curso selecionado, ainda assim tentamos incluir a coorte atual do aluno
+      if (aluno?.coorteId) {
+        const atual = coortesAll.find((c: any) => Number(c.id) === Number(aluno.coorteId));
+        return atual ? [atual] : [];
+      }
+      return [];
+    }
+
+    const base = coortesAll.filter(
+      (c: any) => Number(c.cursoId) === Number(selectedCursoId) && c.ativo,
+    );
+
+    // Garantir que a coorte atual do aluno esteja sempre presente na lista,
+    // mesmo que esteja inativa ou temporariamente fora do filtro base.
+    if (aluno?.coorteId) {
+      const atual = coortesAll.find((c: any) => Number(c.id) === Number(aluno.coorteId));
+      if (atual && !base.some((c: any) => Number(c.id) === Number(atual.id))) {
+        return [...base, atual];
+      }
+    }
+
+    return base;
+  }, [selectedCursoId, coortesAll, aluno?.coorteId]);
 
   // Masks and normalization helpers for Pessoa fields
   const onlyDigits = (value: string) => value.replace(/\D/g, '');
@@ -226,19 +267,20 @@ export default function EditAlunoPage() {
     onError: (error: any) => toast({ title: 'Erro ao atualizar usuário', description: error.message || 'Erro desconhecido', variant: 'destructive' }),
   });
 
-  // Initialize form with aluno data
+  // Initialize form with aluno data - simple and direct
   React.useEffect(() => {
     if (aluno) {
-      reset({
+      const formValues = {
         pessoaId: aluno.pessoaId,
         cursoId: aluno.cursoId,
         turnoId: aluno.turnoId || undefined,
-        coorteId: aluno.coorteId || undefined,
-        periodoId: aluno.periodoId,
+        coorteId: aluno.coorteId || undefined, // Simple: number or undefined
+        periodoId: aluno.periodoId || undefined,
         igreja: aluno.igreja || '',
         situacao: aluno.situacao,
-        coeficienteAcad: parseFloat(aluno.coeficienteAcad?.toString() || '0') || undefined,
-      });
+        coeficienteAcad: aluno.coeficienteAcad ? parseFloat(String(aluno.coeficienteAcad)) : undefined,
+      };
+      reset(formValues);
     }
   }, [aluno, reset]);
 
@@ -540,20 +582,47 @@ export default function EditAlunoPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Coorte (turma de ingresso)
                       </label>
-                      <select
-                        {...register('coorteId', { 
-                          setValueAs: (value) => value === '' || value === undefined ? undefined : Number(value)
-                        })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                        disabled={!selectedCursoId}
-                      >
-                        <option value="">{selectedCursoId ? 'Selecione uma coorte...' : 'Selecione um curso primeiro'}</option>
-                        {coortesDisponiveis.map((c: Coorte) => (
-                          <option key={c.id} value={c.id}>{c.rotulo}</option>
-                        ))}
-                      </select>
+                      <Controller
+                        name="coorteId"
+                        control={control}
+                        render={({ field }) => {
+                          // Ensure value is string for select comparison
+                          const selectValue = field.value ? String(field.value) : '';
+                          return (
+                            <select
+                              value={selectValue}
+                              onChange={(e) => {
+                                const value = e.target.value === '' ? undefined : Number(e.target.value);
+                                field.onChange(value, { shouldDirty: true, shouldValidate: true });
+                              }}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                              ref={field.ref}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              disabled={!selectedCursoId}
+                            >
+                              <option value="">{selectedCursoId ? 'Selecione uma coorte...' : 'Selecione um curso primeiro'}</option>
+                              {coortesDisponiveis.map((c: Coorte) => (
+                                <option key={c.id} value={String(c.id)}>{c.rotulo}</option>
+                              ))}
+                            </select>
+                          );
+                        }}
+                      />
                       {selectedCursoId && coortesDisponiveis.length === 0 && (
                         <p className="mt-1 text-xs text-amber-600">Nenhuma coorte disponível para este curso</p>
+                      )}
+                      {!aluno?.coorteId && aluno?.cursoId && (
+                        <p className="mt-1 text-xs text-blue-600">
+                          Este aluno ainda não possui coorte vinculada. Selecione uma coorte acima ou{' '}
+                          {aluno?.coorteId ? (
+                            <Link to={`/coortes/vincular/${aluno.coorteId}`} className="underline">
+                              vincule via a página de coortes
+                            </Link>
+                          ) : (
+                            <span>vincule via a página de coortes</span>
+                          )}
+                        </p>
                       )}
                     </div>
 
@@ -707,53 +776,6 @@ export default function EditAlunoPage() {
           {relatedUser && (
             <Card className="mt-6">
               <CardHeader>
-                <CardTitle>Dados de Usuário</CardTitle>
-                <CardDescription>Atualize as informações de acesso do usuário vinculado</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget as HTMLFormElement);
-                    const payload: any = {
-                      username: String(fd.get('user.username') || relatedUser.username),
-                      role: String(fd.get('user.role') || relatedUser.role) as Role,
-                      isActive: String(fd.get('user.isActive') || relatedUser.isActive) as 'S' | 'N',
-                    };
-                    updateUserMutation.mutate(payload);
-                  }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                >
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                    <Input name="user.username" defaultValue={relatedUser.username} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Papel</label>
-                    <select name="user.role" defaultValue={relatedUser.role} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                      <option value={Role.ADMIN}>Administrador</option>
-                      <option value={Role.SECRETARIA}>Secretaria</option>
-                      <option value={Role.PROFESSOR}>Professor</option>
-                      <option value={Role.ALUNO}>Aluno</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ativo</label>
-                    <select name="user.isActive" defaultValue={relatedUser.isActive} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                      <option value="S">Sim</option>
-                      <option value="N">Não</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-2 flex gap-2">
-                    <Button type="submit" disabled={updateUserMutation.isPending}>Atualizar Usuário</Button>
-                  </div>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-          {relatedUser && (
-            <Card className="mt-6">
-              <CardHeader>
                 <div className="flex items-center space-x-3">
                   <div className="p-2 bg-green-100 rounded-full">
                     <User className="h-6 w-6 text-green-600" />
@@ -771,7 +793,7 @@ export default function EditAlunoPage() {
                     const fd = new FormData(e.currentTarget as HTMLFormElement);
                     const payload: any = {
                       username: String(fd.get('user.username') || relatedUser.username),
-                      role: String(fd.get('user.role') || relatedUser.role) as Role,
+                      role: Role.ALUNO,
                       isActive: String(fd.get('user.isActive') || relatedUser.isActive) as 'S' | 'N',
                     };
                     updateUserMutation.mutate(payload);
@@ -784,12 +806,7 @@ export default function EditAlunoPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Papel</label>
-                    <select name="user.role" defaultValue={relatedUser.role} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                      <option value={Role.ADMIN}>Administrador</option>
-                      <option value={Role.SECRETARIA}>Secretaria</option>
-                      <option value={Role.PROFESSOR}>Professor</option>
-                      <option value={Role.ALUNO}>Aluno</option>
-                    </select>
+                    <Input value="Aluno" disabled className="bg-slate-100 text-slate-600" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ativo</label>
