@@ -433,7 +433,8 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     .from(alunos)
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
-    .leftJoin(periodos, eq(alunos.periodoId, periodos.id));
+    .leftJoin(periodos, eq(alunos.periodoId, periodos.id))
+    .leftJoin(coortes, eq(alunos.coorteId, coortes.id));
 
   const whereConditions = [] as any[];
 
@@ -479,35 +480,53 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     ra: row.alunos.ra,
     pessoaId: row.alunos.pessoaId,
     cursoId: row.alunos.cursoId,
+    coorteId: row.alunos.coorteId,
+    periodoId: row.alunos.periodoId,
+    turnoId: row.alunos.turnoId,
     anoIngresso: row.alunos.anoIngresso,
     igreja: row.alunos.igreja,
     situacao: row.alunos.situacao,
     coeficienteAcad: row.alunos.coeficienteAcad,
     createdAt: row.alunos.createdAt,
     updatedAt: row.alunos.updatedAt,
-    pessoa: row.pessoas ? {
-      id: row.pessoas.id,
-      nome: row.pessoas.nomeCompleto, // Map nomeCompleto to nome for frontend
-      sexo: row.pessoas.sexo,
-      email: row.pessoas.email,
-      cpf: row.pessoas.cpf,
-      data_nascimento: row.pessoas.dataNasc,
-      telefone: row.pessoas.telefone,
-      endereco: row.pessoas.endereco,
-    } : null,
-      curso: row.cursos ? {
-        id: row.cursos.id,
-        nome: row.cursos.nome,
-        grau: row.cursos.grau,
-      } : null,
-      periodo: row.periodos
-        ? {
-            id: row.periodos.id,
-            numero: row.periodos.numero,
-            nome: row.periodos.nome,
-          }
-        : null,
-    }));
+    pessoa: row.pessoas
+      ? {
+          id: row.pessoas.id,
+          nome: row.pessoas.nomeCompleto,
+          sexo: row.pessoas.sexo,
+          email: row.pessoas.email,
+          cpf: row.pessoas.cpf,
+          data_nascimento: row.pessoas.dataNasc,
+          telefone: row.pessoas.telefone,
+          endereco: row.pessoas.endereco,
+        }
+      : null,
+    curso: row.cursos
+      ? {
+          id: row.cursos.id,
+          nome: row.cursos.nome,
+          grau: row.cursos.grau,
+        }
+      : null,
+    periodo: row.periodos
+      ? {
+          id: row.periodos.id,
+          numero: row.periodos.numero,
+          nome: row.periodos.nome,
+        }
+      : null,
+    coorte: row.coortes
+      ? {
+          id: row.coortes.id,
+          cursoId: row.coortes.cursoId,
+          turnoId: row.coortes.turnoId,
+          curriculoId: row.coortes.curriculoId,
+          anoIngresso: row.coortes.anoIngresso,
+          rotulo: row.coortes.rotulo,
+          ativo: row.coortes.ativo,
+        }
+      : null,
+  }));
 
   // Get total count for pagination
   const baseCountQuery = db
@@ -515,7 +534,8 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     .from(alunos)
     .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
     .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
-    .leftJoin(periodos, eq(alunos.periodoId, periodos.id));
+    .leftJoin(periodos, eq(alunos.periodoId, periodos.id))
+    .leftJoin(coortes, eq(alunos.coorteId, coortes.id));
 
   const countQuery = whereExpr ? baseCountQuery.where(whereExpr) : baseCountQuery;
 

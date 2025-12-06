@@ -865,17 +865,20 @@ class ApiService {
   // === Sprint 8: Relatórios ===
   async reportHistorico(alunoId: string) {
     const response = await this.api.get(`/api/reports/historico`, { params: { alunoId } });
-    return response.data.data as any[];
+    return response.data.data as import('@/types/api').HistoricoReportItem[];
   }
 
   async reportFrequencia(turmaId: number, startDate?: string, endDate?: string) {
     const response = await this.api.get(`/api/reports/frequencia`, { params: { turmaId, startDate, endDate } });
-    return response.data.data as any[];
+    return {
+      data: response.data.data as import('@/types/api').FrequenciaReportRow[],
+      meta: response.data.meta,
+    } as import('@/types/api').FrequenciaReportResponse;
   }
 
   async reportDesempenho(disciplinaId: number) {
     const response = await this.api.get(`/api/reports/desempenho`, { params: { disciplinaId } });
-    return response.data.data as { turmas: number; alunos: number; mediaGeral: number | null };
+    return response.data.data as import('@/types/api').DesempenhoReport;
   }
 
   async createAluno(aluno: CreateAlunoWithUser): Promise<{ aluno: Aluno; user?: any }> {

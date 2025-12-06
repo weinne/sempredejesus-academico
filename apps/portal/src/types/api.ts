@@ -399,6 +399,50 @@ export interface LancarNotaInput {
   obs?: string;
 }
 
+// Relatórios
+export interface HistoricoReportNota {
+  avaliacaoId: number;
+  data?: string;
+  tipo?: string;
+  descricao?: string;
+  peso?: number;
+  nota?: number | null;
+  obs?: string | null;
+}
+
+export interface HistoricoReportItem {
+  inscricaoId: number;
+  turmaId: number;
+  disciplinaId?: number;
+  disciplinaNome?: string | null;
+  media?: number | null;
+  frequencia?: number | null;
+  status: string;
+  notas: HistoricoReportNota[];
+}
+
+export interface FrequenciaReportRow {
+  alunoId: string;
+  ra: string;
+  nome: string | null;
+  presencas: number;
+  totalAulas: number;
+  frequencia: number;
+}
+
+export interface FrequenciaReportResponse {
+  data: FrequenciaReportRow[];
+  meta?: {
+    totalAulas?: number;
+  };
+}
+
+export interface DesempenhoReport {
+  turmas: number;
+  alunos: number;
+  mediaGeral: number | null;
+}
+
 export interface HistoricoAvaliacaoItem {
   id: number;
   turmaId: number;

@@ -43,7 +43,8 @@
     "react-router-dom": "^6.20.1",
     "tailwind-merge": "^2.0.0",
     "zod": "^4.1.12",
-    "zustand": "^4.4.7"
+    "zustand": "^4.4.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.1",
