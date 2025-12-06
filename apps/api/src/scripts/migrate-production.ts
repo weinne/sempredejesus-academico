@@ -48,7 +48,8 @@ async function runMigrations() {
       const { promisify } = await import('util');
       const execAsync = promisify(exec);
       
-      await execAsync('npx drizzle-kit push');
+      // --force bypasses interactive confirmations during automated deploys
+      await execAsync('npx drizzle-kit push --force');
       console.log('✅ Database schema pushed successfully!');
       
       process.exit(0);
