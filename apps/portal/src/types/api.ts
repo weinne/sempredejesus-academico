@@ -70,6 +70,16 @@ export interface BootstrapAdminResponse {
   username: string;
 }
 
+export interface PessoaEndereco {
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
+}
+
 export interface Pessoa {
   id: string;
   nome: string;
@@ -78,7 +88,7 @@ export interface Pessoa {
   cpf?: string;
   email?: string;
   telefone?: string;
-  endereco?: string;
+  endereco?: string | PessoaEndereco | null;
   data_nascimento?: string;
   created_at: string;
   updated_at: string;

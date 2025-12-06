@@ -297,11 +297,11 @@ export default function RelatoriosPage() {
   const coorteFilterNumericId = coorteFilterId && !Number.isNaN(Number(coorteFilterId)) ? Number(coorteFilterId) : null;
   const cursoFilterNumericId = cursoFilterId && !Number.isNaN(Number(cursoFilterId)) ? Number(cursoFilterId) : null;
 
-  const { data: alunosData = [], isLoading: alunosLoading } = useQuery({
+  const { data: alunosData = [], isLoading: alunosLoading } = useQuery<Aluno[]>({
     queryKey: ['relatorios', 'alunos', 'all', { coorte: coorteFilterNumericId }],
     queryFn: () => fetchAllAlunos({ coorteId: coorteFilterNumericId }),
     staleTime: 5 * 60 * 1000,
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData ?? [],
   });
 
   const { data: cursosResponse, isLoading: cursosLoading } = useQuery<{ data: Curso[]; pagination?: any }>({

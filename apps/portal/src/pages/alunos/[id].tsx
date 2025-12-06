@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/providers/auth-provider';
 import { apiService } from '@/services/api';
 import { Role } from '@/types/api';
+import type { PessoaEndereco } from '@/types/api';
 import { usePageHero } from '@/hooks/use-page-hero';
 import { StatCard } from '@/components/ui/stats-card';
 import {
@@ -31,6 +32,48 @@ import {
   ArrowRight,
   Users
 } from 'lucide-react';
+
+const isStructuredEndereco = (value: unknown): value is PessoaEndereco =>
+  typeof value === 'object' && value !== null;
+
+const formatAlunoEndereco = (endereco: string | PessoaEndereco | null | undefined) => {
+  if (!endereco) return null;
+  if (typeof endereco === 'string') {
+    const trimmed = endereco.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (isStructuredEndereco(parsed)) {
+        return [
+          parsed.logradouro,
+          parsed.numero,
+          parsed.complemento,
+          parsed.bairro,
+          parsed.cidade,
+          parsed.estado,
+          parsed.cep,
+        ]
+          .filter(Boolean)
+          .join(', ') || null;
+      }
+    } catch {
+      // ignore - fallback to plain string below
+    }
+    return trimmed;
+  }
+
+  const parts = [
+    endereco.logradouro,
+    endereco.numero,
+    endereco.complemento,
+    endereco.bairro,
+    endereco.cidade,
+    endereco.estado,
+    endereco.cep,
+  ].filter(Boolean);
+
+  return parts.length ? parts.join(', ') : null;
+};
 
 export default function AlunoDetailPage() {
   const { ra } = useParams<{ ra: string }>();
@@ -98,6 +141,8 @@ export default function AlunoDetailPage() {
       </div>
     );
   }
+
+  const enderecoFormatado = formatAlunoEndereco(aluno.pessoa?.endereco);
 
   const getSituacaoColor = (situacao: string) => {
     switch (situacao) {
@@ -204,26 +249,12 @@ export default function AlunoDetailPage() {
                   )}
                 </div>
 
-                {aluno.pessoa?.endereco && (
+                {enderecoFormatado && (
                   <div className="flex items-start space-x-3 pt-2 border-t border-gray-100">
                     <MapPin className="h-5 w-5 text-gray-400 mt-1" />
                     <div>
                       <p className="text-sm text-gray-500">Endereço</p>
-                      <p className="font-medium">
-                        {typeof aluno.pessoa.endereco === 'string'
-                          ? aluno.pessoa.endereco
-                          : [
-                              aluno.pessoa.endereco.logradouro,
-                              aluno.pessoa.endereco.numero,
-                              aluno.pessoa.endereco.complemento,
-                              aluno.pessoa.endereco.bairro,
-                              aluno.pessoa.endereco.cidade,
-                              aluno.pessoa.endereco.estado,
-                              aluno.pessoa.endereco.cep,
-                            ]
-                              .filter(Boolean)
-                              .join(', ') || 'N/A'}
-                      </p>
+                      <p className="font-medium">{enderecoFormatado}</p>
                     </div>
                   </div>
                 )}

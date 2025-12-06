@@ -11,6 +11,7 @@ import {
   UpdateUser,
   ChangePassword,
   Pessoa, 
+  PessoaEndereco,
   Aluno, 
   CreateAluno,
   CreateAlunoWithUser,
@@ -539,9 +540,13 @@ class ApiService {
     return mapped;
   }
 
-  private parseEnderecoString(endereco?: string): any {
+  private parseEnderecoString(endereco?: string | PessoaEndereco | null): any {
     if (!endereco) {
       return undefined;
+    }
+
+    if (typeof endereco !== 'string') {
+      return endereco;
     }
 
     const trimmed = endereco.trim();

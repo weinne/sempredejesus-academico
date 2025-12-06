@@ -761,50 +761,61 @@ export default function AvaliacoesPage() {
                               estudante.nomeCompleto.toLowerCase().includes(searchTerm.toLowerCase()) ||
                               estudante.ra.includes(searchTerm)
                             )
-                            .map((estudante) => (
-                            <div key={estudante.alunoId} className="grid grid-cols-12 gap-4 p-3 border-b hover:bg-gray-50 items-center transition-colors">
-                              <div className="col-span-2 md:col-span-1 text-sm font-mono text-gray-500">
-                                {estudante.ra}
-                              </div>
-                              <div className="col-span-5 md:col-span-4 text-sm font-medium">
-                                {estudante.nomeCompleto}
-                              </div>
-                              <div className="col-span-2">
-                                <Input
-                                  placeholder="-"
-                                  value={notasEditadas[estudante.alunoId]?.nota || ''}
-                                  onChange={(e) => updateGrade(estudante.alunoId, 'nota', e.target.value)}
-                                  disabled={!canEdit}
-                                  className={cn(
-                                    "text-center font-medium h-9",
-                                    notasEditadas[estudante.alunoId]?.nota && 
-                                    GradeUtils.getGradeColorClass(
-                                      GradeUtils.parseGradeFromDisplay(notasEditadas[estudante.alunoId].nota)
-                                    )
-                                  )}
-                                />
-                              </div>
-                              <div className="col-span-3 md:col-span-3">
-                                <Input
-                                  placeholder="Observações..."
-                                  value={notasEditadas[estudante.alunoId]?.obs || ''}
-                                  onChange={(e) => updateGrade(estudante.alunoId, 'obs', e.target.value)}
-                                  disabled={!canEdit}
-                                  className="h-9 text-sm"
-                                />
-                              </div>
-                              <div className="col-span-2 hidden md:flex items-center text-sm">
-                                <Badge variant="outline" className={cn(
-                                  "font-mono",
-                                  estudante.media >= 7 ? "border-green-200 bg-green-50 text-green-700" : 
-                                  estudante.media >= 5 ? "border-yellow-200 bg-yellow-50 text-yellow-700" : 
-                                  "border-red-200 bg-red-50 text-red-700"
-                                )}>
-                                  {GradeUtils.formatGradeForDisplay(estudante.media)}
-                                </Badge>
-                              </div>
-                            </div>
-                          ))}
+                            .map((estudante) => {
+                              const mediaValue = typeof estudante.media === 'number' ? estudante.media : null;
+                              const badgeClasses = cn(
+                                "font-mono",
+                                mediaValue === null
+                                  ? "border-gray-200 bg-gray-50 text-gray-600"
+                                  : mediaValue >= 7
+                                    ? "border-green-200 bg-green-50 text-green-700"
+                                    : mediaValue >= 5
+                                      ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+                                      : "border-red-200 bg-red-50 text-red-700"
+                              );
+
+                              return (
+                                <div key={estudante.alunoId} className="grid grid-cols-12 gap-4 p-3 border-b hover:bg-gray-50 items-center transition-colors">
+                                  <div className="col-span-2 md:col-span-1 text-sm font-mono text-gray-500">
+                                    {estudante.ra}
+                                  </div>
+                                  <div className="col-span-5 md:col-span-4 text-sm font-medium">
+                                    {estudante.nomeCompleto}
+                                  </div>
+                                  <div className="col-span-2">
+                                    <Input
+                                      placeholder="-"
+                                      value={notasEditadas[estudante.alunoId]?.nota || ''}
+                                      onChange={(e) => updateGrade(estudante.alunoId, 'nota', e.target.value)}
+                                      disabled={!canEdit}
+                                      className={cn(
+                                        "text-center font-medium h-9",
+                                        notasEditadas[estudante.alunoId]?.nota && 
+                                        GradeUtils.getGradeColorClass(
+                                          GradeUtils.parseGradeFromDisplay(notasEditadas[estudante.alunoId].nota)
+                                        )
+                                      )}
+                                    />
+                                  </div>
+                                  <div className="col-span-3 md:col-span-3">
+                                    <Input
+                                      placeholder="Observações..."
+                                      value={notasEditadas[estudante.alunoId]?.obs || ''}
+                                      onChange={(e) => updateGrade(estudante.alunoId, 'obs', e.target.value)}
+                                      disabled={!canEdit}
+                                      className="h-9 text-sm"
+                                    />
+                                  </div>
+                                  <div className="col-span-2 hidden md:flex items-center text-sm">
+                                    <Badge variant="outline" className={badgeClasses}>
+                                      {mediaValue === null
+                                        ? '--'
+                                        : GradeUtils.formatGradeForDisplay(mediaValue)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           
                           {estudantesAvaliacao.filter(estudante => 
                               estudante.nomeCompleto.toLowerCase().includes(searchTerm.toLowerCase()) ||
