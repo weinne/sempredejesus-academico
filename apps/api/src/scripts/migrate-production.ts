@@ -13,14 +13,23 @@ async function runMigrations() {
       throw new Error('DATABASE_URL is not configured');
     }
     
+    const useSsl = (process.env.DATABASE_SSL || '').toLowerCase() === 'true';
+    const rejectUnauthorized = (process.env.DATABASE_SSL_REJECT_UNAUTHORIZED || 'true').toLowerCase() === 'true';
+    const sslConfig = useSsl ? { rejectUnauthorized } : undefined;
+    
     console.log('📡 Connecting to database...');
+    if (useSsl) {
+      console.log(`🔐 SSL enabled for migrations (rejectUnauthorized=${rejectUnauthorized})`);
+    } else {
+      console.log('🔓 SSL disabled for migrations');
+    }
     
     // Create connection for migrations
     const migrationClient = postgres(config.database.url, { 
       max: 1,
       connect_timeout: 10,
       idle_timeout: 20,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+      ssl: sslConfig
     });
     
     const db = drizzle(migrationClient);
