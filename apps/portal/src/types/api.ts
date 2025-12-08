@@ -28,13 +28,12 @@ export interface CreateUser {
 
 export interface UpdateUser {
   username?: string;
-  password?: string;
   role?: Role;
   isActive?: 'S' | 'N';
 }
 
 export interface ChangePassword {
-  currentPassword: string;
+  currentPassword?: string;
   newPassword: string;
   confirmPassword: string;
 }

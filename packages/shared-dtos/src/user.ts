@@ -26,13 +26,22 @@ export const CreateUserSchema = z.object({
 
 export const UpdateUserSchema = z.object({
   username: z.string().min(3).max(50).optional(),
-  password: z.string().min(6).max(100).optional(),
   role: z.enum(['ADMIN', 'SECRETARIA', 'PROFESSOR', 'ALUNO']).optional(),
   isActive: z.enum(['S', 'N']).optional(),
 });
 
+const currentPasswordSchema = z
+  .union([z.string().min(6), z.literal('')])
+  .optional()
+  .transform((value) => {
+    if (!value || value.trim().length === 0) {
+      return undefined;
+    }
+    return value;
+  });
+
 export const ChangePasswordSchema = z.object({
-  currentPassword: z.string().min(6).optional(),
+  currentPassword: currentPasswordSchema,
   newPassword: z.string().min(6).max(100),
   confirmPassword: z.string().min(6).max(100),
 }).refine((data) => data.newPassword === data.confirmPassword, {

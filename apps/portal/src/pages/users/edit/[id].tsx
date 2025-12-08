@@ -6,14 +6,54 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import CrudHeader from '@/components/crud/crud-header';
 import { apiService } from '@/services/api';
-import { Role, User } from '@/types/api';
+import { ApiError, ChangePassword, Role, User } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/providers/auth-provider';
 
 export default function UserEditPage() {
   const { id } = useParams<{ id: string }>();
+    const formatPasswordError = (error: any): string => {
+      const apiError = error as ApiError;
+      const validationErrors = apiError?.details?.errors;
+      const translateField = (field?: string) => {
+        if (!field) return '';
+        const labels: Record<string, string> = {
+          currentPassword: 'Senha atual',
+          newPassword: 'Nova senha',
+          confirmPassword: 'Confirmação da senha',
+        };
+        return labels[field] || field;
+      };
+      const translateMessage = (message?: string) => {
+        if (!message) return 'Dados inválidos.';
+        const normalized = message.toLowerCase();
+        if (normalized.includes('>=6')) {
+          return 'Precisa ter pelo menos 6 caracteres.';
+        }
+        if (normalized.includes('required')) {
+          return 'Campo obrigatório.';
+        }
+        if (normalized.includes('do not match') || normalized.includes("don't match")) {
+          return 'As senhas não conferem.';
+        }
+        return message;
+      };
+
+      if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+        return validationErrors
+          .map((item: any) => {
+            const label = translateField(item.field);
+            const friendlyMessage = translateMessage(item.message);
+            return label ? `${label}: ${friendlyMessage}` : friendlyMessage;
+          })
+          .join(' | ');
+      }
+      return apiError?.message || 'Erro ao alterar senha';
+    };
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['user', id],
@@ -33,10 +73,10 @@ export default function UserEditPage() {
   });
 
   const changePasswordMutation = useMutation({
-    mutationFn: (payload: { currentPassword?: string; newPassword: string; confirmPassword: string }) =>
-      apiService.changePassword(Number(id), payload as any),
+    mutationFn: (payload: ChangePassword) =>
+      apiService.changePassword(Number(id), payload),
     onSuccess: () => toast({ title: 'Senha alterada', description: 'Senha alterada com sucesso!' }),
-    onError: (error: any) => toast({ title: 'Erro ao alterar senha', description: error.message || 'Erro desconhecido', variant: 'destructive' }),
+    onError: (error: any) => toast({ title: 'Erro ao alterar senha', description: formatPasswordError(error), variant: 'destructive' }),
   });
 
   if (isLoading || !user) {
@@ -47,6 +87,11 @@ export default function UserEditPage() {
       </div>
     );
   }
+
+  const isSameUser = currentUser?.id === user.id;
+  const requesterIsAdmin = currentUser?.role === Role.ADMIN;
+  const canChangePassword = user.role !== Role.ADMIN || isSameUser;
+  const requiresCurrentPassword = !requesterIsAdmin || isSameUser;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -106,35 +151,55 @@ export default function UserEditPage() {
               <CardTitle>Alterar Senha</CardTitle>
             </CardHeader>
             <CardContent>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const form = e.currentTarget as HTMLFormElement;
-                  const formData = new FormData(form);
-                  changePasswordMutation.mutate({
-                    currentPassword: String(formData.get('currentPassword') || ''),
-                    newPassword: String(formData.get('newPassword') || ''),
-                    confirmPassword: String(formData.get('confirmPassword') || ''),
-                  });
-                }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-4"
-              >
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Senha Atual</label>
-                  <Input name="currentPassword" type="password" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha *</label>
-                  <Input name="newPassword" type="password" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Senha *</label>
-                  <Input name="confirmPassword" type="password" required />
-                </div>
-                <div className="md:col-span-3 flex gap-2">
-                  <Button type="submit" disabled={changePasswordMutation.isPending}>Alterar Senha</Button>
-                </div>
-              </form>
+              {canChangePassword ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget as HTMLFormElement;
+                    const formData = new FormData(form);
+                    const currentPasswordValue = String(formData.get('currentPassword') || '').trim();
+                    const payload: ChangePassword = {
+                      newPassword: String(formData.get('newPassword') || ''),
+                      confirmPassword: String(formData.get('confirmPassword') || ''),
+                    };
+                    if (currentPasswordValue.length > 0) {
+                      payload.currentPassword = currentPasswordValue;
+                    }
+                    changePasswordMutation.mutate(payload);
+                  }}
+                  className={requiresCurrentPassword ? 'grid grid-cols-1 md:grid-cols-3 gap-4' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}
+                >
+                  {requiresCurrentPassword && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Senha Atual *</label>
+                      <Input name="currentPassword" type="password" required />
+                    </div>
+                  )}
+                  {!requiresCurrentPassword && (
+                    <input type="hidden" name="currentPassword" value="" />
+                  )}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha *</label>
+                    <Input name="newPassword" type="password" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Senha *</label>
+                    <Input name="confirmPassword" type="password" required />
+                  </div>
+                  {!requiresCurrentPassword && (
+                    <p className="text-sm text-gray-600 md:col-span-2">
+                      Como administrador, você pode definir uma nova senha sem informar a anterior.
+                    </p>
+                  )}
+                  <div className={requiresCurrentPassword ? 'md:col-span-3 flex gap-2' : 'md:col-span-2 flex gap-2'}>
+                    <Button type="submit" disabled={changePasswordMutation.isPending}>Alterar Senha</Button>
+                  </div>
+                </form>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Apenas o próprio administrador pode alterar a sua senha. Oriente o usuário a acessar a área "Meu Perfil" para realizar a troca.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

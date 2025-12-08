@@ -26,7 +26,7 @@ import { DataList } from '@/components/crud/data-list';
 import { Pagination } from '@/components/crud/pagination';
 
 export default function UsersPage() {
-  const { hasRole } = useAuth();
+  const { hasRole, user: currentUser } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -112,6 +112,8 @@ export default function UsersPage() {
 
   const users = usersResponse?.data || [];
   const pagination = usersResponse?.pagination;
+  const canChangePasswordForUser = (target: User) => target.role !== Role.ADMIN || target.id === currentUser?.id;
+  const adminPasswordRestriction = 'Somente o próprio administrador pode alterar sua senha.';
 
   const handleNew = () => navigate('/users/new');
 
@@ -219,7 +221,17 @@ export default function UsersPage() {
     setDeletingUser(user);
     setIsDeleteDialogOpen(true);
   };
-  const handleChangePassword = (user: User) => navigate(`/users/edit/${user.id}#password`);
+  const handleChangePassword = (user: User) => {
+    if (!canChangePasswordForUser(user)) {
+      toast({
+        title: 'Ação não permitida',
+        description: adminPasswordRestriction,
+        variant: 'destructive',
+      });
+      return;
+    }
+    navigate(`/users/edit/${user.id}#password`);
+  };
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -336,7 +348,13 @@ export default function UsersPage() {
                       <Link to={`/users/edit/${u.id}`} title="Editar">
                         <Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button>
                       </Link>
-                      <Button variant="ghost" size="sm" onClick={() => handleChangePassword(u)} title="Alterar senha">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleChangePassword(u)}
+                        title={canChangePasswordForUser(u) ? 'Alterar senha' : adminPasswordRestriction}
+                        disabled={!canChangePasswordForUser(u)}
+                      >
                         <Key className="h-4 w-4" />
                       </Button>
                       <Button variant="destructive" size="sm" onClick={() => handleDelete(u)} disabled={deleteMutation.isPending} title="Remover">
@@ -360,7 +378,13 @@ export default function UsersPage() {
                           <Link to={`/users/edit/${u.id}`} title="Editar">
                             <Button variant="ghost" size="sm"><Edit className="h-4 w-4" /></Button>
                           </Link>
-                          <Button variant="ghost" size="sm" onClick={() => handleChangePassword(u)} title="Alterar senha">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleChangePassword(u)}
+                            title={canChangePasswordForUser(u) ? 'Alterar senha' : adminPasswordRestriction}
+                            disabled={!canChangePasswordForUser(u)}
+                          >
                             <Key className="h-4 w-4" />
                           </Button>
                           <Button variant="destructive" size="sm" onClick={() => handleDelete(u)} disabled={deleteMutation.isPending} title="Remover">

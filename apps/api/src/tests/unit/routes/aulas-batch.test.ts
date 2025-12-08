@@ -1,25 +1,35 @@
 import { describe, it, expect } from 'vitest';
 
+const normalizeToUtcMidnight = (date: Date) => {
+  date.setUTCHours(0, 0, 0, 0);
+};
+
+const normalizeWeekday = (day: number) => ((day % 7) + 7) % 7;
+
 describe('Aulas Batch Logic', () => {
   describe('Date generation', () => {
     it('should generate correct dates for a weekly recurrence', () => {
       const startDate = new Date('2025-01-06'); // Monday
       const endDate = new Date('2025-01-27'); // Monday 3 weeks later
+      normalizeToUtcMidnight(startDate);
+      normalizeToUtcMidnight(endDate);
       const diaDaSemana = 1; // Monday = 1
+      const targetWeekday = normalizeWeekday(diaDaSemana);
 
       const generatedDates: string[] = [];
       const currentDate = new Date(startDate);
+      normalizeToUtcMidnight(currentDate);
 
       // Find first occurrence of the target day
-      while (currentDate.getDay() !== diaDaSemana && currentDate <= endDate) {
-        currentDate.setDate(currentDate.getDate() + 1);
+      while (currentDate.getUTCDay() !== targetWeekday && currentDate <= endDate) {
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       }
 
       // Generate all dates for the day of week
       while (currentDate <= endDate) {
         const dateStr = currentDate.toISOString().split('T')[0];
         generatedDates.push(dateStr);
-        currentDate.setDate(currentDate.getDate() + 7); // Next week
+        currentDate.setUTCDate(currentDate.getUTCDate() + 7); // Next week
       }
 
       expect(generatedDates).toHaveLength(4);
@@ -30,23 +40,27 @@ describe('Aulas Batch Logic', () => {
     it('should handle Wednesday recurrence correctly', () => {
       const startDate = new Date('2025-01-01'); // Wednesday
       const endDate = new Date('2025-01-31');
+      normalizeToUtcMidnight(startDate);
+      normalizeToUtcMidnight(endDate);
       const diaDaSemana = 3; // Wednesday = 3
+      const targetWeekday = normalizeWeekday(diaDaSemana);
 
       const generatedDates: string[] = [];
       const currentDate = new Date(startDate);
+      normalizeToUtcMidnight(currentDate);
 
-      while (currentDate.getDay() !== diaDaSemana && currentDate <= endDate) {
-        currentDate.setDate(currentDate.getDate() + 1);
+      while (currentDate.getUTCDay() !== targetWeekday && currentDate <= endDate) {
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       }
 
       while (currentDate <= endDate) {
         const dateStr = currentDate.toISOString().split('T')[0];
         generatedDates.push(dateStr);
-        currentDate.setDate(currentDate.getDate() + 7);
+        currentDate.setUTCDate(currentDate.getUTCDate() + 7);
       }
 
       expect(generatedDates).toHaveLength(5);
-      expect(generatedDates.every(dateStr => new Date(dateStr).getDay() === 3)).toBe(true);
+      expect(generatedDates.every(dateStr => new Date(dateStr).getUTCDay() === 3)).toBe(true);
     });
   });
 

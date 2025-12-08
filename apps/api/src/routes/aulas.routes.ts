@@ -281,6 +281,13 @@ router.post(
     // Generate dates for the specified day of week
     const startDate = new Date(payload.dataInicio);
     const endDate = new Date(payload.dataFim);
+    const normalizeToUtcMidnight = (date: Date) => {
+      if (!Number.isNaN(date.getTime())) {
+        date.setUTCHours(0, 0, 0, 0);
+      }
+    };
+    normalizeToUtcMidnight(startDate);
+    normalizeToUtcMidnight(endDate);
     
     if (startDate > endDate) {
       throw createError('Data de início deve ser anterior à data de fim', 400);
@@ -288,17 +295,19 @@ router.post(
 
     const generatedDates: string[] = [];
     const currentDate = new Date(startDate);
+    normalizeToUtcMidnight(currentDate);
+    const targetWeekday = ((payload.diaDaSemana % 7) + 7) % 7;
 
     // Find first occurrence of the target day
-    while (currentDate.getDay() !== payload.diaDaSemana && currentDate <= endDate) {
-      currentDate.setDate(currentDate.getDate() + 1);
+    while (currentDate.getUTCDay() !== targetWeekday && currentDate <= endDate) {
+      currentDate.setUTCDate(currentDate.getUTCDate() + 1);
     }
 
     // Generate all dates for the day of week
     while (currentDate <= endDate) {
       const dateStr = currentDate.toISOString().split('T')[0];
       generatedDates.push(dateStr);
-      currentDate.setDate(currentDate.getDate() + 7); // Next week
+      currentDate.setUTCDate(currentDate.getUTCDate() + 7); // Next week
     }
 
     // Filter out holidays if requested
