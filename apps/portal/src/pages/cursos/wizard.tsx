@@ -203,6 +203,25 @@ const isPositiveNumber = (value: string): boolean => {
   return Number.isFinite(parsed) && parsed > 0;
 };
 
+const calculatePeriodTotals = (disciplinas: DisciplineDraft[]) => {
+  let totalCreditos = 0;
+  let totalCargaHoraria = 0;
+
+  disciplinas.forEach(disciplina => {
+    const creditos = Number(disciplina.creditos);
+    const cargaHoraria = Number(disciplina.cargaHoraria);
+
+    if (Number.isFinite(creditos)) {
+      totalCreditos += creditos;
+    }
+    if (Number.isFinite(cargaHoraria)) {
+      totalCargaHoraria += cargaHoraria;
+    }
+  });
+
+  return { totalCreditos, totalCargaHoraria };
+};
+
 const cloneDisciplineDraft = (disciplina: DisciplineDraft): DisciplineDraft => ({
   ...disciplina,
   id: Math.random().toString(36).slice(2),
@@ -2055,6 +2074,24 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                                   </div>
                                 );
                               })}
+                              {(() => {
+                                const { totalCreditos, totalCargaHoraria } = calculatePeriodTotals(periodo.disciplinas);
+                                return periodo.disciplinas.length > 0 ? (
+                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="font-medium text-blue-800">Totais do período:</span>
+                                      <div className="flex gap-4">
+                                        <span className="text-blue-700">
+                                          <strong>{totalCreditos}</strong> {totalCreditos === 1 ? 'crédito' : 'créditos'}
+                                        </span>
+                                        <span className="text-blue-700">
+                                          <strong>{totalCargaHoraria}h</strong> carga horária
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : null;
+                              })()}
                               <div className="flex flex-col gap-2 sm:flex-row sm:items-center pt-2">
                                 <Button
                                   type="button"

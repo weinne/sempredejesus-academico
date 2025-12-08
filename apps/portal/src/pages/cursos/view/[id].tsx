@@ -77,6 +77,25 @@ export default function CursoViewPage() {
     enabled: !!id,
   });
 
+  const calculatePeriodTotals = (disciplinasDoPeriodo: any[]) => {
+    let totalCreditos = 0;
+    let totalCargaHoraria = 0;
+
+    disciplinasDoPeriodo.forEach(disciplina => {
+      const creditos = Number(disciplina.creditos);
+      const cargaHoraria = Number(disciplina.cargaHoraria);
+
+      if (Number.isFinite(creditos)) {
+        totalCreditos += creditos;
+      }
+      if (Number.isFinite(cargaHoraria)) {
+        totalCargaHoraria += cargaHoraria;
+      }
+    });
+
+    return { totalCreditos, totalCargaHoraria };
+  };
+
   const turnoOptions = React.useMemo(() => {
     const map = new Map<
       number,
@@ -456,6 +475,24 @@ export default function CursoViewPage() {
                             </div>
                           </div>
                         ))}
+                        {(() => {
+                          const { totalCreditos, totalCargaHoraria } = calculatePeriodTotals(disciplinasDoPeriodo);
+                          return disciplinasDoPeriodo.length > 0 ? (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-blue-800">Totais do período:</span>
+                                <div className="flex gap-4">
+                                  <span className="text-blue-700">
+                                    <strong>{totalCreditos}</strong> {totalCreditos === 1 ? 'crédito' : 'créditos'}
+                                  </span>
+                                  <span className="text-blue-700">
+                                    <strong>{totalCargaHoraria}h</strong> carga horária
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     ) : (
                       <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-sm text-slate-500">
