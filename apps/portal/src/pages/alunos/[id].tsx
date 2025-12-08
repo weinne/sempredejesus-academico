@@ -119,7 +119,7 @@ export default function AlunoDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
         </div>
@@ -129,7 +129,7 @@ export default function AlunoDetailPage() {
 
   if (error || !aluno) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-background">
         <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <Card>
             <CardContent className="p-8 text-center">
@@ -155,7 +155,7 @@ export default function AlunoDetailPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         {/* Estatísticas */}

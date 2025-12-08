@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   ChevronRight,
+  Info,
   Loader2,
   Plus,
   Trash2,
@@ -1125,17 +1126,32 @@ const addDiscipline = (turnoId: number, curriculoDraftId: string, periodId: stri
           }
           return {
             ...curriculo,
-            periodos: curriculo.periodos.map((periodo) =>
-              periodo.id === periodId
-                ? {
-                    ...periodo,
-                    disciplinas: [
-                      ...periodo.disciplinas,
-                      base ? cloneDisciplineDraft(base) : emptyDiscipline(),
-                    ],
+            periodos: curriculo.periodos.map((periodo) => {
+              if (periodo.id !== periodId) {
+                return periodo;
+              }
+
+              let newDiscipline: DisciplineDraft;
+              if (base) {
+                newDiscipline = cloneDisciplineDraft(base);
+              } else {
+                newDiscipline = emptyDiscipline();
+                const lastDiscipline = periodo.disciplinas[periodo.disciplinas.length - 1];
+                if (lastDiscipline) {
+                  newDiscipline.creditos = lastDiscipline.creditos;
+                  newDiscipline.cargaHoraria = lastDiscipline.cargaHoraria;
+                  const lastOrdem = parseInt(lastDiscipline.ordem, 10);
+                  if (!isNaN(lastOrdem)) {
+                    newDiscipline.ordem = (lastOrdem + 1).toString();
                   }
-                : periodo,
-            ),
+                }
+              }
+
+              return {
+                ...periodo,
+                disciplinas: [...periodo.disciplinas, newDiscipline],
+              };
+            }),
           };
         }),
       };
@@ -1717,16 +1733,18 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
         );
       case 2:
         return (
-          <div className="space-y-6">
-            <div className="rounded-md border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-              <p className="font-semibold">Períodos e disciplinas existentes estão em modo somente leitura.</p>
-              <p className="mt-1">
-                Para alterar registros já cadastrados, utilize as telas dedicadas de{' '}
+          <div className="space-y-8">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 flex gap-3 items-start shadow-sm">
+              <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-blue-800">Períodos e disciplinas existentes estão em modo somente leitura.</p>
+                <p className="mt-1 text-blue-700">
+                  Para alterar registros já cadastrados, utilize as telas dedicadas de{' '}
                 <a
                   href="/periodos"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline underline-offset-2"
+                  className="underline underline-offset-2 font-medium hover:text-blue-900"
                 >
                   períodos
                 </a>{' '}
@@ -1735,12 +1753,13 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                   href="/disciplinas"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline underline-offset-2"
+                  className="underline underline-offset-2 font-medium hover:text-blue-900"
                 >
                   disciplinas
                 </a>
                 . Novas entradas criadas aqui serão adicionadas ao final da configuração existente.
               </p>
+              </div>
             </div>
             {totalCurriculos === 0 ? (
               <Card>
@@ -1752,12 +1771,17 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
               wizardData.turnos.map((turno) => {
                 const turnoInfo = availableTurnos.find((item) => item.id === turno.turnoId);
                 return turno.curriculos.map((curriculo) => (
-                  <Card key={`${turno.turnoId}-${curriculo.id}`}>
-                    <CardHeader>
-                      <CardTitle>{turnoInfo?.nome || 'Turno'} • Curriculo {curriculo.versao || 'v1.0'}</CardTitle>
-                      <CardDescription>Configure os periodos e disciplinas especificos deste curriculo.</CardDescription>
+                  <Card key={`${turno.turnoId}-${curriculo.id}`} className="border-l-4 border-l-blue-600 shadow-md overflow-hidden">
+                    <CardHeader className="bg-slate-50 border-b border-slate-100 pb-4">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-1 rounded text-xs font-bold bg-blue-100 text-blue-700 uppercase tracking-wide">
+                          {turnoInfo?.nome || 'Turno'}
+                        </span>
+                        <CardTitle className="text-xl text-slate-800">Curriculo {curriculo.versao || 'v1.0'}</CardTitle>
+                      </div>
+                      <CardDescription className="text-slate-500">Configure os periodos e disciplinas especificos deste curriculo.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-5">
+                    <CardContent className="space-y-6 p-6">
                       {curriculo.periodos.map((periodo) => {
                         const numeroFieldId = `periodo-${periodo.id}-numero` as const;
                         const nomeFieldId = `periodo-${periodo.id}-nome` as const;
@@ -1775,12 +1799,17 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                               ? 'Mantenha pelo menos um periodo por curriculo.'
                               : 'Remover periodo';
                         return (
-                          <div key={periodo.id} className="border border-gray-200 rounded-lg p-4 space-y-4">
-                            <div className="space-y-3">
+                          <div key={periodo.id} className="group border border-slate-200 bg-slate-100 rounded-xl p-5 space-y-5 hover:border-blue-300 transition-colors">
+                            <div className="space-y-4">
                               <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
                                 <div className="flex flex-col gap-1">
-                                  <h4 className="text-sm font-semibold text-gray-800">Configuracao do periodo</h4>
-                                  <p className="text-xs text-gray-500">Cadastre as disciplinas que compoem este periodo neste curriculo.</p>
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shadow-sm">
+                                      {periodo.numero}
+                                    </div>
+                                    <h4 className="text-base font-bold text-slate-800">Configuração do Período</h4>
+                                  </div>
+                                  <p className="text-xs text-slate-500 pl-8">Cadastre as disciplinas que compoem este periodo neste curriculo.</p>
                                   {periodo.persistedId ? (
                                     <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
                                       <span className="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 font-semibold uppercase tracking-wide text-gray-700">
@@ -1855,11 +1884,11 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                                   isPersisted || (disciplina.isLinkedFromExisting && !disciplina.expanded);
 
                                 return (
-                                  <div key={disciplina.id} className="border border-dashed border-gray-300 rounded-md p-4 space-y-3 bg-gray-50">
+                                  <div key={disciplina.id} className="border border-slate-200 rounded-lg p-4 space-y-3 bg-white shadow-sm hover:shadow-md transition-all duration-200">
                                     <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                                       <div>
-                                        <h5 className="text-sm font-medium text-gray-700">
-                                          Disciplina {disciplina.isLinkedFromExisting ? '(existente)' : ''}
+                                        <h5 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                          Disciplina {disciplina.isLinkedFromExisting ? <span className="text-xs font-normal text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">(existente)</span> : ''}
                                         </h5>
                                         {disciplina.persistedId ? (
                                           <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-500">
@@ -2026,11 +2055,12 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                                   </div>
                                 );
                               })}
-                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center pt-2">
                                 <Button
                                   type="button"
                                   variant="outline"
                                   size="sm"
+                                  className="border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-600 hover:text-blue-700 transition-colors"
                                   onClick={() => addDiscipline(turno.turnoId, curriculo.id, periodo.id)}
                                 >
                                   <Plus className="h-4 w-4 mr-2" /> Nova disciplina
@@ -2066,9 +2096,14 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
                           </div>
                         );
                       })}
-                      <div className="flex justify-end">
-                        <Button type="button" variant="outline" size="sm" onClick={() => addPeriod(turno.turnoId, curriculo.id)}>
-                          <Plus className="h-4 w-4 mr-2" /> Adicionar periodo
+                      <div className="flex justify-center pt-4 border-t border-slate-100">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          className="w-full sm:w-auto border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50 text-slate-600 hover:text-blue-700 transition-colors"
+                          onClick={() => addPeriod(turno.turnoId, curriculo.id)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" /> Adicionar novo período
                         </Button>
                       </div>
                     </CardContent>
@@ -2145,7 +2180,7 @@ const attachExistingDisciplineToPeriod = (turnoId: number, curriculoDraftId: str
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-100">
       <CrudHeader
         title="Wizard de configuracao de curso"
         description="Guia passo a passo para criar um curso completo."

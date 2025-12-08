@@ -329,7 +329,7 @@ export default function AlunoNewPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background">
       <CrudHeader title="Nova Matrícula" backTo="/alunos" description="Cadastro de aluno" />
       <main className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-xl shadow-sm border border-slate-200">
@@ -519,7 +519,7 @@ export default function AlunoNewPage() {
                                 <button
                                   key={p.id}
                                   type="button"
-                                  className="w-full text-left p-2 hover:bg-slate-50"
+                                  className="w-full text-left p-2 hover:bg-slate-100"
                                   onClick={() => {
                                     setValue('pessoaId', Number(p.id), { shouldValidate: true, shouldDirty: true });
                                     setValue('pessoa', undefined as any, { shouldValidate: true, shouldDirty: true });
@@ -648,7 +648,7 @@ export default function AlunoNewPage() {
                   </div>
                 )}
                 {selectedPessoaId && (
-                  <div className="border rounded-md p-4 bg-slate-50">
+                  <div className="border rounded-md p-4 bg-slate-100">
                     {(() => {
                       const selected = (pessoas as Pessoa[]).find(p => Number(p.id) === Number(selectedPessoaId));
                       const addr = (() => {

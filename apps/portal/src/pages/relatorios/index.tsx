@@ -806,7 +806,7 @@ export default function RelatoriosPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard title="Alunos cadastrados" value={getStatValue(alunosLoading, alunosData.length)} icon={CheckCircle} iconColor="text-green-600" />
@@ -948,7 +948,7 @@ export default function RelatoriosPage() {
                     </div>
                     <div className="overflow-x-auto rounded-lg border border-slate-200">
                       <table className="min-w-full divide-y divide-slate-200 text-sm">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-slate-100">
                           <tr>
                             <th className="px-4 py-2 text-left font-medium text-slate-600">Disciplina</th>
                             {historicoColumns.map((column) => (
@@ -1076,7 +1076,7 @@ export default function RelatoriosPage() {
                   <div className="space-y-3">
                     <div className="overflow-x-auto rounded-lg border border-slate-200">
                       <table className="min-w-full divide-y divide-slate-200 text-sm">
-                        <thead className="bg-slate-50">
+                        <thead className="bg-slate-100">
                           <tr>
                             <th className="px-4 py-2 text-left font-medium text-slate-600">RA</th>
                             <th className="px-4 py-2 text-left font-medium text-slate-600">Nome</th>
@@ -1170,15 +1170,15 @@ export default function RelatoriosPage() {
                 )}
                 {desempenho && !desempenhoLoading && !desempenhoError && (
                   <div className="grid gap-4 md:grid-cols-3">
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="rounded-lg border border-slate-200 bg-slate-100 p-4">
                       <p className="text-xs uppercase tracking-wide text-slate-500">Turmas analisadas</p>
                       <p className="mt-1 text-2xl font-semibold text-slate-900">{desempenho.turmas}</p>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="rounded-lg border border-slate-200 bg-slate-100 p-4">
                       <p className="text-xs uppercase tracking-wide text-slate-500">Alunos impactados</p>
                       <p className="mt-1 text-2xl font-semibold text-slate-900">{desempenho.alunos}</p>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="rounded-lg border border-slate-200 bg-slate-100 p-4">
                       <p className="text-xs uppercase tracking-wide text-slate-500">Média geral</p>
                       <p className="mt-1 text-2xl font-semibold text-slate-900">{desempenho.mediaGeral !== null ? formatDecimal(desempenho.mediaGeral) : '-'} / 10</p>
                     </div>

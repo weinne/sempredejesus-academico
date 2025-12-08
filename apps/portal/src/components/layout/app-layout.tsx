@@ -181,7 +181,7 @@ function AppLayoutContent() {
               'flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-all group',
               isActive
                 ? 'bg-slate-900 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
             )
           }
         >
@@ -373,7 +373,7 @@ function Section({
     <div className="space-y-1">
       <button
         type="button"
-        className="w-full flex items-center justify-between px-3 py-3 text-left text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-colors group"
+        className="w-full flex items-center justify-between px-3 py-3 text-left text-sm font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors group"
         onClick={onToggle}
       >
         <div className="flex items-center gap-3">
@@ -400,7 +400,7 @@ function NavItem({ to, icon: Icon, label }: { to: string; icon: React.ComponentT
           'flex items-center gap-3 rounded-xl px-3 py-3 text-sm transition-all group',
           isActive 
             ? 'bg-slate-900 text-white shadow-sm font-medium' 
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
         )
       }
       end
