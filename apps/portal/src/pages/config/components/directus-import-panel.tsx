@@ -554,10 +554,11 @@ function AlunoImportForm({ candidate, cursos, turnos, coortes, isSubmitting, onC
 
   useEffect(() => {
     const currentTurno = form.getValues('turnoId');
+    const firstTurno = availableTurnos[0];
     if (currentTurno && !availableTurnos.some((turno) => turno.id === currentTurno)) {
       form.setValue('turnoId', undefined);
-    } else if (!currentTurno && availableTurnos.length === 1) {
-      form.setValue('turnoId', availableTurnos[0].id);
+    } else if (!currentTurno && firstTurno) {
+      form.setValue('turnoId', firstTurno.id);
     }
   }, [availableTurnos, form]);
 
