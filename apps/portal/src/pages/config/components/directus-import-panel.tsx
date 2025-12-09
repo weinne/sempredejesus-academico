@@ -510,17 +510,18 @@ function AlunoImportForm({ candidate, cursos, turnos, coortes, isSubmitting, onC
   const selectedTurnoId = form.watch('turnoId');
 
   useEffect(() => {
-    if (!form.getValues('cursoId') && cursos.length > 0) {
-      form.setValue('cursoId', cursos[0].id);
+    const firstCurso = cursos[0];
+    if (!form.getValues('cursoId') && firstCurso) {
+      form.setValue('cursoId', firstCurso.id);
     }
   }, [cursos, form]);
 
   useEffect(() => {
-    form.setValue('periodoId', undefined);
+    form.resetField('periodoId', { defaultValue: undefined });
   }, [selectedCursoId, form]);
 
   useEffect(() => {
-    form.setValue('coorteId', undefined);
+    form.resetField('coorteId', { defaultValue: undefined });
   }, [selectedCursoId, selectedTurnoId, form]);
 
   const periodosQuery = useQuery({
