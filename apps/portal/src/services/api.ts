@@ -32,7 +32,13 @@ import {
   TurmaInscrito,
   CreateTurmaInscricao,
   BulkTurmaInscricao,
-  UpdateTurmaInscricao
+  UpdateTurmaInscricao,
+  DirectusAlunoCandidate,
+  DirectusProfessorCandidate,
+  DirectusAlunoImportPayload,
+  DirectusProfessorImportPayload,
+  DirectusAlunoImportResult,
+  DirectusProfessorImportResult
 } from '@/types/api';
 
 class ApiService {
@@ -164,6 +170,37 @@ class ApiService {
       data_nascimento: pessoa.dataNasc || pessoa.data_nascimento || '',
       created_at: pessoa.createdAt || '',
       updated_at: pessoa.updatedAt || '',
+    };
+  }
+
+  private normalizeInlinePessoa(pessoa?: any) {
+    if (!pessoa) {
+      return undefined;
+    }
+
+    const enderecoValue = pessoa.endereco;
+    let enderecoObj: any = undefined;
+
+    if (enderecoValue) {
+      if (typeof enderecoValue === 'string') {
+        try {
+          enderecoObj = JSON.parse(enderecoValue);
+        } catch {
+          enderecoObj = { logradouro: enderecoValue };
+        }
+      } else if (typeof enderecoValue === 'object') {
+        enderecoObj = enderecoValue;
+      }
+    }
+
+    return {
+      nomeCompleto: pessoa.nomeCompleto || pessoa.nome,
+      sexo: pessoa.sexo,
+      email: pessoa.email,
+      cpf: pessoa.cpf ? pessoa.cpf.replace(/\D/g, '') : undefined,
+      dataNasc: pessoa.data_nascimento || pessoa.dataNasc,
+      telefone: pessoa.telefone ? pessoa.telefone.replace(/\D/g, '') : undefined,
+      endereco: enderecoObj,
     };
   }
 
@@ -890,26 +927,9 @@ class ApiService {
     // Map inline pessoa fields (frontend shape) to backend expected shape if provided
     const payload: any = { ...aluno };
     if (!payload.pessoaId && aluno.pessoa) {
-      const p = aluno.pessoa;
-      payload.pessoa = {
-        nomeCompleto: p.nome,
-        sexo: p.sexo,
-        email: p.email,
-        cpf: p.cpf,
-        dataNasc: p.data_nascimento,
-        telefone: p.telefone,
-        endereco: p.endereco
-          ? {
-              logradouro: p.endereco,
-              numero: '',
-              complemento: '',
-              bairro: '',
-              cidade: 'São Paulo',
-              estado: 'SP',
-              cep: ''
-            }
-          : undefined,
-      };
+      payload.pessoa = this.normalizeInlinePessoa(aluno.pessoa);
+    } else if (!aluno.pessoa) {
+      delete payload.pessoa;
     }
     const response = await this.api.post('/api/alunos', payload);
     return response.data.data;
@@ -1005,35 +1025,7 @@ class ApiService {
     const payload: any = { ...professor };
 
     if (!payload.pessoaId && professor.pessoa) {
-      const p = professor.pessoa;
-      const enderecoValue = p.endereco;
-      let enderecoObj: any = undefined;
-
-      if (enderecoValue) {
-        try {
-          enderecoObj = typeof enderecoValue === 'string' ? JSON.parse(enderecoValue) : enderecoValue;
-        } catch {
-          enderecoObj = {
-            logradouro: enderecoValue,
-            numero: '',
-            complemento: '',
-            bairro: '',
-            cidade: 'São Paulo',
-            estado: 'SP',
-            cep: '',
-          };
-        }
-      }
-
-      payload.pessoa = {
-        nomeCompleto: p.nome,
-        sexo: p.sexo || undefined,
-        email: p.email || undefined,
-        cpf: p.cpf ? p.cpf.replace(/\D/g, '') || undefined : undefined,
-        dataNasc: p.data_nascimento || undefined,
-        telefone: p.telefone ? p.telefone.replace(/\D/g, '') || undefined : undefined,
-        endereco: enderecoObj,
-      };
+      payload.pessoa = this.normalizeInlinePessoa(professor.pessoa);
     } else if (!professor.pessoa) {
       delete payload.pessoa;
     }
@@ -1049,6 +1041,63 @@ class ApiService {
 
   async deleteProfessor(matricula: string): Promise<void> {
     await this.api.delete(`/api/professores/${matricula}`);
+  }
+
+  // Directus integrations
+  async getDirectusAlunoCandidates(options?: { refresh?: boolean }): Promise<{
+    items: DirectusAlunoCandidate[];
+    total: number;
+    fetchedAt: string;
+  }> {
+    const params: Record<string, string> = {};
+    if (options?.refresh) {
+      params.refresh = 'true';
+    }
+    const response = await this.api.get('/api/integracoes/directus/alunos', { params });
+    return response.data.data;
+  }
+
+  async getDirectusProfessorCandidates(options?: { refresh?: boolean }): Promise<{
+    items: DirectusProfessorCandidate[];
+    total: number;
+    fetchedAt: string;
+  }> {
+    const params: Record<string, string> = {};
+    if (options?.refresh) {
+      params.refresh = 'true';
+    }
+    const response = await this.api.get('/api/integracoes/directus/professores', { params });
+    return response.data.data;
+  }
+
+  async importDirectusAlunos(payload: DirectusAlunoImportPayload): Promise<DirectusAlunoImportResult[]> {
+    const normalizedItems = payload.items.map((item) => {
+      const base: any = { ...item };
+      if (!base.pessoaId && base.pessoa) {
+        base.pessoa = this.normalizeInlinePessoa(base.pessoa);
+      } else if (!base.pessoa) {
+        delete base.pessoa;
+      }
+      return base;
+    });
+
+    const response = await this.api.post('/api/integracoes/directus/alunos/importar', { items: normalizedItems });
+    return response.data.data as DirectusAlunoImportResult[];
+  }
+
+  async importDirectusProfessores(payload: DirectusProfessorImportPayload): Promise<DirectusProfessorImportResult[]> {
+    const normalizedItems = payload.items.map((item) => {
+      const base: any = { ...item };
+      if (!base.pessoaId && base.pessoa) {
+        base.pessoa = this.normalizeInlinePessoa(base.pessoa);
+      } else if (!base.pessoa) {
+        delete base.pessoa;
+      }
+      return base;
+    });
+
+    const response = await this.api.post('/api/integracoes/directus/professores/importar', { items: normalizedItems });
+    return response.data.data as DirectusProfessorImportResult[];
   }
 
   // Cursos CRUD

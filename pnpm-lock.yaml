@@ -44,6 +44,9 @@ importers:
       '@types/cookie-parser':
         specifier: ^1.4.9
         version: 1.4.10(@types/express@4.17.25)
+      axios:
+        specifier: ^1.7.7
+        version: 1.13.2
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3

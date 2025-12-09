@@ -32,6 +32,7 @@ import avaliacoesRoutes from './routes/avaliacoes.routes';
 import aulasRoutes from './routes/aulas.routes';
 import calendarioRoutes from './routes/calendario.routes';
 import reportsRoutes from './routes/reports.routes';
+import integracoesRoutes from './routes/integracoes.routes';
 
 // Import middleware
 import { securityHeaders, requestMonitoring, apiVersion } from './middleware/security.middleware';
@@ -177,6 +178,7 @@ apiRouter.use('/avaliacoes', avaliacoesRoutes);
 apiRouter.use('/aulas', aulasRoutes);
 apiRouter.use('/calendario', calendarioRoutes);
 apiRouter.use('/reports', reportsRoutes);
+apiRouter.use('/integracoes', integracoesRoutes);
 
 app.use('/api', apiRouter);
 

@@ -177,6 +177,67 @@ export interface CreateProfessorWithUser extends CreateProfessor {
   password?: string;
 }
 
+export interface DirectusAlunoCandidate {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  cellphone?: string | null;
+  cpf?: string | null;
+  birthDate?: string | null;
+  gender?: 'M' | 'F' | 'O' | null;
+  church?: string | null;
+  denomination?: string | null;
+  city?: string | null;
+  state?: string | null;
+  schedulingDate?: string | null;
+  schedulingTime?: string | null;
+  status?: string | null;
+  createdAt?: string | null;
+  course?: {
+    id?: string;
+    slug?: string | null;
+    title?: string | null;
+  } | null;
+}
+
+export interface DirectusProfessorCandidate {
+  id: string;
+  name: string;
+  position?: string | null;
+  bio?: string | null;
+  category?: string | null;
+  status?: string | null;
+  qualifications?: string | null;
+  photoUrl?: string | null;
+}
+
+export interface DirectusAlunoImportItem extends CreateAlunoWithUser {
+  sourceId: string;
+}
+
+export interface DirectusProfessorImportItem extends CreateProfessorWithUser {
+  sourceId: string;
+}
+
+export interface DirectusAlunoImportPayload {
+  items: DirectusAlunoImportItem[];
+}
+
+export interface DirectusProfessorImportPayload {
+  items: DirectusProfessorImportItem[];
+}
+
+export interface DirectusAlunoImportResult {
+  sourceId: string;
+  ra: string;
+}
+
+export interface DirectusProfessorImportResult {
+  sourceId: string;
+  matricula: string;
+}
+
 export interface Curso {
   id: number;
   nome: string;

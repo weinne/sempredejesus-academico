@@ -18,6 +18,7 @@ export * from './aula';
 export * from './avaliacao';
 export * from './frequencia';
 export * from './calendario';
+export * from './integracao';
 
 // Common DTOs
 export * from './common';

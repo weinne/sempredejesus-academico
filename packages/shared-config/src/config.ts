@@ -33,4 +33,11 @@ export const config: Config = {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
   },
+  integrations: {
+    directus: {
+      url: process.env.DIRECTUS_URL || '',
+      email: process.env.DIRECTUS_EMAIL || '',
+      password: process.env.DIRECTUS_PASSWORD || '',
+    },
+  },
 }; 

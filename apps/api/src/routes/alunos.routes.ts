@@ -7,7 +7,7 @@ import { validateParams, validateBody } from '../middleware/validation.middlewar
 import { eq, and, like, asc, desc, sql, or } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-import bcrypt from 'bcryptjs';
+import { assertPeriodoBelongsToCurso, createAlunoWithUserRecord, getAlunoCompleteByRa } from '../services/alunos.service';
 
 /**
  * @swagger
@@ -164,246 +164,22 @@ const alunosCrud = new EnhancedCrudFactory({
   orderBy: [{ field: 'ra', direction: 'asc' }],
 });
 
-const assertPeriodoBelongsToCurso = async (cursoId: number, periodoId: number | null) => {
-  if (periodoId === null) {
-    return; // Skip validation if periodoId is null
-  }
-
-  const periodo = await db
-    .select({
-      id: periodos.id,
-      curriculoId: periodos.curriculoId,
-      cursoId: curriculos.cursoId,
-    })
-    .from(periodos)
-    .leftJoin(curriculos, eq(curriculos.id, periodos.curriculoId))
-    .where(eq(periodos.id, periodoId))
-    .limit(1);
-
-  if (periodo.length === 0 || !periodo[0].cursoId) {
-    throw createError('Período informado não existe', 404);
-  }
-
-  if (periodo[0].cursoId !== cursoId) {
-    throw createError('O período selecionado não pertence ao curso informado', 400);
-  }
-};
-
-// Helper function to generate unique RA
-const generateUniqueRA = async (anoIngresso: number): Promise<string> => {
-  const year = anoIngresso.toString();
-  let sequencial = 1;
-  let ra: string;
-  
-  do {
-    ra = `${year}${sequencial.toString().padStart(3, '0')}`;
-    const existing = await db.select().from(alunos).where(eq(alunos.ra, ra)).limit(1);
-    if (existing.length === 0) break;
-    sequencial++;
-  } while (sequencial <= 999);
-  
-  if (sequencial > 999) {
-    throw createError('Não foi possível gerar RA único para o ano', 400);
-  }
-  
-  return ra;
-};
-
 // Custom method to create aluno with automatic pessoa (inline) and user creation
 const createAlunoWithUser = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = CreateAlunoWithUserSchema.parse(req.body);
-  const { createUser, username, password, ...alunoData } = validatedData as any;
-
-  // Check if RA already exists
-  if (alunoData.ra) {
-    const existingAluno = await db.select().from(alunos).where(eq(alunos.ra, alunoData.ra)).limit(1);
-    if (existingAluno.length > 0) {
-      throw createError(`RA ${alunoData.ra} já está em uso`, 400);
-    }
-  }
-
-  // Generate RA if not provided
-  const ra = alunoData.ra || await generateUniqueRA(alunoData.anoIngresso);
-
-  await assertPeriodoBelongsToCurso(alunoData.cursoId, alunoData.periodoId);
-
-  // Convert coeficienteAcad from number to string for database
-  const alunoDataForDBBase: any = {
-    ...alunoData,
-    ra,
-    coeficienteAcad: alunoData.coeficienteAcad?.toString(),
-  };
-
-  // Start transaction
-  const result = await db.transaction(async (tx) => {
-    // If pessoa inline was provided, create it first and use its ID
-    let finalPessoaId: number | undefined = alunoDataForDBBase.pessoaId;
-    if (!finalPessoaId && (alunoDataForDBBase as any).pessoa) {
-      const pessoaPayload = (alunoDataForDBBase as any).pessoa;
-      const [novaPessoa] = await tx
-        .insert(pessoas)
-        .values({
-          nomeCompleto: pessoaPayload.nomeCompleto,
-          sexo: pessoaPayload.sexo,
-          email: pessoaPayload.email,
-          cpf: pessoaPayload.cpf,
-          dataNasc: pessoaPayload.dataNasc,
-          telefone: pessoaPayload.telefone,
-          endereco: pessoaPayload.endereco,
-        })
-        .returning();
-      finalPessoaId = novaPessoa.id;
-    }
-
-    if (!finalPessoaId) {
-      throw createError('pessoaId é obrigatório (ou forneça pessoa inline)', 400);
-    }
-
-    // If a user already exists for this pessoa, ensure the ALUNO role is present
-    const existingUserForPessoa = await tx
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.pessoaId, finalPessoaId))
-      .limit(1);
-    if (existingUserForPessoa.length > 0) {
-      await tx
-        .insert(userRoles)
-        .values({ userId: existingUserForPessoa[0].id, role: 'ALUNO' })
-        .onConflictDoNothing();
-    }
-
-    const alunoInsertValues = {
-      ...alunoDataForDBBase,
-      pessoaId: finalPessoaId,
-    } as any;
-    delete (alunoInsertValues as any).pessoa; // remove inline pessoa if present
-
-    // Create aluno
-    const [novoAluno] = await tx
-      .insert(alunos)
-      .values(alunoInsertValues)
-      .returning();
-
-    // Create or upsert user + role
-    let novoUser = null;
-    if (createUser && username && password) {
-      const existingUser = await tx
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.pessoaId, finalPessoaId))
-        .limit(1);
-
-      const passwordHash = await bcrypt.hash(password, 12);
-
-      if (existingUser.length > 0) {
-        const userId = existingUser[0].id;
-        await tx
-          .insert(userRoles)
-          .values({ userId, role: 'ALUNO' })
-          .onConflictDoNothing();
-        // Optionally update password if desired (skip to avoid surprises)
-        const [u] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
-        novoUser = u || null;
-      } else {
-        [novoUser] = await tx
-          .insert(users)
-          .values({
-            pessoaId: finalPessoaId,
-            username,
-            passwordHash,
-            role: 'ALUNO',
-            isActive: 'S',
-          })
-          .returning();
-
-        await tx
-          .insert(userRoles)
-          .values({ userId: novoUser.id, role: 'ALUNO' })
-          .onConflictDoNothing();
-      }
-    }
-
-    return { aluno: novoAluno, user: novoUser };
-  });
+  const result = await createAlunoWithUserRecord(validatedData);
 
   res.status(201).json({
     success: true,
     message: 'Aluno criado com sucesso',
-    data: {
-      aluno: result.aluno,
-      user: result.user ? { id: result.user.id, username: result.user.username } : null,
-    },
+    data: result,
   });
 });
 
-// Custom method to get aluno with complete information  
+// Custom method to get aluno with complete information
 const getAlunoComplete = asyncHandler(async (req: Request, res: Response) => {
   const ra = req.params.id;
-
-  const result = await db
-    .select()
-    .from(alunos)
-    .leftJoin(pessoas, eq(alunos.pessoaId, pessoas.id))
-    .leftJoin(cursos, eq(alunos.cursoId, cursos.id))
-    .leftJoin(periodos, eq(alunos.periodoId, periodos.id))
-    .leftJoin(turnos, eq(alunos.turnoId, turnos.id))
-    .leftJoin(coortes, eq(alunos.coorteId, coortes.id))
-    .where(eq(alunos.ra, ra))
-    .limit(1);
-
-  if (result.length === 0) {
-    throw createError('Aluno not found', 404);
-  }
-
-  const row = result[0];
-  
-  // Process data to match frontend expected structure
-  const data = {
-    ra: row.alunos.ra,
-    pessoaId: row.alunos.pessoaId,
-    cursoId: row.alunos.cursoId,
-    turnoId: row.alunos.turnoId,
-    coorteId: row.alunos.coorteId,
-    periodoId: row.alunos.periodoId,
-    anoIngresso: row.alunos.anoIngresso,
-    igreja: row.alunos.igreja,
-    situacao: row.alunos.situacao,
-    coeficienteAcad: row.alunos.coeficienteAcad,
-    createdAt: row.alunos.createdAt,
-    updatedAt: row.alunos.updatedAt,
-    pessoa: row.pessoas ? {
-      id: row.pessoas.id,
-      nome: row.pessoas.nomeCompleto, // Map nomeCompleto to nome for frontend
-      sexo: row.pessoas.sexo,
-      email: row.pessoas.email,
-      cpf: row.pessoas.cpf,
-      data_nascimento: row.pessoas.dataNasc,
-      telefone: row.pessoas.telefone,
-      endereco: row.pessoas.endereco,
-    } : null,
-    curso: row.cursos ? {
-      id: row.cursos.id,
-      nome: row.cursos.nome,
-      grau: row.cursos.grau,
-    } : null,
-    turno: row.turnos ? {
-      id: row.turnos.id,
-      nome: row.turnos.nome,
-    } : null,
-    coorte: row.coortes ? {
-      id: row.coortes.id,
-      rotulo: row.coortes.rotulo,
-      anoIngresso: row.coortes.anoIngresso,
-    } : null,
-    periodo: row.periodos
-      ? {
-          id: row.periodos.id,
-          numero: row.periodos.numero,
-          nome: row.periodos.nome,
-        }
-      : null,
-  };
-
+  const data = await getAlunoCompleteByRa(ra);
   res.json({
     success: true,
     data,

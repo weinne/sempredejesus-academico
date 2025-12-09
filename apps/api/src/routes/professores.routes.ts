@@ -1,14 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { EnhancedCrudFactory } from '../core/crud.factory.enhanced';
 import { professores, pessoas, users, userRoles } from '../db/schema';
-import type { NewPessoa } from '../db/schema/pessoas';
 import { CreateProfessorSchema, UpdateProfessorSchema, CreateProfessorWithUserSchema, StringIdParamSchema } from '@seminario/shared-dtos';
 import { requireAuth, requireSecretaria, requireProfessor } from '../middleware/auth.middleware';
 import { validateParams, validateBody } from '../middleware/validation.middleware';
 import { eq, asc, desc } from 'drizzle-orm';
 import { db } from '../db';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-import bcrypt from 'bcryptjs';
+import { createProfessorWithUserRecord } from '../services/professores.service';
 
 /**
  * @swagger
@@ -320,134 +319,26 @@ const professoresCrud = new EnhancedCrudFactory({
 // Custom method to create professor with automatic user creation
 const createProfessorWithUser = asyncHandler(async (req: Request, res: Response) => {
   const validatedData = CreateProfessorWithUserSchema.parse(req.body);
-  const { createUser, username, password, pessoa: pessoaPayload, ...professorData } = validatedData;
-
-  // Ensure matrícula is unique
-  const existingProfessor = await db
-    .select({ matricula: professores.matricula })
-    .from(professores)
-    .where(eq(professores.matricula, professorData.matricula))
-    .limit(1);
-
-  if (existingProfessor.length > 0) {
-    throw createError(`Matrícula ${professorData.matricula} já está em uso`, 400);
-  }
-
-  // Start transaction
-  const result = await db.transaction(async (tx) => {
-    let finalPessoaId = professorData.pessoaId;
-
-    if (!finalPessoaId && pessoaPayload) {
-      const sexoValue = (pessoaPayload.sexo ?? 'O').toString().toUpperCase().slice(0, 1);
-      const pessoaInsertValues: NewPessoa = {
-        nomeCompleto: pessoaPayload.nomeCompleto,
-        sexo: sexoValue,
-        email: pessoaPayload.email ?? null,
-        cpf: pessoaPayload.cpf ?? null,
-        dataNasc: pessoaPayload.dataNasc ?? null,
-        telefone: pessoaPayload.telefone ?? null,
-        endereco: (pessoaPayload.endereco as any) ?? null,
-      };
-
-      const [novaPessoa] = await tx
-        .insert(pessoas)
-        .values(pessoaInsertValues)
-        .returning();
-
-      finalPessoaId = novaPessoa.id;
-    }
-
-    if (!finalPessoaId) {
-      throw createError('pessoaId é obrigatório (ou forneça pessoa inline)', 400);
-    }
-
-    // If a user already exists for this pessoa, ensure the PROFESSOR role is present
-    const existingUserForPessoa = await tx
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.pessoaId, finalPessoaId))
-      .limit(1);
-    if (existingUserForPessoa.length > 0) {
-      await tx
-        .insert(userRoles)
-        .values({ userId: existingUserForPessoa[0].id, role: 'PROFESSOR' })
-        .onConflictDoNothing();
-    }
-
-    const professorInsertValues = {
-      ...professorData,
-      pessoaId: finalPessoaId,
-    } as typeof professorData & { pessoaId: number };
-
-    const [novoProfessor] = await tx
-      .insert(professores)
-      .values(professorInsertValues)
-      .returning();
-
-    // Create or upsert user + role
-    let novoUser = null;
-    if (createUser && username && password) {
-      const existingUser = await tx
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.pessoaId, finalPessoaId))
-        .limit(1);
-
-      const passwordHash = await bcrypt.hash(password, 12);
-
-      if (existingUser.length > 0) {
-        const userId = existingUser[0].id;
-        await tx
-          .insert(userRoles)
-          .values({ userId, role: 'PROFESSOR' })
-          .onConflictDoNothing();
-        const [u] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
-        novoUser = u || null;
-      } else {
-        [novoUser] = await tx
-          .insert(users)
-          .values({
-            pessoaId: finalPessoaId,
-            username,
-            passwordHash,
-            role: 'PROFESSOR',
-            isActive: 'S',
-          })
-          .returning();
-
-        await tx
-          .insert(userRoles)
-          .values({ userId: novoUser.id, role: 'PROFESSOR' })
-          .onConflictDoNothing();
-      }
-    }
-
-    return { professor: novoProfessor, user: novoUser };
-  });
+  const result = await createProfessorWithUserRecord(validatedData);
 
   res.status(201).json({
     success: true,
     message: 'Professor criado com sucesso',
-    data: {
-      professor: result.professor,
-      user: result.user ? { id: result.user.id, username: result.user.username } : null,
-    },
+    data: result,
   });
 });
 
-// Custom method to get professor with complete information  
+// Custom GET handler with explicit joins to avoid Drizzle nested select quirks
 const getProfessorComplete = asyncHandler(async (req: Request, res: Response) => {
   const matricula = req.params.id;
 
   const result = await db
     .select({
-      // Professor fields
       matricula: professores.matricula,
       pessoaId: professores.pessoaId,
       dataInicio: professores.dataInicio,
       formacaoAcad: professores.formacaoAcad,
       situacao: professores.situacao,
-      // Pessoa fields
       pessoa: {
         id: pessoas.id,
         nomeCompleto: pessoas.nomeCompleto,
@@ -457,7 +348,7 @@ const getProfessorComplete = asyncHandler(async (req: Request, res: Response) =>
         dataNasc: pessoas.dataNasc,
         telefone: pessoas.telefone,
         endereco: pessoas.endereco,
-      }
+      },
     })
     .from(professores)
     .leftJoin(pessoas, eq(professores.pessoaId, pessoas.id))

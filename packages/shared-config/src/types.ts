@@ -21,4 +21,11 @@ export interface Config {
     windowMs: number;
     maxRequests: number;
   };
+  integrations: {
+    directus: {
+      url: string;
+      email: string;
+      password: string;
+    };
+  };
 } 

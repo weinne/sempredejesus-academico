@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/providers/auth-provider';
 import { Role } from '@/types/api';
 import { Link } from 'react-router-dom';
-import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User, Layers3, BarChart3, CalendarDays, ClipboardList, LogOut, ListOrdered, Clock, FileSpreadsheet, ArrowRight, TrendingUp, Activity, Shield, Zap } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, Calendar, FileText, Settings, User, Layers3, BarChart3, CalendarDays, ClipboardList, LogOut, ListOrdered, Clock, FileSpreadsheet, ArrowRight, TrendingUp, Activity, Shield, Zap, UploadCloud } from 'lucide-react';
 import { usePageHero } from '@/hooks/use-page-hero';
 
 const getRoleDisplayName = (role: Role): string => {
@@ -177,7 +177,7 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {canEdit && (
                 <Link to="/cursos">
                   <Button variant="outline" className="w-full justify-start h-auto p-4">
@@ -213,6 +213,19 @@ export default function DashboardPage() {
                   </div>
                 </Button>
               </Link>
+              {hasRole(Role.ADMIN) && (
+                <Link to="/config#integracoes-directus">
+                  <Button variant="outline" className="w-full justify-start h-auto p-4">
+                    <div className="flex items-center gap-3">
+                      <UploadCloud className="h-5 w-5 text-amber-600" />
+                      <div className="text-left">
+                        <div className="font-medium">Importar leads (Directus)</div>
+                        <div className="text-sm text-slate-500">Abrir integração e concluir cadastros</div>
+                      </div>
+                    </div>
+                  </Button>
+                </Link>
+              )}
             </div>
           </CardContent>
         </Card>
