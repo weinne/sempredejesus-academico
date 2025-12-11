@@ -813,6 +813,10 @@ class ApiService {
     await this.api.post(`/api/avaliacoes/${avaliacaoId}/notas`, { notas });
   }
 
+  async deleteAvaliacao(avaliacaoId: number) {
+    await this.api.delete(`/api/avaliacoes/${avaliacaoId}`);
+  }
+
   // === Sprint 8: Aulas & Frequência ===
   async getAulas(params?: { turmaId?: number; disciplinaId?: number; professorId?: string; dataInicio?: string; dataFim?: string; page?: number; limit?: number; sortBy?: string; sortOrder?: 'asc'|'desc' }) {
     const response = await this.api.get(`/api/aulas`, { params });
@@ -840,6 +844,10 @@ class ApiService {
   async updateAula(id: number, payload: Partial<import('@/types/api').CreateAula>) {
     const response = await this.api.put(`/api/aulas/${id}`, payload);
     return response.data.data as import('@/types/api').Aula;
+  }
+
+  async deleteAula(id: number) {
+    await this.api.delete(`/api/aulas/${id}`);
   }
 
   async createAulasBatch(payload: import('@/types/api').AulasBatch) {

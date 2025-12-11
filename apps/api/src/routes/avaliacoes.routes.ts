@@ -127,6 +127,35 @@ router.post(
   })
 );
 
+// DELETE /avaliacoes/:id
+/**
+ * @swagger
+ * /api/avaliacoes/{id}:
+ *   delete:
+ *     tags: [Avaliações]
+ *     summary: Remove uma avaliação existente
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema: { type: integer }
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Avaliação removida
+ */
+router.delete(
+  '/:id',
+  requireProfessor,
+  asyncHandler(async (req: Request, res: Response) => {
+    const params = IdParamSchema.parse(req.params);
+
+    const deleted = await db.delete(avaliacoes).where(eq(avaliacoes.id, params.id)).returning();
+    if (deleted.length === 0) throw createError('Avaliação não encontrada', 404);
+
+    res.json({ success: true, message: 'Avaliação removida', data: deleted[0] });
+  })
+);
+
 // GET /avaliacoes/turma/:turmaId/pesos
 /**
  * @swagger

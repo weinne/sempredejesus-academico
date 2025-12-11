@@ -241,6 +241,35 @@ router.put(
   })
 );
 
+// DELETE /aulas/:id
+/**
+ * @swagger
+ * /api/aulas/{id}:
+ *   delete:
+ *     tags: [Aulas]
+ *     summary: Remove uma aula existente
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema: { type: integer }
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Aula removida
+ */
+router.delete(
+  '/:id',
+  requireProfessor,
+  asyncHandler(async (req: Request, res: Response) => {
+    const params = IdParamSchema.parse(req.params);
+
+    const deleted = await db.delete(aulas).where(eq(aulas.id, params.id)).returning();
+    if (deleted.length === 0) throw createError('Aula não encontrada', 404);
+
+    res.json({ success: true, message: 'Aula removida', data: deleted[0] });
+  })
+);
+
 // POST /aulas/batch
 /**
  * @swagger

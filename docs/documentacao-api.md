@@ -95,8 +95,7 @@ securitySchemes:
 ### ⚙️ **Configuração do Swagger**
 
 #### **Servers Configurados**
-- **Desenvolvimento**: `http://localhost:4000`
-- **Produção**: `https://api.seminario.edu`
+- **Localhost**: `http://localhost:4000`
 
 #### **Tags Organizadas**
 - 🔐 Auth - Autenticação e autorização

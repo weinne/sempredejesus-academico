@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { apiService } from '@/services/api';
 import { Avaliacao, CreateAvaliacao, LancarNotaInput, Role, EstudanteAvaliacao, ValidacaoPesos } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, List, Calendar, AlertTriangle, CheckCircle, Save, Search, X, History, BarChart3, TrendingUp, UserCheck, Printer } from 'lucide-react';
+import { ArrowLeft, Plus, List, Calendar, AlertTriangle, CheckCircle, Save, Search, X, History, BarChart3, TrendingUp, UserCheck, Printer, Trash2, Loader2 } from 'lucide-react';
 import { usePageHero } from '@/hooks/use-page-hero';
 import { GradeUtils } from '@/lib/grade-utils';
 import { cn } from '@/lib/utils';
@@ -169,6 +169,43 @@ export default function AvaliacoesPage() {
       });
     },
   });
+
+  const deleteAvaliacao = useMutation({
+    mutationFn: (avaliacaoId: number) => apiService.deleteAvaliacao(avaliacaoId),
+    onSuccess: (_data, avaliacaoId) => {
+      toast({ title: 'Avaliação removida com sucesso!' });
+      refetchAvaliacoes();
+      queryClient.invalidateQueries({ queryKey: ['validacao-pesos', turmaId] });
+      if (typeof turmaId === 'number') {
+        queryClient.invalidateQueries({ queryKey: ['historico-avaliacoes', turmaId] });
+      }
+      setAvaliacaoSelecionada((current) => {
+        if (current === avaliacaoId) {
+          setActiveTab('avaliacoes');
+          return null;
+        }
+        return current;
+      });
+    },
+    onError: (e: any) => {
+      toast({
+        title: 'Erro ao remover avaliação',
+        description: e.message,
+        variant: 'destructive',
+      });
+    },
+  });
+  const deletingAvaliacaoId = (deleteAvaliacao.variables as number | null) ?? null;
+
+  const handleDeleteAvaliacao = useCallback(
+    (avaliacaoId: number) => {
+      if (!canEdit || !avaliacaoId) return;
+      const confirmed = window.confirm('Deseja realmente remover esta avaliação? Esta ação não pode ser desfeita.');
+      if (!confirmed) return;
+      deleteAvaliacao.mutate(avaliacaoId);
+    },
+    [canEdit, deleteAvaliacao]
+  );
 
   const handleCreateAvaliacao = () => {
     if (!canEdit || typeof turmaId !== 'number') return;
@@ -630,9 +667,29 @@ export default function AvaliacoesPage() {
                                   <Calendar className="h-4 w-4 mr-1" />
                                   {avaliacao.data}
                                 </div>
-                                <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
-                                  Lançar Notas <ArrowLeft className="h-4 w-4 ml-1 rotate-180" />
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                  <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                                    Lançar Notas <ArrowLeft className="h-4 w-4 ml-1 rotate-180" />
+                                  </Button>
+                                  {canEdit && (
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        handleDeleteAvaliacao(avaliacao.id);
+                                      }}
+                                      disabled={deleteAvaliacao.isPending && deletingAvaliacaoId === avaliacao.id}
+                                    >
+                                      {deleteAvaliacao.isPending && deletingAvaliacaoId === avaliacao.id ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-4 w-4" />
+                                      )}
+                                    </Button>
+                                  )}
+                                </div>
                               </div>
                             </CardContent>
                           </Card>

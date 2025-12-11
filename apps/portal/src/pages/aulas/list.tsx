@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSearchParams, Link } from 'react-router-dom';
 import {
   flexRender,
@@ -20,9 +20,10 @@ import { usePageHero } from '@/hooks/use-page-hero';
 import { apiService } from '@/services/api';
 import { Aula, Role } from '@/types/api';
 import { useAuth } from '@/providers/auth-provider';
-import { Plus, Calendar as CalendarIcon, List as ListIcon, Filter, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, List as ListIcon, Filter, X, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import CrudToolbar from '@/components/crud/crud-toolbar';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -51,6 +52,7 @@ const monthNames = [
 
 export default function AulasListPage() {
   const { hasRole, user } = useAuth();
+  const { toast } = useToast();
   const canEdit = hasRole([Role.ADMIN, Role.SECRETARIA, Role.PROFESSOR]);
   const isPrivileged = hasRole([Role.ADMIN, Role.SECRETARIA]);
   const [searchParams] = useSearchParams();
@@ -183,6 +185,36 @@ export default function AulasListPage() {
   });
   const aulas = aulasResp || [];
 
+  const {
+    mutate: mutateDeleteAula,
+    isPending: isDeletingAula,
+    variables: deletingAulaIdRaw,
+  } = useMutation({
+    mutationFn: (id: number) => apiService.deleteAula(id),
+    onSuccess: () => {
+      toast({ title: 'Aula removida com sucesso!' });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Falha ao remover aula',
+        description: error?.message || 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    },
+  });
+  const deletingAulaId = (deletingAulaIdRaw as number | undefined) ?? undefined;
+
+  const handleDeleteAula = useCallback(
+    (id: number) => {
+      if (!canEdit || !id) return;
+      const confirmed = window.confirm('Deseja realmente excluir esta aula? Esta ação não pode ser desfeita.');
+      if (!confirmed) return;
+      mutateDeleteAula(id);
+    },
+    [canEdit, mutateDeleteAula]
+  );
+
   // Calcular estatísticas
   const stats = useMemo(() => {
     if (!aulas || aulas.length === 0) {
@@ -274,13 +306,21 @@ export default function AulasListPage() {
                     Registrar aula
                   </Link>
                 </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeleteAula(row.original.id)}
+                  disabled={isDeletingAula && deletingAulaId === row.original.id}
+                >
+                  {isDeletingAula && deletingAulaId === row.original.id ? 'Excluindo...' : 'Excluir'}
+                </Button>
               </>
             )}
           </div>
         ),
       },
     ],
-    [canEdit]
+    [canEdit, deletingAulaId, handleDeleteAula, isDeletingAula]
   );
 
   const table = useReactTable({

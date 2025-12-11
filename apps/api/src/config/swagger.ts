@@ -20,11 +20,7 @@ const options: swaggerJSDoc.Options = {
     servers: [
       {
         url: `http://localhost:${config.server.port}`,
-        description: 'Servidor de Desenvolvimento',
-      },
-      {
-        url: 'https://api.seminario.edu',
-        description: 'Servidor de Produção',
+        description: 'Localhost',
       },
     ],
     components: {

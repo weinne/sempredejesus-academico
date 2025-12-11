@@ -113,12 +113,6 @@ export default function ConfigPage() {
                 <a href="/docs/documentacao-api" className="block underline-offset-2 hover:underline">
                   Guia da API (Swagger)
                 </a>
-                <a href="/docs/hero-section-migration" className="block underline-offset-2 hover:underline">
-                  Integração do site com Directus
-                </a>
-                <a href="/docs/producao" className="block underline-offset-2 hover:underline">
-                  Checklist de produção
-                </a>
               </CardContent>
             </Card>
           </div>
