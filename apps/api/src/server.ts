@@ -40,6 +40,22 @@ import { metricsMiddleware } from './routes/metrics.routes';
 
 const app = express();
 
+// Trust proxy - necessário quando rodando atrás de nginx/reverse proxy (Coolify)
+// Isso permite que o Express confie nos headers X-Forwarded-* do proxy
+// e o express-rate-limit possa identificar corretamente o IP do cliente
+// Apenas ativar em produção ou quando explicitamente configurado via TRUST_PROXY
+const shouldTrustProxy = 
+  config.server.nodeEnv === 'production' || 
+  process.env.TRUST_PROXY === 'true';
+  
+if (shouldTrustProxy) {
+  app.set('trust proxy', true);
+  logger.info('Trust proxy enabled (running behind reverse proxy)');
+} else {
+  app.set('trust proxy', false);
+  logger.debug('Trust proxy disabled (development mode)');
+}
+
 // Security middleware
 app.use(helmet({
   crossOriginEmbedderPolicy: false,

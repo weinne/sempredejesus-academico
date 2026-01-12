@@ -78,94 +78,116 @@ export const createAlunoWithUserRecord = async (payload: CreateAlunoWithUser): P
     coeficienteAcad: alunoData.coeficienteAcad?.toString(),
   };
 
-  const result = await db.transaction(async (tx) => {
-    let finalPessoaId = alunoDataForDB.pessoaId;
-    if (!finalPessoaId && alunoDataForDB.pessoa) {
-      const pessoaPayload = alunoDataForDB.pessoa;
-      const [novaPessoa] = await tx
-        .insert(pessoas)
-        .values({
-          nomeCompleto: pessoaPayload.nomeCompleto,
-          sexo: pessoaPayload.sexo,
-          email: pessoaPayload.email,
-          cpf: pessoaPayload.cpf,
-          dataNasc: pessoaPayload.dataNasc,
-          telefone: pessoaPayload.telefone,
-          endereco: pessoaPayload.endereco,
-        })
-        .returning();
-      finalPessoaId = novaPessoa.id;
-    }
+  try {
+    const result = await db.transaction(async (tx) => {
+      let finalPessoaId = alunoDataForDB.pessoaId;
+      if (!finalPessoaId && alunoDataForDB.pessoa) {
+        const pessoaPayload = alunoDataForDB.pessoa;
+        const [novaPessoa] = await tx
+          .insert(pessoas)
+          .values({
+            nomeCompleto: pessoaPayload.nomeCompleto,
+            sexo: pessoaPayload.sexo,
+            email: pessoaPayload.email,
+            cpf: pessoaPayload.cpf,
+            dataNasc: pessoaPayload.dataNasc,
+            telefone: pessoaPayload.telefone,
+            endereco: pessoaPayload.endereco,
+          })
+          .returning();
+        finalPessoaId = novaPessoa.id;
+      }
 
-    if (!finalPessoaId) {
-      throw createError('pessoaId é obrigatório (ou forneça pessoa inline)', 400);
-    }
+      if (!finalPessoaId) {
+        throw createError('pessoaId é obrigatório (ou forneça pessoa inline)', 400);
+      }
 
-    const existingUserForPessoa = await tx
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.pessoaId, finalPessoaId))
-      .limit(1);
-    if (existingUserForPessoa.length > 0) {
-      await tx
-        .insert(userRoles)
-        .values({ userId: existingUserForPessoa[0].id, role: 'ALUNO' })
-        .onConflictDoNothing();
-    }
-
-    const insertValues = { ...alunoDataForDB, pessoaId: finalPessoaId } as typeof alunoDataForDB;
-    delete insertValues.pessoa;
-
-    const [novoAluno] = await tx
-      .insert(alunos)
-      .values(insertValues)
-      .returning();
-
-    let novoUser: { id: number; username: string } | null = null;
-    if (createUser && username && password) {
-      const existingUser = await tx
+      const existingUserForPessoa = await tx
         .select({ id: users.id })
         .from(users)
         .where(eq(users.pessoaId, finalPessoaId))
         .limit(1);
-
-      const passwordHash = await bcrypt.hash(password, 12);
-
-      if (existingUser.length > 0) {
-        const userId = existingUser[0].id;
+      if (existingUserForPessoa.length > 0) {
         await tx
           .insert(userRoles)
-          .values({ userId, role: 'ALUNO' })
+          .values({ userId: existingUserForPessoa[0].id, role: 'ALUNO' })
           .onConflictDoNothing();
-        const [userRow] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
-        if (userRow) {
-          novoUser = { id: userRow.id, username: userRow.username };
-        }
-      } else {
-        const [createdUser] = await tx
-          .insert(users)
-          .values({
-            pessoaId: finalPessoaId,
-            username,
-            passwordHash,
-            role: 'ALUNO',
-            isActive: 'S',
-          })
-          .returning();
-        novoUser = createdUser ? { id: createdUser.id, username: createdUser.username } : null;
-        if (createdUser) {
+      }
+
+      const insertValues = { ...alunoDataForDB, pessoaId: finalPessoaId } as typeof alunoDataForDB;
+      delete insertValues.pessoa;
+
+      const [novoAluno] = await tx
+        .insert(alunos)
+        .values(insertValues)
+        .returning();
+
+      let novoUser: { id: number; username: string } | null = null;
+      if (createUser && username && password) {
+        const existingUser = await tx
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.pessoaId, finalPessoaId))
+          .limit(1);
+
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        if (existingUser.length > 0) {
+          const userId = existingUser[0].id;
           await tx
             .insert(userRoles)
-            .values({ userId: createdUser.id, role: 'ALUNO' })
+            .values({ userId, role: 'ALUNO' })
             .onConflictDoNothing();
+          const [userRow] = await tx.select().from(users).where(eq(users.id, userId)).limit(1);
+          if (userRow) {
+            novoUser = { id: userRow.id, username: userRow.username };
+          }
+        } else {
+          // Verificar se username já existe antes de inserir
+          const existingUsername = await tx
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.username, username))
+            .limit(1);
+          
+          if (existingUsername.length > 0) {
+            throw createError(`Username "${username}" já está em uso`, 400);
+          }
+
+          const [createdUser] = await tx
+            .insert(users)
+            .values({
+              pessoaId: finalPessoaId,
+              username,
+              passwordHash,
+              role: 'ALUNO',
+              isActive: 'S',
+            })
+            .returning();
+          novoUser = createdUser ? { id: createdUser.id, username: createdUser.username } : null;
+          if (createdUser) {
+            await tx
+              .insert(userRoles)
+              .values({ userId: createdUser.id, role: 'ALUNO' })
+              .onConflictDoNothing();
+          }
         }
       }
+
+      return { aluno: novoAluno, user: novoUser } satisfies CreateAlunoResult;
+    });
+
+    return result;
+  } catch (error) {
+    // Re-throw erros operacionais (criados com createError)
+    if (error && typeof error === 'object' && 'isOperational' in error && (error as any).isOperational) {
+      throw error;
     }
-
-    return { aluno: novoAluno, user: novoUser } satisfies CreateAlunoResult;
-  });
-
-  return result;
+    
+    // Para erros do PostgreSQL, propagar diretamente para que o middleware de erro possa capturar
+    // os detalhes (code, detail, constraint, etc.)
+    throw error;
+  }
 };
 
 export const getAlunoCompleteByRa = async (ra: string) => {
